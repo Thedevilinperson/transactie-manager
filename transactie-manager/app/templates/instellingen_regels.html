@@ -1,0 +1,147 @@
+{% extends "basis.html" %}
+{% from "_kiezer.html" import categoriekiezer %}
+{% block titel %}Regels{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Regels</h1>
+  <p>Vaste koppelingen tussen transactiegegevens en een categorie. Ze worden
+    eerst toegepast, van lage naar hoge prioriteit.</p>
+</div>
+
+<div class="vlak">
+  <h2>Regel toevoegen</h2>
+  <p>Een bedragvork laat toe dezelfde tegenpartij anders in te delen: onder
+    10 euro bij Total is een winkelaankoop, vanaf 10 euro is het tanken.</p>
+
+  <form method="post" data-categoriekiezer style="margin-top:14px">
+    <input type="hidden" name="actie" value="toevoegen">
+
+    <div class="rooster drie">
+      <div class="veld">
+        <label for="regelnaam">Naam van de regel</label>
+        <input type="text" id="regelnaam" name="naam" placeholder="Colruyt is boodschappen">
+      </div>
+      <div class="veld">
+        <label for="veld">Kijk naar</label>
+        <select id="veld" name="veld">
+          <option value="tegenpartij_naam">Naam tegenpartij</option>
+          <option value="tegenpartij_rekening">Rekening tegenpartij</option>
+          <option value="mededeling">Mededeling</option>
+          <option value="alles">Alle tekstvelden samen</option>
+        </select>
+      </div>
+      <div class="veld">
+        <label for="operator">Vergelijking</label>
+        <select id="operator" name="operator">
+          <option value="bevat">Bevat</option>
+          <option value="gelijk">Is precies gelijk aan</option>
+          <option value="regex">Reguliere expressie</option>
+        </select>
+      </div>
+      <div class="veld">
+        <label for="waarde">Waarde</label>
+        <input type="text" id="waarde" name="waarde" required placeholder="colruyt">
+      </div>
+      <div class="veld">
+        <label for="bedrag_min">Bedrag vanaf</label>
+        <input type="number" step="0.01" id="bedrag_min" name="bedrag_min" placeholder="10">
+      </div>
+      <div class="veld">
+        <label for="bedrag_max">Bedrag tot (niet inbegrepen)</label>
+        <input type="number" step="0.01" id="bedrag_max" name="bedrag_max" placeholder="10">
+      </div>
+      <div class="veld">
+        <label>Soort</label>
+        <div class="knoppen">
+          <span class="keuzeregel">
+            <input type="radio" id="rr_uit" name="richting" value="uit" checked>
+            <label for="rr_uit">Uitgave</label>
+          </span>
+          <span class="keuzeregel">
+            <input type="radio" id="rr_in" name="richting" value="in">
+            <label for="rr_in">Inkomst</label>
+          </span>
+        </div>
+      </div>
+      <div class="veld">
+        <label for="handelaar">Winkel of zaak toekennen</label>
+        <input type="text" id="handelaar" name="handelaar" placeholder="Colruyt">
+      </div>
+      <div class="veld">
+        <label for="land">Land toekennen</label>
+        <input type="text" id="land" name="land" placeholder="Frankrijk">
+      </div>
+      <div class="veld">
+        <label for="prioriteit">Prioriteit (laag gaat voor)</label>
+        <input type="number" id="prioriteit" name="prioriteit" value="100">
+      </div>
+    </div>
+
+    {{ categoriekiezer(keuzes) }}
+
+    <button type="submit">Regel toevoegen</button>
+  </form>
+</div>
+
+<div class="vlak">
+  <h2>Bestaande regels</h2>
+  {% if rijen %}
+    <div class="tabel-omhulsel">
+      <table>
+        <thead>
+          <tr>
+            <th class="getal">Prio</th><th>Naam</th><th>Voorwaarde</th>
+            <th>Bedrag</th><th>Indeling</th><th>Actief</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rijen %}
+            <tr>
+              <td class="getal">{{ r.prioriteit }}</td>
+              <td>{{ r.naam }}</td>
+              <td>
+                {{ r.veld.replace('_', ' ') }} {{ r.operator }} “{{ r.waarde }}”
+                {% if r.richting %}<span class="klein-detail">enkel
+                  {{ 'uitgaven' if r.richting == 'uit' else 'inkomsten' }}</span>{% endif %}
+              </td>
+              <td>
+                {% if r.bedrag_min is not none and r.bedrag_max is not none %}
+                  {{ r.bedrag_min }} tot {{ r.bedrag_max }}
+                {% elif r.bedrag_min is not none %}
+                  vanaf {{ r.bedrag_min }}
+                {% elif r.bedrag_max is not none %}
+                  tot {{ r.bedrag_max }}
+                {% else %}alle{% endif %}
+              </td>
+              <td>
+                {{ r.pad }}
+                {% if r.handelaar %}<span class="klein-detail">zaak: {{ r.handelaar }}</span>{% endif %}
+              </td>
+              <td>{{ 'ja' if r.actief else 'nee' }}</td>
+              <td>
+                <div class="knoppen">
+                  <form method="post">
+                    <input type="hidden" name="actie" value="actief">
+                    <input type="hidden" name="id" value="{{ r.id }}">
+                    <button type="submit" class="stil klein">
+                      {{ 'Uitzetten' if r.actief else 'Aanzetten' }}</button>
+                  </form>
+                  <form method="post" data-bevestig="Deze regel verwijderen?">
+                    <input type="hidden" name="actie" value="verwijderen">
+                    <input type="hidden" name="id" value="{{ r.id }}">
+                    <button type="submit" class="gevaar klein">Verwijderen</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="leeg"><strong>Nog geen regels</strong>
+      Voeg er hierboven een toe, of laat de motor ze leren bij het bevestigen.</div>
+  {% endif %}
+</div>
+{% endblock %}

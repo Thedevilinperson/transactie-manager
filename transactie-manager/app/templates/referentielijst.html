@@ -1,0 +1,34 @@
+{% extends "basis.html" %}
+{% block titel %}Referentielijst{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Referentielijst inlezen</h1>
+  <p>Je bestaande categorieënbestand omzetten naar categorieën en regels.</p>
+</div>
+
+<div class="vlak">
+  <h2>Wat er nu in de databank staat</h2>
+  <div class="balans">
+    <div class="cijfer"><b>{{ aantal_cats }}</b><span>categorieën</span></div>
+    <div class="cijfer"><b>{{ aantal_regels }}</b><span>regels uit een referentielijst</span></div>
+  </div>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="smal">
+  <div class="vlak">
+    <h2>Bestand kiezen</h2>
+    <p>Het werkblad moet vijf kolommen hebben, in deze volgorde: de
+      referentiesleutel (beschrijving en tegenpartij met een koppelteken ertussen),
+      de hoofdcategorie, de categorie, de subcategorie, en de winkel of het land
+      van bestemming.</p>
+    <div class="veld" style="margin-top:14px">
+      <label for="bestand">Excel met categorieën (.xlsx)</label>
+      <input type="file" id="bestand" name="bestand" accept=".xlsx,.xlsm" required>
+    </div>
+  </div>
+  <div class="knoppen">
+    <button type="submit">Bestand analyseren</button>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Eerste start · {{ app_naam }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/stijl.css') }}">
+</head>
+<body>
+<div class="poort">
+  <div class="kaart">
+    <h1>Eerste start</h1>
+    <p class="uitleg">Maak de beheerder aan. Dit account krijgt de sleutel waarmee
+      alle gegevens versleuteld worden.</p>
+
+    {% with meldingen = get_flashed_messages(with_categories=true) %}
+      {% for soort, tekst in meldingen %}
+        <div class="melding {{ soort }}">{{ tekst }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="post">
+      <div class="veld">
+        <label for="gebruikersnaam">Gebruikersnaam</label>
+        <input type="text" id="gebruikersnaam" name="gebruikersnaam"
+               autocomplete="username" autofocus required minlength="3">
+      </div>
+      <div class="veld">
+        <label for="wachtwoord">Wachtwoord (minstens {{ min_wachtwoord }} tekens)</label>
+        <input type="password" id="wachtwoord" name="wachtwoord"
+               autocomplete="new-password" required minlength="{{ min_wachtwoord }}">
+      </div>
+      <div class="veld">
+        <label for="herhaling">Wachtwoord herhalen</label>
+        <input type="password" id="herhaling" name="herhaling"
+               autocomplete="new-password" required minlength="{{ min_wachtwoord }}">
+      </div>
+      <button type="submit">Account aanmaken</button>
+    </form>
+
+    <p class="voet">Bewaar dit wachtwoord goed. Er is geen herstelprocedure:
+      raakt het kwijt, dan zijn de gegevens niet meer te ontsleutelen.</p>
+  </div>
+</div>
+</body>
+</html>

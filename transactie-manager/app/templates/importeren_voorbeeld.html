@@ -1,0 +1,130 @@
+{% extends "basis.html" %}
+{% block titel %}Kolommen nakijken{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Kolommen nakijken</h1>
+  <p>{{ bestandsnaam }} · {{ aantal_rijen }} rijen</p>
+</div>
+
+{% if ontbrekend %}
+  <div class="melding fout">
+    Nog niet ingevuld: {{ ontbrekend|join(', ') }}. Zonder deze velden kan een
+    rij niet ingelezen worden.
+  </div>
+{% endif %}
+
+<form method="post" action="{{ url_for('importeren.uitvoeren') }}">
+  <input type="hidden" name="token" value="{{ token }}">
+  <input type="hidden" name="bestandsnaam" value="{{ bestandsnaam }}">
+  <input type="hidden" name="profiel" value="{{ profiel }}">
+
+  <div class="vlak">
+    <h2>Welke kolom hoort bij welk veld</h2>
+    <div class="rooster drie">
+      {% for veld, label, verplicht in velden %}
+        <div class="veld">
+          <label for="map_{{ veld }}">{{ label }}{% if verplicht %} *{% endif %}</label>
+          <select id="map_{{ veld }}" name="map_{{ veld }}">
+            <option value="">— niet gebruiken —</option>
+            {% for kolom in kop %}
+              <option value="{{ kolom }}" {{ 'selected' if mapping.get(veld) == kolom }}>
+                {{ kolom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      {% endfor %}
+      <div class="veld">
+        <label for="map_bedrag_debet">Kolom debet (indien apart)</label>
+        <select id="map_bedrag_debet" name="map_bedrag_debet">
+          <option value="">— niet gebruiken —</option>
+          {% for kolom in kop %}
+            <option value="{{ kolom }}"
+                    {{ 'selected' if mapping.get('bedrag_debet') == kolom }}>{{ kolom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="veld">
+        <label for="map_bedrag_credit">Kolom credit (indien apart)</label>
+        <select id="map_bedrag_credit" name="map_bedrag_credit">
+          <option value="">— niet gebruiken —</option>
+          {% for kolom in kop %}
+            <option value="{{ kolom }}"
+                    {{ 'selected' if mapping.get('bedrag_credit') == kolom }}>{{ kolom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="vlak">
+    <h2>Instellingen voor deze invoer</h2>
+    <div class="rooster drie">
+      <div class="veld">
+        <label for="rekening_id">Rekening</label>
+        <select id="rekening_id" name="rekening_id">
+          {% for r in rekeningen %}
+            <option value="{{ r.id }}">{{ r.naam }}{% if r.iban %} — {{ r.iban }}{% endif %}</option>
+          {% endfor %}
+        </select>
+        <p class="klein-detail">Bevat het bestand een kolom met je eigen
+          rekeningnummer, dan wordt die gebruikt en dit alleen als terugval.</p>
+      </div>
+      <div class="veld">
+        <label for="decimaal">Decimaalteken</label>
+        <select id="decimaal" name="decimaal">
+          <option value="auto">Zelf bepalen</option>
+          <option value=",">Komma (1.234,56)</option>
+          <option value=".">Punt (1,234.56)</option>
+        </select>
+      </div>
+      <div class="veld">
+        <label>Automatisch indelen</label>
+        <div class="keuzeregel">
+          <input type="checkbox" id="auto_toewijzen" name="auto_toewijzen" value="1" checked>
+          <label for="auto_toewijzen">Regels en fuzzy logica meteen toepassen</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="vlak">
+    <h2>Voorbeeld van de eerste rijen</h2>
+    <div class="tabel-omhulsel">
+      <table>
+        <thead>
+          <tr>
+            <th>Datum</th>
+            <th>Tegenpartij</th>
+            <th>Rekening tegenpartij</th>
+            <th>Mededeling</th>
+            <th class="getal">Bedrag</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rij in voorbeeldrijen %}
+            <tr>
+              <td>{{ rij.boekdatum or '—' }}</td>
+              <td>{{ rij.tegenpartij_naam or '—' }}</td>
+              <td>{{ rij.tegenpartij_rekening or '—' }}</td>
+              <td>{{ rij.mededeling[:60] or '—' }}</td>
+              <td class="getal">{{ rij.bedrag if rij.bedrag is not none else '—' }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="klein-detail" style="margin-top:10px">Staat hier “—” waar een waarde
+      hoort? Pas dan de kolomkeuze hierboven aan en herlaad met de knop
+      Voorbeeld verversen.</p>
+  </div>
+
+  <div class="knoppen">
+    <button type="submit">{{ aantal_rijen }} rijen inlezen</button>
+    <a class="knop stil"
+       href="{{ url_for('importeren.voorbeeld', token=token, naam=bestandsnaam, profiel=profiel) }}">
+      Voorbeeld verversen</a>
+    <a class="knop stil" href="{{ url_for('importeren.start') }}">Annuleren</a>
+  </div>
+</form>
+{% endblock %}

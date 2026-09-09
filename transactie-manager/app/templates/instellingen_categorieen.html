@@ -1,0 +1,115 @@
+{% extends "basis.html" %}
+{% block titel %}Categorieën{% endblock %}
+
+{% macro tak(cat) %}
+  <li>
+    <div class="catrij {{ 'uit-gebruik' if not cat.actief }}">
+      <span class="naam">{{ cat.naam }}</span>
+      <span class="gereedschap">
+        <form method="post" style="display:inline">
+          <input type="hidden" name="actie" value="verplaatsen">
+          <input type="hidden" name="id" value="{{ cat.id }}">
+          <input type="hidden" name="richting" value="omhoog">
+          <button type="submit" class="stil klein" title="Hoger in de lijst">↑</button>
+        </form>
+        <form method="post" style="display:inline">
+          <input type="hidden" name="actie" value="verplaatsen">
+          <input type="hidden" name="id" value="{{ cat.id }}">
+          <input type="hidden" name="richting" value="omlaag">
+          <button type="submit" class="stil klein" title="Lager in de lijst">↓</button>
+        </form>
+        <form method="post" style="display:inline">
+          <input type="hidden" name="actie" value="actief">
+          <input type="hidden" name="id" value="{{ cat.id }}">
+          <button type="submit" class="stil klein">
+            {{ 'Uitzetten' if cat.actief else 'Aanzetten' }}</button>
+        </form>
+        <form method="post" style="display:inline"
+              data-bevestig="Categorie {{ cat.naam }} verwijderen?">
+          <input type="hidden" name="actie" value="verwijderen">
+          <input type="hidden" name="id" value="{{ cat.id }}">
+          <button type="submit" class="gevaar klein">Verwijderen</button>
+        </form>
+      </span>
+    </div>
+    {% if cat.kinderen %}
+      <ul>
+        {% for kind in cat.kinderen %}{{ tak(kind) }}{% endfor %}
+      </ul>
+    {% endif %}
+  </li>
+{% endmacro %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Categorieën</h1>
+  <p>Drie niveaus: hoofdcategorie, subcategorie en sub-subcategorie.</p>
+</div>
+
+<div class="vlak">
+  <h2>Categorie toevoegen</h2>
+  <form method="post">
+    <input type="hidden" name="actie" value="toevoegen">
+    <div class="rooster drie">
+      <div class="veld">
+        <label for="naam">Naam</label>
+        <input type="text" id="naam" name="naam" required>
+      </div>
+      <div class="veld">
+        <label for="ouder_id">Valt onder</label>
+        <select id="ouder_id" name="ouder_id">
+          <option value="">— nieuwe hoofdcategorie —</option>
+          {% for k in keuzes if k.niveau < 2 %}
+            <option value="{{ k.id }}">{{ k.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="veld">
+        <label for="soort">Soort (enkel voor hoofdcategorieën)</label>
+        <select id="soort" name="soort">
+          <option value="uit">Uitgave</option>
+          <option value="in">Inkomst</option>
+          <option value="beide">Beide</option>
+        </select>
+      </div>
+    </div>
+    <button type="submit">Categorie toevoegen</button>
+  </form>
+</div>
+
+<div class="vlak">
+  <h2>Uitgaven</h2>
+  <div class="catboom">
+    <ul>{% for cat in wortels_uit %}{{ tak(cat) }}{% endfor %}</ul>
+  </div>
+</div>
+
+<div class="vlak">
+  <h2>Inkomsten</h2>
+  <div class="catboom">
+    <ul>{% for cat in wortels_in %}{{ tak(cat) }}{% endfor %}</ul>
+  </div>
+</div>
+
+<div class="vlak">
+  <h2>Een categorie hernoemen</h2>
+  <form method="post">
+    <input type="hidden" name="actie" value="hernoemen">
+    <div class="rooster">
+      <div class="veld">
+        <label for="hernoem_id">Categorie</label>
+        <select id="hernoem_id" name="id" required>
+          {% for k in keuzes %}
+            <option value="{{ k.id }}">{{ k.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="veld">
+        <label for="nieuwe_naam">Nieuwe naam</label>
+        <input type="text" id="nieuwe_naam" name="naam" required>
+      </div>
+    </div>
+    <button type="submit" class="stil">Naam aanpassen</button>
+  </form>
+</div>
+{% endblock %}

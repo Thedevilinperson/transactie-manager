@@ -1,0 +1,76 @@
+{% extends "basis.html" %}
+{% block titel %}Grafieken{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Grafieken</h1>
+  <p>Evolutie van de bedragen doorheen de tijd.</p>
+</div>
+
+<div class="vlak">
+  <form method="get" class="filterbalk">
+    <div>
+      <label for="richting">Soort</label>
+      <select id="richting" name="richting">
+        <option value="uit" {{ 'selected' if filters.richting == 'uit' }}>Uitgaven</option>
+        <option value="in" {{ 'selected' if filters.richting == 'in' }}>Inkomsten</option>
+      </select>
+    </div>
+    <div>
+      <label for="categorie_id">Beperken tot</label>
+      <select id="categorie_id" name="categorie_id">
+        <option value="">Alle categorieën</option>
+        {% for k in keuzes %}
+          <option value="{{ k.id }}"
+                  {{ 'selected' if filters.categorie_id == k.id }}>{{ k.label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="detailniveau">Lijn per</label>
+      <select id="detailniveau" name="detailniveau">
+        <option value="hoofd" {{ 'selected' if filters.detailniveau == 'hoofd' }}>
+          Hoofdcategorie</option>
+        <option value="sub" {{ 'selected' if filters.detailniveau == 'sub' }}>
+          Subcategorie</option>
+      </select>
+    </div>
+    <div>
+      <label for="groepering">Periode</label>
+      <select id="groepering" name="groepering">
+        <option value="jaar" {{ 'selected' if groepering == 'jaar' }}>Per jaar</option>
+        <option value="maand" {{ 'selected' if groepering == 'maand' }}>Per maand</option>
+      </select>
+    </div>
+    <div>
+      <label for="rekening_id">Rekening</label>
+      <select id="rekening_id" name="rekening_id">
+        <option value="">Alle</option>
+        {% for r in rekeningen %}
+          <option value="{{ r.id }}"
+                  {{ 'selected' if filters.rekening_id == r.id }}>{{ r.naam }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="acties">
+      <button type="submit">Toepassen</button>
+      <a class="knop stil" href="{{ url_for('rapport.grafiek') }}">Wissen</a>
+    </div>
+  </form>
+</div>
+
+<div class="vlak">
+  {% if labels and series %}
+    <div data-lijngrafiek
+         data-reeksen='{{ {"labels": labels, "series": series}|tojson }}'></div>
+    <div class="legende"></div>
+    <p class="klein-detail" style="margin-top:12px">Er worden hoogstens twaalf
+      lijnen getekend, gesorteerd op totaalbedrag.</p>
+  {% else %}
+    <div class="leeg">
+      <strong>Geen cijfers voor deze selectie</strong>
+      Pas de filters aan of lees eerst transacties in.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "basis.html" %}
+{% block titel %}Gebruikers{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Gebruikers</h1>
+  <p>Iedere gebruiker krijgt een eigen kopie van de sleutel, ontgrendeld met het
+    eigen wachtwoord.</p>
+</div>
+
+<div class="vlak">
+  <h2>Gebruiker toevoegen</h2>
+  <form method="post">
+    <input type="hidden" name="actie" value="toevoegen">
+    <div class="rooster drie">
+      <div class="veld">
+        <label for="gebruikersnaam">Gebruikersnaam</label>
+        <input type="text" id="gebruikersnaam" name="gebruikersnaam" required minlength="3">
+      </div>
+      <div class="veld">
+        <label for="wachtwoord">Wachtwoord (minstens 10 tekens)</label>
+        <input type="password" id="wachtwoord" name="wachtwoord"
+               autocomplete="new-password" required minlength="10">
+      </div>
+      <div class="veld">
+        <label>Rechten</label>
+        <div class="keuzeregel">
+          <input type="checkbox" id="beheerder" name="beheerder" value="1">
+          <label for="beheerder">Mag gebruikers en logboek beheren</label>
+        </div>
+      </div>
+    </div>
+    <button type="submit">Gebruiker toevoegen</button>
+  </form>
+</div>
+
+{% for r in rijen %}
+  <form method="post" id="ww-{{ r.id }}">
+    <input type="hidden" name="actie" value="wachtwoord">
+    <input type="hidden" name="id" value="{{ r.id }}">
+  </form>
+  <form method="post" id="aan-{{ r.id }}">
+    <input type="hidden" name="actie" value="actief">
+    <input type="hidden" name="id" value="{{ r.id }}">
+  </form>
+{% endfor %}
+
+<div class="vlak">
+  <h2>Bestaande gebruikers</h2>
+  <div class="tabel-omhulsel">
+    <table>
+      <thead>
+        <tr><th>Gebruikersnaam</th><th>Rechten</th><th>Laatst aangemeld</th>
+          <th>Nieuw wachtwoord</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for r in rijen %}
+          <tr>
+            <td>{{ r.naam }}{% if r.id == eigen_id %}
+              <span class="klein-detail">jij</span>{% endif %}</td>
+            <td>{{ 'beheerder' if r.beheerder else 'gebruiker' }}
+              {% if not r.actief %}<span class="merkje geen">uitgezet</span>{% endif %}</td>
+            <td>{{ r.laatste_login[:16].replace('T', ' ') if r.laatste_login else '—' }}</td>
+            <td>
+              <input type="password" name="wachtwoord" form="ww-{{ r.id }}"
+                     autocomplete="new-password" minlength="10"
+                     aria-label="Nieuw wachtwoord voor {{ r.naam }}">
+            </td>
+            <td>
+              <div class="knoppen">
+                <button type="submit" class="stil klein" form="ww-{{ r.id }}">Instellen</button>
+                {% if r.id != eigen_id %}
+                  <button type="submit" class="stil klein" form="aan-{{ r.id }}">
+                    {{ 'Uitzetten' if r.actief else 'Aanzetten' }}</button>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

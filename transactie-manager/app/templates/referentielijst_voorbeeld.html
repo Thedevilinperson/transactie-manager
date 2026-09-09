@@ -1,0 +1,91 @@
+{% extends "basis.html" %}
+{% block titel %}Referentielijst nakijken{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Referentielijst nakijken</h1>
+  <p>{{ naam }} · {{ analyse.rijen }} rijen</p>
+</div>
+
+<div class="vlak">
+  <h2>Wat er gevonden is</h2>
+  <div class="balans">
+    <div class="cijfer"><b>{{ analyse.hoofdcategorieen }}</b><span>hoofdcategorieën</span></div>
+    <div class="cijfer"><b>{{ analyse.categorieen }}</b><span>categorieën</span></div>
+    <div class="cijfer"><b>{{ analyse.subcategorieen }}</b><span>subcategorieën</span></div>
+  </div>
+  <div class="balans" style="margin-top:22px">
+    <div class="cijfer in"><b>{{ analyse.sleutelregels }}</b>
+      <span>regels op de volledige sleutel</span></div>
+    <div class="cijfer"><b>{{ analyse.partijregels }}</b>
+      <span>regels op enkel de tegenpartij</span></div>
+    <div class="cijfer uit"><b>{{ analyse.overgeslagen }}</b>
+      <span>rijen zonder hoofdcategorie</span></div>
+  </div>
+</div>
+
+{% if analyse.botsingen %}
+  <div class="vlak">
+    <h2>Tegenpartijen met meer dan één indeling</h2>
+    <p>Voor {{ analyse.botsingen }} tegenpartijen verwijst de lijst naar
+      verschillende categorieën. Voor die tegenpartijen wordt geen brede regel
+      gemaakt, alleen de exacte sleutelregels. De fuzzy stap vangt ze verder op.</p>
+    <p class="klein-detail" style="margin-top:10px">
+      {{ analyse.voorbeeld_botsingen|join(' · ') }}</p>
+  </div>
+{% endif %}
+
+<div class="vlak">
+  <h2>De boom die hieruit volgt</h2>
+  <div class="catboom">
+    <ul>
+      {% for hoofd, subs in analyse.boom.items() %}
+        <li>
+          <div class="catrij"><span class="naam"><strong>{{ hoofd }}</strong></span></div>
+          {% if subs %}
+            <ul>
+              {% for cat, subsubs in subs.items() %}
+                <li>
+                  <div class="catrij"><span class="naam">{{ cat }}</span></div>
+                  {% if subsubs %}
+                    <ul>
+                      {% for s in subsubs %}
+                        <li><div class="catrij"><span class="naam">{{ s }}</span></div></li>
+                      {% endfor %}
+                    </ul>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+
+<form method="post" action="{{ url_for('bijzonder.referentielijst_uitvoeren') }}">
+  <input type="hidden" name="token" value="{{ token }}">
+  <div class="vlak">
+    <h2>Hoe inlezen</h2>
+    <div class="keuzeregel">
+      <input type="checkbox" id="vervang" name="vervang" value="1" checked>
+      <label for="vervang">Bestaande categorieën en regels eerst wissen</label>
+    </div>
+    <p class="klein-detail">Transacties blijven bestaan, maar verliezen hun
+      categorie. Zet daarna “opnieuw indelen” aan om ze meteen te herverdelen.</p>
+    <div class="keuzeregel" style="margin-top:12px">
+      <input type="checkbox" id="partijregels" name="partijregels" value="1" checked>
+      <label for="partijregels">Ook brede regels maken op enkel de tegenpartij</label>
+    </div>
+    <div class="keuzeregel" style="margin-top:12px">
+      <input type="checkbox" id="herindelen" name="herindelen" value="1" checked>
+      <label for="herindelen">Na het inlezen alle transacties opnieuw indelen</label>
+    </div>
+  </div>
+  <div class="knoppen">
+    <button type="submit">Referentielijst inlezen</button>
+    <a class="knop stil" href="{{ url_for('bijzonder.referentielijst') }}">Annuleren</a>
+  </div>
+</form>
+{% endblock %}

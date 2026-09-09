@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aanmelden · {{ app_naam }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/stijl.css') }}">
+</head>
+<body>
+<div class="poort">
+  <div class="kaart">
+    <h1>{{ app_naam }}</h1>
+    <p class="uitleg">Meld je aan om je huishoudboekje te openen.</p>
+
+    {% with meldingen = get_flashed_messages(with_categories=true) %}
+      {% for soort, tekst in meldingen %}
+        <div class="melding {{ soort }}">{{ tekst }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="post">
+      <input type="hidden" name="volgende" value="{{ volgende }}">
+      <div class="veld">
+        <label for="gebruikersnaam">Gebruikersnaam</label>
+        <input type="text" id="gebruikersnaam" name="gebruikersnaam"
+               autocomplete="username" autofocus required>
+      </div>
+      <div class="veld">
+        <label for="wachtwoord">Wachtwoord</label>
+        <input type="password" id="wachtwoord" name="wachtwoord"
+               autocomplete="current-password" required>
+      </div>
+      <button type="submit">Aanmelden</button>
+    </form>
+
+    <p class="voet">Je wachtwoord ontgrendelt de sleutel waarmee je gegevens
+      versleuteld zijn. Zonder dat wachtwoord is de databank onleesbaar.</p>
+  </div>
+</div>
+</body>
+</html>

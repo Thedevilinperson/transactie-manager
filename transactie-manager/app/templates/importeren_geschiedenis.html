@@ -1,0 +1,48 @@
+{% extends "basis.html" %}
+{% block titel %}Eerdere invoer{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Eerdere invoer</h1>
+  <p>Terugdraaien verwijdert alle transacties uit die invoer.</p>
+</div>
+
+<div class="vlak">
+  {% if rijen %}
+    <div class="tabel-omhulsel">
+      <table>
+        <thead>
+          <tr>
+            <th>Tijdstip</th><th>Bestand</th><th>Bank</th>
+            <th class="getal">Rijen</th><th class="getal">Nieuw</th>
+            <th class="getal">Dubbel</th><th>Door</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rijen %}
+            <tr>
+              <td>{{ r.tijdstip[:16].replace('T', ' ') }}</td>
+              <td>{{ r.bestand }}</td>
+              <td>{{ r.profiel }}</td>
+              <td class="getal">{{ r.aantal_rijen }}</td>
+              <td class="getal">{{ r.nieuw }}</td>
+              <td class="getal">{{ r.dubbel }}</td>
+              <td>{{ r.gebruiker }}</td>
+              <td>
+                <form method="post"
+                      action="{{ url_for('importeren.terugdraaien', batch_id=r.id) }}"
+                      data-bevestig="Alle transacties uit deze invoer verwijderen?">
+                  <button type="submit" class="gevaar klein">Terugdraaien</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="leeg"><strong>Nog niets ingelezen</strong>
+      Lees een bankafschrift in om te beginnen.</div>
+  {% endif %}
+</div>
+{% endblock %}

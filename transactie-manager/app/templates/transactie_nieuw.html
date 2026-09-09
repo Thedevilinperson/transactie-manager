@@ -1,0 +1,93 @@
+{% extends "basis.html" %}
+{% from "_kiezer.html" import categoriekiezer %}
+{% block titel %}Nieuwe transactie{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Nieuwe transactie</h1>
+  <p>Laat de categorie leeg om ze automatisch te laten toewijzen.</p>
+</div>
+
+<form method="post" class="smal" data-categoriekiezer>
+  <div class="vlak">
+    <h2>Verrichting</h2>
+    <div class="rooster">
+      <div class="veld">
+        <label for="boekdatum">Boekingsdatum</label>
+        <input type="date" id="boekdatum" name="boekdatum" value="{{ vandaag }}" required>
+      </div>
+      <div class="veld">
+        <label for="valutadatum">Valutadatum</label>
+        <input type="date" id="valutadatum" name="valutadatum">
+      </div>
+      <div class="veld">
+        <label for="rekening_id">Rekening</label>
+        <select id="rekening_id" name="rekening_id" required>
+          {% for r in rekeningen %}
+            <option value="{{ r.id }}">{{ r.naam }}{% if r.iban %} — {{ r.iban }}{% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="veld">
+        <label for="bedrag">Bedrag</label>
+        <input type="text" id="bedrag" name="bedrag" inputmode="decimal"
+               placeholder="45,80" required>
+      </div>
+      <div class="veld breed">
+        <label>Soort</label>
+        <div class="knoppen">
+          <span class="keuzeregel">
+            <input type="radio" id="richting_uit" name="richting" value="uit" checked>
+            <label for="richting_uit">Uitgave</label>
+          </span>
+          <span class="keuzeregel">
+            <input type="radio" id="richting_in" name="richting" value="in">
+            <label for="richting_in">Inkomst</label>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="vlak">
+    <h2>Tegenpartij</h2>
+    <div class="rooster">
+      <div class="veld">
+        <label for="tegenpartij_naam">Naam tegenpartij</label>
+        <input type="text" id="tegenpartij_naam" name="tegenpartij_naam">
+      </div>
+      <div class="veld">
+        <label for="tegenpartij_rekening">Rekening tegenpartij</label>
+        <input type="text" id="tegenpartij_rekening" name="tegenpartij_rekening"
+               placeholder="BE00 0000 0000 0000">
+      </div>
+      <div class="veld">
+        <label for="begunstigde">Naam begunstigde</label>
+        <input type="text" id="begunstigde" name="begunstigde">
+      </div>
+      <div class="veld">
+        <label for="handelaar">Winkel, restaurant of andere zaak</label>
+        <input type="text" id="handelaar" name="handelaar">
+      </div>
+      <div class="veld breed">
+        <label for="mededeling">Mededeling</label>
+        <textarea id="mededeling" name="mededeling" rows="2"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="vlak">
+    <h2>Indeling</h2>
+    {{ categoriekiezer(alle_keuzes) }}
+    <div class="veld">
+      <label for="land">Land van bestemming (bij vakantie-uitgaven)</label>
+      <input type="text" id="land" name="land" placeholder="Frankrijk">
+    </div>
+  </div>
+
+  <div class="knoppen">
+    <button type="submit">Transactie bewaren</button>
+    <a class="knop stil" href="{{ url_for('tx.lijst') }}">Annuleren</a>
+  </div>
+</form>
+{% endblock %}

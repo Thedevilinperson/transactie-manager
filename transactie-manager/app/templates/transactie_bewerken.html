@@ -1,0 +1,74 @@
+{% extends "basis.html" %}
+{% from "_kiezer.html" import categoriekiezer %}
+{% block titel %}Transactie bewerken{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Transactie bewerken</h1>
+  <p>{{ tx.boekdatum|datum }} ·
+    <span class="{{ 'bedrag-in' if tx.richting == 'in' else 'bedrag-uit' }}">
+      {{ tx.bedrag|euro }} EUR</span></p>
+</div>
+
+{% if tx.toelichting %}
+  <div class="vlak">
+    <h2>Hoe deze indeling tot stand kwam</h2>
+    <p>
+      <span class="merkje {{ tx.methode }}">{{ tx.methode }}</span>
+      {{ tx.toelichting }}
+    </p>
+  </div>
+{% endif %}
+
+<form method="post" class="smal" data-categoriekiezer>
+  <input type="hidden" name="terug" value="{{ terug }}">
+
+  <div class="vlak">
+    <h2>Gegevens</h2>
+    <div class="rooster">
+      <div class="veld">
+        <label for="tegenpartij_naam">Naam tegenpartij</label>
+        <input type="text" id="tegenpartij_naam" name="tegenpartij_naam"
+               value="{{ tx.tegenpartij_naam }}">
+      </div>
+      <div class="veld">
+        <label for="handelaar">Winkel, restaurant of andere zaak</label>
+        <input type="text" id="handelaar" name="handelaar" value="{{ tx.handelaar }}">
+      </div>
+      <div class="veld breed">
+        <label for="mededeling">Mededeling</label>
+        <textarea id="mededeling" name="mededeling" rows="2">{{ tx.mededeling }}</textarea>
+      </div>
+      <div class="veld">
+        <label>Rekening tegenpartij</label>
+        <input type="text" value="{{ tx.tegenpartij_rekening }}" readonly>
+      </div>
+      <div class="veld">
+        <label for="land">Land van bestemming</label>
+        <input type="text" id="land" name="land" value="{{ tx.land }}">
+      </div>
+    </div>
+  </div>
+
+  <div class="vlak">
+    <h2>Indeling</h2>
+    {{ categoriekiezer(alle_keuzes, tx.categorie_id, tx.subcategorie_id, tx.subsub_id) }}
+    <div class="keuzeregel">
+      <input type="checkbox" id="onthouden" name="onthouden" value="1">
+      <label for="onthouden">Deze keuze onthouden als vaste regel voor deze tegenpartij</label>
+    </div>
+  </div>
+
+  <div class="knoppen">
+    <button type="submit">Opslaan en bevestigen</button>
+    <a class="knop stil" href="{{ terug or url_for('tx.lijst') }}">Annuleren</a>
+  </div>
+</form>
+
+<form method="post" action="{{ url_for('tx.verwijderen', tx_id=tx.id) }}"
+      class="smal" style="margin-top:8px"
+      data-bevestig="Deze transactie definitief verwijderen?">
+  <input type="hidden" name="terug" value="{{ terug }}">
+  <button type="submit" class="gevaar">Transactie verwijderen</button>
+</form>
+{% endblock %}

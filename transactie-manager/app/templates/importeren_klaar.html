@@ -1,0 +1,32 @@
+{% extends "basis.html" %}
+{% block titel %}Invoer klaar{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Invoer klaar</h1>
+  <p>{{ totaal }} rijen verwerkt</p>
+</div>
+
+<div class="vlak">
+  <div class="balans">
+    <div class="cijfer in"><b>{{ nieuw }}</b><span>nieuw toegevoegd</span></div>
+    <div class="cijfer"><b>{{ dubbel }}</b><span>al aanwezig, overgeslagen</span></div>
+    <div class="cijfer uit"><b>{{ overgeslagen }}</b><span>onleesbaar</span></div>
+  </div>
+</div>
+
+{% if fouten %}
+  <div class="vlak">
+    <h2>Rijen die niet gelukt zijn</h2>
+    <ul>
+      {% for fout in fouten %}<li>{{ fout }}</li>{% endfor %}
+    </ul>
+  </div>
+{% endif %}
+
+<div class="knoppen">
+  <a class="knop" href="{{ url_for('tx.nazicht') }}">Naar het nazicht</a>
+  <a class="knop stil" href="{{ url_for('tx.lijst') }}">Transacties bekijken</a>
+  <a class="knop stil" href="{{ url_for('importeren.start') }}">Nog een bestand</a>
+</div>
+{% endblock %}

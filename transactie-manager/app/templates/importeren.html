@@ -1,0 +1,52 @@
+{% extends "basis.html" %}
+{% block titel %}Bestand inlezen{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Bestand inlezen</h1>
+  <p>Excel of CSV van je bank. Je krijgt de kolomindeling eerst ter controle.</p>
+  <div class="rechts">
+    <a class="knop stil" href="{{ url_for('importeren.geschiedenis') }}">Eerdere invoer</a>
+  </div>
+</div>
+
+{% if not rekeningen %}
+  <div class="melding fout">
+    Er is nog geen rekening ingesteld. Voeg er eerst een toe bij
+    <a href="{{ url_for('instellingen.rekeningen') }}">Rekeningen</a>.
+  </div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="smal">
+  <div class="vlak">
+    <h2>Bestand kiezen</h2>
+    <div class="veld">
+      <label for="bestand">Afschrift (.xlsx, .xlsm of .csv)</label>
+      <input type="file" id="bestand" name="bestand"
+             accept=".xlsx,.xlsm,.csv,.txt,.tsv" required>
+    </div>
+    <div class="veld">
+      <label for="profiel">Bank</label>
+      <select id="profiel" name="profiel">
+        {% for sleutel, profiel in profielen.items() %}
+          <option value="{{ sleutel }}">{{ profiel.naam }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <p class="klein-detail">Staat je bank er niet bij? Kies “Automatisch herkennen”;
+      je kan de kolommen daarna alsnog zelf aanduiden.</p>
+  </div>
+
+  <div class="knoppen">
+    <button type="submit" {{ 'disabled' if not rekeningen }}>Kolommen bekijken</button>
+  </div>
+</form>
+
+<div class="vlak">
+  <h2>Wat er ingelezen wordt</h2>
+  <p>Elke rij wordt één transactie, met datum, rekeningnummers, naam van de
+    tegenpartij, naam van de begunstigde en één of meer mededelingen. Rijen die
+    al in de databank staan worden overgeslagen, dus je mag gerust overlappende
+    afschriften inlezen.</p>
+</div>
+{% endblock %}

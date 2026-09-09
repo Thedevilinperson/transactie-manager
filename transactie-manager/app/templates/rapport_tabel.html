@@ -1,0 +1,115 @@
+{% extends "basis.html" %}
+{% block titel %}Jaartabel{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Jaartabel</h1>
+  <p>Klik op een driehoekje om subcategorieën uit te klappen.</p>
+  <div class="rechts">
+    <a class="knop stil"
+       href="{{ url_for('rapport.tabel_csv', **request.args) }}">Uitvoer als CSV</a>
+  </div>
+</div>
+
+<div class="vlak">
+  <form method="get" class="filterbalk">
+    <div>
+      <label for="richting">Soort</label>
+      <select id="richting" name="richting">
+        <option value="uit" {{ 'selected' if filters.richting == 'uit' }}>Uitgaven</option>
+        <option value="in" {{ 'selected' if filters.richting == 'in' }}>Inkomsten</option>
+      </select>
+    </div>
+    <div>
+      <label for="categorie_id">Beperken tot</label>
+      <select id="categorie_id" name="categorie_id">
+        <option value="">Alle categorieën</option>
+        {% for k in keuzes %}
+          <option value="{{ k.id }}"
+                  {{ 'selected' if filters.categorie_id == k.id }}>{{ k.label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="rekening_id">Rekening</label>
+      <select id="rekening_id" name="rekening_id">
+        <option value="">Alle</option>
+        {% for r in rekeningen %}
+          <option value="{{ r.id }}"
+                  {{ 'selected' if filters.rekening_id == r.id }}>{{ r.naam }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="van">Van</label>
+      <input type="date" id="van" name="van" value="{{ filters.van or '' }}">
+    </div>
+    <div>
+      <label for="tot">Tot</label>
+      <input type="date" id="tot" name="tot" value="{{ filters.tot or '' }}">
+    </div>
+    <div>
+      <label>Alleen bevestigd</label>
+      <div class="keuzeregel">
+        <input type="checkbox" id="alleen_bevestigd" name="alleen_bevestigd" value="1"
+               {{ 'checked' if filters.alleen_bevestigd }}>
+        <label for="alleen_bevestigd">Nazicht weglaten</label>
+      </div>
+    </div>
+    <div class="acties">
+      <button type="submit">Toepassen</button>
+      <a class="knop stil" href="{{ url_for('rapport.tabel') }}">Wissen</a>
+    </div>
+  </form>
+</div>
+
+<div class="vlak">
+  {% if rijen and jaren %}
+    <div class="tabel-omhulsel">
+      <table data-boomtabel>
+        <thead>
+          <tr>
+            <th>Categorie</th>
+            {% for jaar in jaren %}<th class="getal">{{ jaar }}</th>{% endfor %}
+            <th class="getal">Totaal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rij in rijen %}
+            <tr class="boomrij n{{ rij.niveau }}"
+                data-sleutel="{{ rij.sleutel }}" data-ouder="{{ rij.ouder }}">
+              <td class="naam">
+                {% if rij.heeft_kinderen %}
+                  <button type="button" class="uitklap" aria-expanded="false"
+                          aria-label="Uitklappen">▸</button>
+                {% else %}
+                  <span class="uitklap" aria-hidden="true"></span>
+                {% endif %}
+                {{ rij.naam }}
+              </td>
+              {% for jaar in jaren %}
+                <td class="getal">{{ rij.per_jaar.get(jaar, 0)|euro }}</td>
+              {% endfor %}
+              <td class="getal"><strong>{{ rij.totaal|euro }}</strong></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td>Alles samen</td>
+            {% for jaar in jaren %}
+              <td class="getal">{{ totalen.get(jaar, 0)|euro }}</td>
+            {% endfor %}
+            <td class="getal">{{ totalen.get('totaal', 0)|euro }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  {% else %}
+    <div class="leeg">
+      <strong>Geen cijfers voor deze selectie</strong>
+      Pas de filters aan of lees eerst transacties in.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,131 @@
+{% extends "basis.html" %}
+{% block titel %}Nazicht{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Nazicht</h1>
+  <p>Wat de motor niet met zekerheid kon indelen.</p>
+  <div class="rechts">
+    <form method="post" action="{{ url_for('tx.herindelen') }}">
+      <button type="submit" class="stil">Opnieuw indelen</button>
+    </form>
+  </div>
+</div>
+
+<div class="vlak">
+  <h2>Voorgesteld, nog te bevestigen</h2>
+  <p>Deze transacties lijken sterk op eerdere, maar niet zeker genoeg om
+    zonder nazicht door te laten.</p>
+
+  {% if onzeker %}
+    <div class="tabel-omhulsel" style="margin-top:14px">
+      <table>
+        <thead>
+          <tr>
+            <th>Datum</th>
+            <th>Tegenpartij</th>
+            <th>Voorstel</th>
+            <th>Zekerheid</th>
+            <th class="getal">Bedrag</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for tx in onzeker %}
+            <tr class="status-nazicht">
+              <td>{{ tx.boekdatum|datum }}</td>
+              <td>
+                {{ tx.handelaar or tx.tegenpartij_naam or "Onbekend" }}
+                <span class="klein-detail">{{ tx.mededeling[:60] }}</span>
+              </td>
+              <td>
+                {{ pad_tekst(tx.categorie_id, tx.subcategorie_id, tx.subsub_id) }}
+                <span class="klein-detail">{{ tx.toelichting }}</span>
+              </td>
+              <td>
+                <span class="merkje {{ tx.methode }}">{{ tx.zekerheid|procent }}</span>
+              </td>
+              <td class="getal {{ 'bedrag-in' if tx.richting == 'in' else 'bedrag-uit' }}">
+                {{ tx.bedrag|euro }}
+              </td>
+              <td>
+                <div class="knoppen">
+                  <form method="post" action="{{ url_for('tx.bevestigen', tx_id=tx.id) }}">
+                    <button type="submit" class="klein">Klopt</button>
+                  </form>
+                  <a class="knop stil klein"
+                     href="{{ url_for('tx.bewerken', tx_id=tx.id, terug=url_for('tx.nazicht')) }}">
+                    Aanpassen</a>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <form method="post" action="{{ url_for('tx.alles_bevestigen') }}" style="margin-top:14px"
+          data-bevestig="Alle voorstellen in één keer bevestigen?">
+      <button type="submit" class="stil">Alle voorstellen bevestigen</button>
+    </form>
+  {% else %}
+    <div class="leeg"><strong>Niets te bevestigen</strong>Alles is ingedeeld.</div>
+  {% endif %}
+</div>
+
+<div class="vlak">
+  <h2>Zonder categorie</h2>
+  <p>Geen regel en geen gelijkaardige transactie gevonden.
+    {% if ai_actief %}
+      Vraag het AI-model om een voorstel, of deel handmatig in.
+    {% else %}
+      Deel handmatig in, of zet het AI-model aan bij
+      <a href="{{ url_for('instellingen.model') }}">Automatisch indelen</a>.
+    {% endif %}
+  </p>
+
+  {% if open_rijen %}
+    <div class="tabel-omhulsel" style="margin-top:14px">
+      <table>
+        <thead>
+          <tr>
+            <th>Datum</th>
+            <th>Tegenpartij</th>
+            <th>Mededeling</th>
+            <th class="getal">Bedrag</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for tx in open_rijen %}
+            <tr class="status-niet_toegewezen">
+              <td>{{ tx.boekdatum|datum }}</td>
+              <td>{{ tx.tegenpartij_naam or "Onbekend" }}</td>
+              <td>
+                {{ tx.mededeling[:70] }}
+                <span class="klein-detail" data-ai-uitvoer="{{ tx.id }}"></span>
+              </td>
+              <td class="getal {{ 'bedrag-in' if tx.richting == 'in' else 'bedrag-uit' }}">
+                {{ tx.bedrag|euro }}
+              </td>
+              <td>
+                <div class="knoppen">
+                  {% if ai_actief %}
+                    <button type="button" class="stil klein" data-ai-voor="{{ tx.id }}">
+                      Vraag het model</button>
+                  {% endif %}
+                  <a class="knop stil klein"
+                     href="{{ url_for('tx.bewerken', tx_id=tx.id, terug=url_for('tx.nazicht')) }}">
+                    Indelen</a>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="leeg"><strong>Alles heeft een categorie</strong>Niets meer te doen hier.</div>
+  {% endif %}
+</div>
+{% endblock %}

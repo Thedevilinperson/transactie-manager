@@ -1,0 +1,43 @@
+{# Drie gekoppelde keuzelijsten. De sub- en sub-subcategorie tonen alleen de
+   waarden die onder de gekozen bovenliggende categorie hangen. #}
+
+{% macro categoriekiezer(keuzes, categorie_id=None, subcategorie_id=None, subsub_id=None) %}
+<div class="rooster drie">
+  <div class="veld">
+    <label for="categorie_id">Hoofdcategorie</label>
+    <select id="categorie_id" name="categorie_id" data-cat-niveau="0">
+      <option value="">— kies —</option>
+      {% for k in keuzes if k.niveau == 0 %}
+        <option value="{{ k.id }}" data-soort="{{ k.soort }}"
+                {{ 'selected' if categorie_id == k.id }}>{{ k.naam }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="veld">
+    <label for="subcategorie_id">Subcategorie</label>
+    <select id="subcategorie_id" name="subcategorie_id" data-cat-niveau="1"
+            data-gekozen="{{ subcategorie_id or '' }}">
+      {% if subcategorie_id %}
+        {% for k in keuzes if k.id == subcategorie_id %}
+          <option value="{{ k.id }}" selected>{{ k.naam }}</option>
+        {% endfor %}
+      {% else %}
+        <option value="">— kies eerst een hoofdcategorie —</option>
+      {% endif %}
+    </select>
+  </div>
+  <div class="veld">
+    <label for="subsub_id">Sub-subcategorie</label>
+    <select id="subsub_id" name="subsub_id" data-cat-niveau="2"
+            data-gekozen="{{ subsub_id or '' }}">
+      {% if subsub_id %}
+        {% for k in keuzes if k.id == subsub_id %}
+          <option value="{{ k.id }}" selected>{{ k.naam }}</option>
+        {% endfor %}
+      {% else %}
+        <option value="">— kies eerst een subcategorie —</option>
+      {% endif %}
+    </select>
+  </div>
+</div>
+{% endmacro %}

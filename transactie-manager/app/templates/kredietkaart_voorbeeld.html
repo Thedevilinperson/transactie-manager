@@ -1,0 +1,121 @@
+{% extends "basis.html" %}
+{% block titel %}Uittreksel nakijken{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Uittreksel nakijken</h1>
+  <p>{{ naam }}{% if uittreksel.kaart %} · {{ uittreksel.kaart }}{% endif %}
+    {% if uittreksel.periode %} · {{ uittreksel.periode }}{% endif %}</p>
+</div>
+
+<div class="vlak">
+  <div class="balans">
+    <div class="cijfer in"><b>{{ uittreksel.herkende|length }}</b>
+      <span>aankopen herkend</span></div>
+    <div class="cijfer"><b>{{ uittreksel.som|euro }}</b><span>som van de aankopen</span></div>
+    {% if uittreksel.totaal %}
+      <div class="cijfer"><b>{{ uittreksel.totaal|euro }}</b>
+        <span>totaal op het uittreksel</span></div>
+    {% endif %}
+  </div>
+  {% if uittreksel.totaal and (uittreksel.som - uittreksel.totaal)|abs > 0.01 %}
+    <div class="melding fout" style="margin-top:16px">
+      De som van de herkende aankopen wijkt af van het totaal op het uittreksel.
+      Kijk hieronder na welke regels ontbreken, of kies een andere opmaak.
+    </div>
+  {% endif %}
+</div>
+
+<form method="post" action="{{ url_for('bijzonder.kredietkaart_uitvoeren') }}">
+  <input type="hidden" name="token" value="{{ token }}">
+  <input type="hidden" name="patroon" value="{{ uittreksel.patroon }}">
+
+  <div class="vlak">
+    <h2>Waar de aankopen bij horen</h2>
+    <div class="rooster">
+      <div class="veld">
+        <label for="afrekening_id">Hang ze onder deze afrekening</label>
+        <select id="afrekening_id" name="afrekening_id">
+          <option value="">— geen, boek ze los —</option>
+          {% for a in afrekeningen %}
+            <option value="{{ a.id }}">
+              {{ a.boekdatum }} · {{ a.bedrag }} · {{ a.omschrijving[:50] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="veld">
+        <label for="rekening_id">Rekening (als je ze los boekt)</label>
+        <select id="rekening_id" name="rekening_id">
+          {% for r in rekeningen %}
+            <option value="{{ r.id }}">{{ r.naam }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <p class="klein-detail">Kies je een afrekening, dan telt die niet meer mee in
+      de overzichten en komen deze aankopen in de plaats.</p>
+  </div>
+
+  <div class="vlak">
+    <h2>Herkende aankopen</h2>
+    <p>Vink af wat je wil overnemen. De categorie wordt bepaald zoals bij een
+      gewone invoer: eerst de regels, dan de fuzzy vergelijking.</p>
+
+    {% if uittreksel.herkende %}
+      <div class="tabel-omhulsel" style="margin-top:14px">
+        <table>
+          <thead>
+            <tr><th></th><th>Datum</th><th>Omschrijving</th>
+              <th>Vreemde munt</th><th class="getal">Bedrag</th></tr>
+          </thead>
+          <tbody>
+            {% for r in uittreksel.herkende %}
+              <tr>
+                <td><input type="checkbox" name="regel" value="{{ r.nummer }}" checked
+                           aria-label="Deze aankoop overnemen"></td>
+                <td>{{ r.datum }}</td>
+                <td>{{ r.omschrijving }}</td>
+                <td>{{ r.origineel_bedrag or '—' }}</td>
+                <td class="getal {{ 'bedrag-in' if r.bedrag > 0 else 'bedrag-uit' }}">
+                  {{ r.bedrag|euro }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="leeg">
+        <strong>Geen aankopen herkend</strong>
+        Probeer hieronder een andere opmaak, of voer de aankopen met de hand in.
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="knoppen">
+    <button type="submit" {{ 'disabled' if not uittreksel.herkende }}>
+      Aankopen overnemen</button>
+    <a class="knop stil" href="{{ url_for('bijzonder.kredietkaart') }}">Annuleren</a>
+  </div>
+</form>
+
+<div class="vlak">
+  <h2>Andere opmaak proberen</h2>
+  <p>De opmaak “{{ uittreksel.patroon }}” gaf de meeste treffers. Klopt dat niet,
+    kies dan zelf.</p>
+  <div class="knoppen" style="margin-top:12px">
+    {% for p in patronen %}
+      <a class="knop stil klein"
+         href="{{ url_for('bijzonder.kredietkaart_voorbeeld', token=token, naam=naam, patroon=p) }}">
+        {{ p.replace('_', ' ') }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+<details class="vlak">
+  <summary><strong>Ruwe tekst uit de PDF</strong></summary>
+  <p class="klein-detail" style="margin-top:10px">Handig om te zien waarom een
+    regel niet herkend werd.</p>
+  <pre style="overflow-x:auto;font-size:12px;line-height:1.5">{% for regel in uittreksel.alle_regels %}{{ regel }}
+{% endfor %}</pre>
+</details>
+{% endblock %}

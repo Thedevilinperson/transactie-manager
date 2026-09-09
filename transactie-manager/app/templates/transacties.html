@@ -1,0 +1,143 @@
+{% extends "basis.html" %}
+{% block titel %}Transacties{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Transacties</h1>
+  <p>{{ totaal_aantal }} in totaal</p>
+  <div class="rechts">
+    <a class="knop stil" href="{{ url_for('tx.nieuw') }}">Nieuwe transactie</a>
+    <a class="knop" href="{{ url_for('importeren.start') }}">Bestand inlezen</a>
+  </div>
+</div>
+
+<div class="vlak">
+  <form method="get" class="filterbalk">
+    <div>
+      <label for="q">Zoeken</label>
+      <input type="search" id="q" name="q" value="{{ filters.zoekterm }}"
+             placeholder="naam, mededeling, rekening">
+    </div>
+    <div>
+      <label for="rekening_id">Rekening</label>
+      <select id="rekening_id" name="rekening_id">
+        <option value="">Alle</option>
+        {% for r in rekeningen %}
+          <option value="{{ r.id }}" {{ 'selected' if filters.rekening_id == r.id }}>
+            {{ r.naam }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="categorie_id">Categorie</label>
+      <select id="categorie_id" name="categorie_id">
+        <option value="">Alle</option>
+        {% for k in keuzes %}
+          <option value="{{ k.id }}" {{ 'selected' if categorie_id == k.id }}>{{ k.label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="richting">Soort</label>
+      <select id="richting" name="richting">
+        <option value="">Alle</option>
+        <option value="uit" {{ 'selected' if filters.richting == 'uit' }}>Uitgaven</option>
+        <option value="in" {{ 'selected' if filters.richting == 'in' }}>Inkomsten</option>
+      </select>
+    </div>
+    <div>
+      <label for="status">Status</label>
+      <select id="status" name="status">
+        <option value="">Alle</option>
+        <option value="bevestigd" {{ 'selected' if filters.status == 'bevestigd' }}>Bevestigd</option>
+        <option value="nazicht" {{ 'selected' if filters.status == 'nazicht' }}>Nazicht</option>
+        <option value="niet_toegewezen"
+                {{ 'selected' if filters.status == 'niet_toegewezen' }}>Zonder categorie</option>
+      </select>
+    </div>
+    <div>
+      <label for="van">Van</label>
+      <input type="date" id="van" name="van" value="{{ filters.van or '' }}">
+    </div>
+    <div>
+      <label for="tot">Tot</label>
+      <input type="date" id="tot" name="tot" value="{{ filters.tot or '' }}">
+    </div>
+    <div class="acties">
+      <button type="submit">Filteren</button>
+      <a class="knop stil" href="{{ url_for('tx.lijst') }}">Wissen</a>
+    </div>
+  </form>
+</div>
+
+<div class="vlak">
+  {% if rijen %}
+    <div class="tabel-omhulsel">
+      <table>
+        <thead>
+          <tr>
+            <th>Datum</th>
+            <th>Tegenpartij</th>
+            <th>Mededeling</th>
+            <th>Categorie</th>
+            <th>Bron</th>
+            <th class="getal">Bedrag</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for tx in rijen %}
+            <tr class="status-{{ tx.status }}">
+              <td>{{ tx.boekdatum|datum }}</td>
+              <td>
+                {{ tx.handelaar or tx.tegenpartij_naam or "Onbekend" }}
+                {% if tx.tegenpartij_rekening %}
+                  <span class="klein-detail">{{ tx.tegenpartij_rekening }}</span>
+                {% endif %}
+              </td>
+              <td>
+                {{ tx.mededeling[:80] }}
+                {% if tx.land %}<span class="klein-detail">Land: {{ tx.land }}</span>{% endif %}
+              </td>
+              <td>
+                {{ pad_tekst(tx.categorie_id, tx.subcategorie_id, tx.subsub_id) }}
+              </td>
+              <td>
+                <span class="merkje {{ tx.methode }}">{{ tx.methode }}</span>
+                {% if tx.status == 'nazicht' %}
+                  <span class="klein-detail">{{ tx.zekerheid|procent }} zeker</span>
+                {% endif %}
+              </td>
+              <td class="getal {{ 'bedrag-in' if tx.richting == 'in' else 'bedrag-uit' }}">
+                {{ tx.bedrag|euro }}
+              </td>
+              <td>
+                <a class="knop stil klein"
+                   href="{{ url_for('tx.bewerken', tx_id=tx.id, terug=request.full_path) }}">
+                  Bewerken</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="knoppen" style="margin-top:16px">
+      {% if pagina > 1 %}
+        <a class="knop stil" href="{{ url_for('tx.lijst', **dict(request.args, pagina=pagina-1)) }}">
+          Vorige</a>
+      {% endif %}
+      {% if rijen|length == 100 %}
+        <a class="knop stil" href="{{ url_for('tx.lijst', **dict(request.args, pagina=pagina+1)) }}">
+          Volgende</a>
+      {% endif %}
+      <span class="klein-detail">Pagina {{ pagina }}</span>
+    </div>
+  {% else %}
+    <div class="leeg">
+      <strong>Niets gevonden</strong>
+      Pas de filters aan of lees eerst een afschrift in.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

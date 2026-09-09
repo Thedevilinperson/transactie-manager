@@ -1,0 +1,74 @@
+{% extends "basis.html" %}
+{% block titel %}Automatisch indelen{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Automatisch indelen</h1>
+  <p>Hoe streng de fuzzy vergelijking is, en of het lokale AI-model mag meedenken.</p>
+</div>
+
+<form method="post" class="smal">
+  <div class="vlak">
+    <h2>Fuzzy vergelijking</h2>
+    <p>Nieuwe transacties worden vergeleken met eerder bevestigde. Boven de
+      bovenste drempel gaat de indeling automatisch door; daartussen komt ze in
+      het nazicht.</p>
+    <div class="rooster">
+      <div class="veld">
+        <label for="fuzzy_auto_drempel">Automatisch vanaf (%)</label>
+        <input type="number" id="fuzzy_auto_drempel" name="fuzzy_auto_drempel"
+               min="50" max="100" value="{{ waarden.fuzzy_auto_drempel }}">
+      </div>
+      <div class="veld">
+        <label for="fuzzy_suggestie_drempel">Voorstellen vanaf (%)</label>
+        <input type="number" id="fuzzy_suggestie_drempel" name="fuzzy_suggestie_drempel"
+               min="30" max="100" value="{{ waarden.fuzzy_suggestie_drempel }}">
+      </div>
+    </div>
+    <div class="keuzeregel">
+      <input type="checkbox" id="leer_van_bevestiging" name="leer_van_bevestiging" value="1"
+             {{ 'checked' if waarden.leer_van_bevestiging == '1' }}>
+      <label for="leer_van_bevestiging">Bij elke bevestiging een vaste regel bijleren</label>
+    </div>
+  </div>
+
+  <div class="vlak">
+    <h2>Lokaal AI-model</h2>
+    <p>Werkt met een Ollama-server op je eigen netwerk. Het model krijgt de
+      transactie en de lijst met categorieën, en stelt er één voor. Een voorstel
+      moet altijd bevestigd worden.</p>
+    <div class="keuzeregel">
+      <input type="checkbox" id="ai_actief" name="ai_actief" value="1"
+             {{ 'checked' if waarden.ai_actief == '1' }}>
+      <label for="ai_actief">Het model mag bevraagd worden</label>
+    </div>
+    <div class="rooster" style="margin-top:14px">
+      <div class="veld">
+        <label for="ai_basis_url">Adres van de server</label>
+        <input type="url" id="ai_basis_url" name="ai_basis_url"
+               value="{{ waarden.ai_basis_url }}">
+      </div>
+      <div class="veld">
+        <label for="ai_model">Model</label>
+        <input type="text" id="ai_model" name="ai_model" value="{{ waarden.ai_model }}">
+      </div>
+    </div>
+    <div class="keuzeregel">
+      <input type="checkbox" id="ai_zoeken_actief" name="ai_zoeken_actief" value="1"
+             {{ 'checked' if waarden.ai_zoeken_actief == '1' }}>
+      <label for="ai_zoeken_actief">Eerst het web raadplegen over de tegenpartij</label>
+    </div>
+    <div class="veld" style="margin-top:10px">
+      <label for="ai_zoek_url">Zoekadres (de zoekterm wordt achteraan geplakt)</label>
+      <input type="url" id="ai_zoek_url" name="ai_zoek_url" value="{{ waarden.ai_zoek_url }}">
+    </div>
+    <p class="klein-detail">Met webopzoeking verlaat de naam van de tegenpartij je
+      netwerk. Laat dit uit als je dat liever niet hebt.</p>
+  </div>
+
+  <div class="knoppen">
+    <button type="submit">Instellingen opslaan</button>
+    <button type="submit" name="actie" value="testen" class="stil">Verbinding testen</button>
+  </div>
+</form>
+{% endblock %}

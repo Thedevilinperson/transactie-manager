@@ -1,0 +1,79 @@
+{% extends "basis.html" %}
+{% block titel %}Kredietkaart{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Kredietkaart</h1>
+  <p>Een maandafrekening uitsplitsen in de echte aankopen.</p>
+</div>
+
+<div class="vlak">
+  <h2>Hoe dit werkt</h2>
+  <p>Op je bankafschrift staat de kaartafrekening als één bedrag, bijvoorbeeld
+    “Debet ten voordele van BCC”. Laad hier het PDF-uittreksel van die maand op.
+    De aankopen komen als losse transacties onder die afrekening te hangen en
+    worden gewoon ingedeeld. De afrekening zelf telt daarna niet meer mee in de
+    overzichten, zodat het bedrag maar één keer in de cijfers staat.</p>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="smal">
+  <div class="vlak">
+    <h2>Uittreksel kiezen</h2>
+    <div class="veld">
+      <label for="bestand">PDF-uittreksel van Mastercard of Visa</label>
+      <input type="file" id="bestand" name="bestand" accept=".pdf" required>
+    </div>
+    <p class="klein-detail">De tekst wordt rechtstreeks uit de PDF gelezen.
+      Uittreksels die enkel uit ingescande afbeeldingen bestaan werken niet;
+      dat meldt de toepassing dan.</p>
+  </div>
+  <div class="knoppen">
+    <button type="submit">Uittreksel lezen</button>
+  </div>
+</form>
+
+<div class="vlak">
+  <h2>Afrekeningen op je afschriften</h2>
+  {% if afrekeningen %}
+    <div class="tabel-omhulsel">
+      <table>
+        <thead>
+          <tr><th>Datum</th><th>Omschrijving</th><th class="getal">Bedrag</th>
+            <th class="getal">Aankopen</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for a in afrekeningen %}
+            <tr>
+              <td>{{ a.boekdatum|datum }}</td>
+              <td>{{ a.omschrijving }}</td>
+              <td class="getal bedrag-uit">{{ a.bedrag|euro }}</td>
+              <td class="getal">{{ a.aantal_kinderen or '—' }}</td>
+              <td>
+                {% if a.is_afrekening %}
+                  <span class="merkje zeker">uitgesplitst</span>
+                {% else %}
+                  <span class="merkje geen">nog niet</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if a.aantal_kinderen %}
+                  <form method="post"
+                        action="{{ url_for('bijzonder.losmaken', tx_id=a.id) }}"
+                        data-bevestig="De aankopen onder deze afrekening verwijderen?">
+                    <button type="submit" class="gevaar klein">Losmaken</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="leeg">
+      <strong>Geen kaartafrekeningen gevonden</strong>
+      Lees eerst je bankafschriften in; de afrekeningen worden dan vanzelf herkend.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

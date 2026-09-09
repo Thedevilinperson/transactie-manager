@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block titel %}{{ app_naam }}{% endblock %} · {{ app_naam }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/stijl.css') }}">
+</head>
+<body data-basis="{{ url_for('dashboard.index') }}">
+<div class="raamwerk">
+  <aside class="rail">
+    <div class="merk">
+      <strong>{{ app_naam }}</strong>
+      <span>versie {{ versie }}</span>
+    </div>
+
+    <nav>
+      <a href="{{ url_for('dashboard.index') }}"
+         class="{{ 'actief' if request.endpoint == 'dashboard.index' }}">Overzicht</a>
+      <a href="{{ url_for('tx.lijst') }}"
+         class="{{ 'actief' if request.endpoint == 'tx.lijst' }}">Transacties</a>
+      <a href="{{ url_for('tx.nazicht') }}"
+         class="{{ 'actief' if request.endpoint == 'tx.nazicht' }}">Nazicht</a>
+
+      <div class="groep">Toevoegen</div>
+      <a href="{{ url_for('tx.nieuw') }}"
+         class="{{ 'actief' if request.endpoint == 'tx.nieuw' }}">Nieuwe transactie</a>
+      <a href="{{ url_for('importeren.start') }}"
+         class="{{ 'actief' if request.blueprint == 'importeren' }}">Bestand inlezen</a>
+      <a href="{{ url_for('bijzonder.kredietkaart') }}"
+         class="{{ 'actief' if 'kredietkaart' in (request.endpoint or '') }}">Kredietkaart-PDF</a>
+
+      <div class="groep">Rapporteren</div>
+      <a href="{{ url_for('rapport.tabel') }}"
+         class="{{ 'actief' if request.endpoint == 'rapport.tabel' }}">Jaartabel</a>
+      <a href="{{ url_for('rapport.grafiek') }}"
+         class="{{ 'actief' if request.endpoint == 'rapport.grafiek' }}">Grafieken</a>
+
+      <div class="groep">Instellingen</div>
+      <a href="{{ url_for('instellingen.rekeningen') }}"
+         class="{{ 'actief' if request.endpoint == 'instellingen.rekeningen' }}">Rekeningen</a>
+      <a href="{{ url_for('instellingen.categorieen') }}"
+         class="{{ 'actief' if request.endpoint == 'instellingen.categorieen' }}">Categorieën</a>
+      <a href="{{ url_for('instellingen.regels') }}"
+         class="{{ 'actief' if request.endpoint == 'instellingen.regels' }}">Regels</a>
+      <a href="{{ url_for('bijzonder.referentielijst') }}"
+         class="{{ 'actief' if 'referentielijst' in (request.endpoint or '') }}">Referentielijst</a>
+      <a href="{{ url_for('instellingen.model') }}"
+         class="{{ 'actief' if request.endpoint == 'instellingen.model' }}">Automatisch indelen</a>
+      {% if is_beheerder %}
+        <a href="{{ url_for('instellingen.gebruikers') }}"
+           class="{{ 'actief' if request.endpoint == 'instellingen.gebruikers' }}">Gebruikers</a>
+        <a href="{{ url_for('instellingen.logboek') }}"
+           class="{{ 'actief' if request.endpoint == 'instellingen.logboek' }}">Logboek</a>
+      {% endif %}
+    </nav>
+
+    <div class="voet">
+      Aangemeld als {{ gebruiker }}
+      <form method="post" action="{{ url_for('auth.logout') }}">
+        <button type="submit">Afmelden</button>
+      </form>
+    </div>
+  </aside>
+
+  <main class="inhoud">
+    {% with meldingen = get_flashed_messages(with_categories=true) %}
+      {% for soort, tekst in meldingen %}
+        <div class="melding {{ soort }}">{{ tekst }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    {% block inhoud %}{% endblock %}
+  </main>
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

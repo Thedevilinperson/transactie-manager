@@ -1,0 +1,96 @@
+{% extends "basis.html" %}
+{% block titel %}Rekeningen{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Rekeningen</h1>
+  <p>Elke transactie hoort bij één rekening.</p>
+</div>
+
+<div class="vlak">
+  <h2>Rekening toevoegen</h2>
+  <form method="post">
+    <input type="hidden" name="actie" value="toevoegen">
+    <div class="rooster drie">
+      <div class="veld">
+        <label for="naam">Naam</label>
+        <input type="text" id="naam" name="naam" placeholder="Zichtrekening" required>
+      </div>
+      <div class="veld">
+        <label for="iban">Rekeningnummer</label>
+        <input type="text" id="iban" name="iban" placeholder="BE00 0000 0000 0000">
+      </div>
+      <div class="veld">
+        <label for="bank">Bank</label>
+        <input type="text" id="bank" name="bank" placeholder="KBC">
+      </div>
+    </div>
+    <button type="submit">Rekening toevoegen</button>
+  </form>
+</div>
+
+{# De formulieren staan buiten de tabel; de velden verwijzen ernaar met het
+   form-attribuut. Zo blijft de tabelopmaak geldig. #}
+{% for r in rijen %}
+  <form method="post" id="rekening-{{ r.id }}">
+    <input type="hidden" name="actie" value="wijzigen">
+    <input type="hidden" name="id" value="{{ r.id }}">
+  </form>
+  <form method="post" id="verwijder-{{ r.id }}"
+        data-bevestig="Rekening {{ r.naam }} verwijderen?">
+    <input type="hidden" name="actie" value="verwijderen">
+    <input type="hidden" name="id" value="{{ r.id }}">
+  </form>
+{% endfor %}
+
+<div class="vlak">
+  <h2>Bestaande rekeningen</h2>
+  {% if rijen %}
+    <div class="tabel-omhulsel">
+      <table>
+        <thead>
+          <tr>
+            <th>Naam</th><th>Rekeningnummer</th><th>Bank</th><th>Munt</th>
+            <th class="getal">Transacties</th><th>Actief</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rijen %}
+            <tr>
+              <td><input type="text" name="naam" value="{{ r.naam }}"
+                         form="rekening-{{ r.id }}" aria-label="Naam"></td>
+              <td><input type="text" name="iban" value="{{ r.iban }}"
+                         form="rekening-{{ r.id }}" aria-label="Rekeningnummer"></td>
+              <td><input type="text" name="bank" value="{{ r.bank }}"
+                         form="rekening-{{ r.id }}" aria-label="Bank"></td>
+              <td><input type="text" name="munt" value="{{ r.munt }}" size="4"
+                         form="rekening-{{ r.id }}" aria-label="Munt"></td>
+              <td class="getal">{{ r.aantal }}</td>
+              <td>
+                <input type="checkbox" name="actief" value="1"
+                       form="rekening-{{ r.id }}" {{ 'checked' if r.actief }}
+                       aria-label="Rekening actief">
+              </td>
+              <td>
+                <div class="knoppen">
+                  <button type="submit" class="stil klein"
+                          form="rekening-{{ r.id }}">Opslaan</button>
+                  {% if r.aantal == 0 %}
+                    <button type="submit" class="gevaar klein"
+                            form="verwijder-{{ r.id }}">Verwijderen</button>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="leeg">
+      <strong>Nog geen rekeningen</strong>
+      Voeg er hierboven een toe voor je transacties inleest.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

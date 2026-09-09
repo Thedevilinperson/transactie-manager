@@ -1,0 +1,117 @@
+{% extends "basis.html" %}
+{% block titel %}Overzicht{% endblock %}
+
+{% block inhoud %}
+{% set jaar = cijfers.laatste_jaar %}
+
+<div class="kop">
+  <h1>Overzicht</h1>
+  {% if jaar %}<p>Cijfers van {{ jaar }}</p>{% endif %}
+</div>
+
+{% if cijfers.aantal == 0 %}
+  <div class="vlak">
+    <div class="leeg">
+      <strong>Nog geen transacties</strong>
+      Lees een bankafschrift in of voeg een transactie met de hand toe.
+      <div class="knoppen" style="justify-content:center;margin-top:16px">
+        <a class="knop" href="{{ url_for('importeren.start') }}">Bestand inlezen</a>
+        <a class="knop stil" href="{{ url_for('tx.nieuw') }}">Transactie toevoegen</a>
+      </div>
+    </div>
+  </div>
+{% else %}
+
+  {% set inkomsten = cijfers.inkomsten.get(jaar, 0) %}
+  {% set uitgaven = cijfers.uitgaven.get(jaar, 0) %}
+  <div class="vlak">
+    <div class="balans">
+      <div class="cijfer in">
+        <b>{{ inkomsten|euro }}</b>
+        <span>inkomsten in {{ jaar }}</span>
+      </div>
+      <div class="cijfer uit">
+        <b>{{ uitgaven|euro }}</b>
+        <span>uitgaven in {{ jaar }}</span>
+      </div>
+      <div class="cijfer">
+        <b>{{ (inkomsten - uitgaven)|euro }}</b>
+        <span>saldo in {{ jaar }}</span>
+      </div>
+    </div>
+
+    {% set piek = namespace(waarde=1) %}
+    {% for j in cijfers.jaren %}
+      {% if cijfers.inkomsten[j] > piek.waarde %}{% set piek.waarde = cijfers.inkomsten[j] %}{% endif %}
+      {% if cijfers.uitgaven[j] > piek.waarde %}{% set piek.waarde = cijfers.uitgaven[j] %}{% endif %}
+    {% endfor %}
+
+    <div class="jaarstaven">
+      {% for j in cijfers.jaren %}
+        <div class="jaarstaaf">
+          <div class="jaar">{{ j }}</div>
+          <div class="balken">
+            <div class="balkregel">
+              <div class="balk in"
+                   style="width: {{ (cijfers.inkomsten[j] / piek.waarde * 100)|round(1) }}%"></div>
+              <small>{{ cijfers.inkomsten[j]|euro }} in</small>
+            </div>
+            <div class="balkregel">
+              <div class="balk uit"
+                   style="width: {{ (cijfers.uitgaven[j] / piek.waarde * 100)|round(1) }}%"></div>
+              <small>{{ cijfers.uitgaven[j]|euro }} uit</small>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if cijfers.nazicht or cijfers.niet_toegewezen %}
+    <div class="vlak">
+      <h2>Werk op de plank</h2>
+      <p>
+        {{ cijfers.nazicht }} transacties wachten op bevestiging en
+        {{ cijfers.niet_toegewezen }} kregen nog geen categorie.
+      </p>
+      <div class="knoppen" style="margin-top:12px">
+        <a class="knop" href="{{ url_for('tx.nazicht') }}">Naar het nazicht</a>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="vlak">
+    <h2>Laatste transacties</h2>
+    <div class="tabel-omhulsel">
+      <table>
+        <thead>
+          <tr>
+            <th>Datum</th>
+            <th>Tegenpartij</th>
+            <th>Mededeling</th>
+            <th class="getal">Bedrag</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for tx in recent %}
+            <tr class="status-{{ tx.status }}">
+              <td>{{ tx.boekdatum|datum }}</td>
+              <td>
+                <a href="{{ url_for('tx.bewerken', tx_id=tx.id) }}">
+                  {{ tx.handelaar or tx.tegenpartij_naam or "Onbekend" }}</a>
+              </td>
+              <td>{{ tx.mededeling[:70] }}</td>
+              <td class="getal {{ 'bedrag-in' if tx.richting == 'in' else 'bedrag-uit' }}">
+                {{ tx.bedrag|euro }}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="knoppen" style="margin-top:14px">
+      <a class="knop stil" href="{{ url_for('tx.lijst') }}">Alle transacties</a>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}
