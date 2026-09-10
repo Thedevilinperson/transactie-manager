@@ -4,7 +4,7 @@ slug: transactie_manager
 description: >-
   Huishoudboekje op basis van bankafschriften, met versleutelde opslag,
   eigen aanmelding en automatische indeling in categorieën.
-url: https://github.com/GEBRUIKERSNAAM/transactie-manager
+url: https://github.com/Thedevilinperson/transactie-manager.git
 arch:
   - aarch64
   - amd64
