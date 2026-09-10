@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.1.0
+Versie 0.2.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -44,22 +44,27 @@ uitdrukkelijk de webopzoeking bij het AI-model aanzet.
 
 ### 2.1 Als Home Assistant-add-on
 
-Zet de add-on klaar met het meegeleverde script:
+Twee wegen, allebei zonder tussenstap.
 
-```
-python scripts/bouw_addon.py
-```
+**Via de repository-URL.** Zet dit project op GitHub en voeg het adres toe bij
+**Instellingen › Add-ons › Add-on-winkel › Repositories**. Het bestand
+`repository.yaml` aan de wortel zorgt ervoor dat Home Assistant de repository
+herkent.
 
-Kopieer de map die daaruit komt naar `/addons/transactie_manager/` op je
-Home Assistant-systeem, bijvoorbeeld via de Samba- of de Studio Code
-Server-add-on.
+**Als lokale add-on.** Kopieer de map `transactie_manager` in haar geheel naar
+`/addons/` op je Home Assistant-systeem, bijvoorbeeld via de Samba-add-on. Ga
+daarna naar de add-on-winkel, open het menu rechtsboven en kies **Repositories
+vernieuwen**. De add-on verschijnt onder *Lokale add-ons*.
 
-Ga daarna in Home Assistant naar **Instellingen › Add-ons › Add-on-winkel**,
-open het menu rechtsboven en kies **Repositories vernieuwen**. De add-on
-verschijnt onder *Lokale add-ons*.
+> Kopieer de hele map, niet enkel de losse bestanden. Home Assistant bouwt met
+> de add-on-map als context: alles waar de Dockerfile naar verwijst, moet in
+> diezelfde map staan.
 
-Installeer ze, zet **Toon in zijbalk** aan en start ze. De eerste keer duurt het
-bouwen een aantal minuten, omdat `cryptography` op ARM gecompileerd moet worden.
+Installeer de add-on, zet **Toon in zijbalk** aan en start ze. De eerste keer
+bouwen duurt even; op armv7 moet `cryptography` gecompileerd worden en kan dat
+een kwartier duren.
+
+Meer daarover in [ADDON.md](ADDON.md).
 
 ### 2.2 Lokaal op Windows
 
@@ -479,3 +484,12 @@ controlescherm en vink af wat niet klopt.
 **De add-on start niet.** Kijk in het logboek van de add-on in Home Assistant.
 Duurt het bouwen erg lang op een Raspberry Pi, dan is dat normaal:
 `cryptography` moet daar gecompileerd worden.
+
+**Het bouwen stopt op het basisimage.** Home Assistant onderhoudt alleen
+basisimages die nog ondersteund worden. Zet in `transactie_manager/build.yaml`
+een recentere combinatie van Python en Alpine.
+
+**Home Assistant ziet de add-on niet.** Controleer dat je de map
+`transactie_manager` als geheel gekopieerd hebt, met `config.yaml` en de
+`Dockerfile` er rechtstreeks in. Staan die in een onderliggende map, dan vindt
+de Supervisor ze niet.

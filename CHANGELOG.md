@@ -4,6 +4,45 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.2.0] — 2026-09-09
+
+Herstelversie voor het uitrollen in Home Assistant. Aan de toepassing zelf
+verandert niets; de indeling van het project wel.
+
+### Gewijzigd
+- De mappenstructuur is die van een Home Assistant add-on-repository geworden.
+  De toepassing staat nu in `transactie_manager/`, samen met `config.yaml`, de
+  `Dockerfile` en `run.sh`.
+- `build.yaml` toegevoegd met een basisimage per architectuur. De vorige
+  Dockerfile ging voor elke architectuur uit van het amd64-image.
+- Het basisimage staat op Python 3.13 met Alpine 3.22. De vorige combinatie
+  (Python 3.12 met Alpine 3.19) wordt door Home Assistant niet meer
+  onderhouden.
+- De Dockerfile installeert nu eerst uit kant-en-klare pakketten en haalt
+  alleen bouwgereedschap binnen wanneer dat niet lukt. Op amd64 en aarch64
+  scheelt dat een flink stuk bouwtijd.
+- `start_windows.bat` en `start_linux.sh` verwijzen naar de nieuwe locatie; de
+  virtuele omgeving en de map `data` blijven aan de wortel staan.
+- De add-on vraagt geen toegang meer tot `/share` en `/backup`. Ze heeft alleen
+  haar eigen `/data` nodig.
+- De installatiehandleiding voor Home Assistant staat nu in `docs/ADDON.md`.
+
+### Toegevoegd
+- `repository.yaml` aan de wortel, zodat je de repository rechtstreeks aan de
+  add-on-winkel kan toevoegen.
+
+### Verwijderd
+- `scripts/bouw_addon.py`. Dat script bestond alleen om de bestanden voor het
+  bouwen naar één map te kopiëren. Nu de add-on-map zelfdragend is, kan je ze
+  gewoon kopiëren.
+
+### Opgelost
+- De Dockerfile stond in een aparte map, los van `app/`, `requirements.txt` en
+  `wsgi.py`. Home Assistant bouwt met de add-on-map als context en kan er niet
+  buiten kijken, waardoor elke `COPY` in de Dockerfile op niets uitkwam en het
+  bouwen afbrak.
+
+
 ## [0.1.0] — 2026-09-09
 
 Eerste versie. De toepassing draait als Home Assistant-add-on of lokaal op

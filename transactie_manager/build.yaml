@@ -1,0 +1,15 @@
+# Basisimage per architectuur. Home Assistant vult dit in als BUILD_FROM
+# wanneer het de add-on bouwt.
+#
+# Sinds de release 2026.03.1 publiceert Home Assistant deze images ook als
+# multi-arch onder ghcr.io/home-assistant/base-python. De variant met het
+# voorvoegsel per architectuur blijft werken en is hier gekozen omdat ze op
+# oudere Supervisor-versies eveneens beschikbaar is.
+build_from:
+  aarch64: ghcr.io/home-assistant/aarch64-base-python:3.13-alpine3.22
+  amd64: ghcr.io/home-assistant/amd64-base-python:3.13-alpine3.22
+  armv7: ghcr.io/home-assistant/armv7-base-python:3.13-alpine3.22
+labels:
+  org.opencontainers.image.title: Transactie Manager
+  org.opencontainers.image.description: Huishoudboekje op basis van bankafschriften
+  org.opencontainers.image.licenses: MIT
