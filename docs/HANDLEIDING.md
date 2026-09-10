@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.2.0
+Versie 0.2.1
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -488,6 +488,12 @@ Duurt het bouwen erg lang op een Raspberry Pi, dan is dat normaal:
 **Het bouwen stopt op het basisimage.** Home Assistant onderhoudt alleen
 basisimages die nog ondersteund worden. Zet in `transactie_manager/build.yaml`
 een recentere combinatie van Python en Alpine.
+
+**Ik krijg "404: Not Found" bij het openen van de add-on.** Die melding komt van
+Home Assistant, niet van de toepassing. Vanaf versie 0.2.1 hoort dat niet meer
+voor te vallen. Zie je het toch, herstart dan de add-on en ververs de
+bladzijde met Ctrl+F5; een oude verwijzing kan nog in de cache van je browser
+zitten.
 
 **Home Assistant ziet de add-on niet.** Controleer dat je de map
 `transactie_manager` als geheel gekopieerd hebt, met `config.yaml` en de

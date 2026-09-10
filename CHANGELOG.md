@@ -4,6 +4,23 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.2.1] — 2026-09-10
+
+### Opgelost
+- **De add-on gaf "404: Not Found" in Home Assistant.** De toepassing maakte
+  verwijzingen vanaf de wortel van het adres, terwijl ingress haar achter een
+  pad als `/api/hassio_ingress/<token>/` zet. De eerste omleiding kwam daardoor
+  buiten dat pad terecht en Home Assistant zelf antwoordde met een 404, nog voor
+  de toepassing iets te zien kreeg. Er is nu WSGI-tussenlaag die de kop
+  `X-Ingress-Path` uitleest en het voorvoegsel in `SCRIPT_NAME` zet, zodat elke
+  verwijzing, omleiding, formulieractie en stijlbladverwijzing het pad meeneemt.
+- `ProxyFix` toegevoegd, zodat omleidingen achter de proxy van Home Assistant
+  het juiste protocol en de juiste hostnaam krijgen.
+
+Rechtstreekse toegang op poort 8099, buiten Home Assistant om, blijft
+onveranderd werken.
+
+
 ## [0.2.0] — 2026-09-09
 
 Herstelversie voor het uitrollen in Home Assistant. Aan de toepassing zelf

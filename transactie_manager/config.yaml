@@ -1,10 +1,10 @@
 name: Transactie Manager
-version: "0.2.0"
+version: "0.2.1"
 slug: transactie_manager
 description: >-
   Huishoudboekje op basis van bankafschriften, met versleutelde opslag,
   eigen aanmelding en automatische indeling in categorieën.
-url: https://github.com/Thedevilinperson/transactie-manager.git
+url: https://github.com/GEBRUIKERSNAAM/transactie-manager
 arch:
   - aarch64
   - amd64

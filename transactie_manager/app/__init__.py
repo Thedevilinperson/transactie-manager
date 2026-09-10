@@ -6,11 +6,41 @@ from datetime import timedelta
 from decimal import Decimal
 
 from flask import Flask, g, redirect, url_for
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .config import APP_NAME, MAX_UPLOAD_MB, SESSION_MINUTES, VERSION, flask_secret_key
 from .database import close_db, heeft_gebruikers, init_db
 
 __version__ = VERSION
+
+
+class Ingress:
+    """Zorgt dat de toepassing werkt achter het ingress-pad van Home Assistant.
+
+    Home Assistant zet de add-on achter een adres als
+    `/api/hassio_ingress/<token>/`. De Supervisor knipt dat voorvoegsel er
+    weer af voor hij de aanvraag doorstuurt, maar geeft het mee in de kop
+    `X-Ingress-Path`. Zonder die kop te lezen maakt Flask paden vanaf de
+    wortel, en die kent Home Assistant niet: het antwoord is dan een 404 van
+    Home Assistant zelf, nog voor de toepassing iets te zien krijgt.
+
+    Door het voorvoegsel in `SCRIPT_NAME` te zetten, neemt `url_for` het
+    vanzelf mee in elke verwijzing, omleiding en formulieractie.
+    """
+
+    def __init__(self, toepassing):
+        self.toepassing = toepassing
+
+    def __call__(self, omgeving, start_antwoord):
+        voorvoegsel = (omgeving.get("HTTP_X_INGRESS_PATH") or "").rstrip("/")
+        if voorvoegsel:
+            omgeving["SCRIPT_NAME"] = voorvoegsel
+            pad = omgeving.get("PATH_INFO", "")
+            # Normaal is het voorvoegsel er al af; dit vangt op wanneer een
+            # andere omgekeerde proxy het wel laat staan.
+            if pad.startswith(voorvoegsel):
+                omgeving["PATH_INFO"] = pad[len(voorvoegsel):] or "/"
+        return self.toepassing(omgeving, start_antwoord)
 
 
 def euro(waarde) -> str:
@@ -46,6 +76,9 @@ def create_app() -> Flask:
         SESSION_COOKIE_SAMESITE="Lax",
         JSON_SORT_KEYS=False,
     )
+
+    # Achter de ingress-proxy van Home Assistant.
+    app.wsgi_app = Ingress(ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1))
 
     init_db()
 
