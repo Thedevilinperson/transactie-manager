@@ -4,6 +4,17 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.3.1] — 2026-09-14
+
+### Opgelost
+- **De knop “Testbericht sturen” sloeg het e-mailadres op in plaats van een
+  bericht te versturen.** In dat formulier stond een verborgen veld `actie` met
+  de waarde `adres`, terwijl de testknop diezelfde naam droeg met de waarde
+  `test`. De browser stuurt dan allebei de waarden mee en de eerste wint, dus
+  kwam elke klik uit bij het opslaan. Het verborgen veld is weg; beide knoppen
+  dragen nu zelf hun actie.
+
+
 ## [0.3.0] — 2026-09-10
 
 ### Toegevoegd

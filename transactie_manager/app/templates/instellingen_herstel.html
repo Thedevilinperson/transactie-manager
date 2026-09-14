@@ -39,15 +39,17 @@
 
 <div class="vlak">
   <h2>E-mailadres voor herstel</h2>
+  {# Allebei de knoppen dragen zelf de actie. Een verborgen veld met dezelfde
+     naam zou hier altijd voorgaan, waardoor de testknop het adres zou opslaan
+     in plaats van te versturen. #}
   <form method="post">
-    <input type="hidden" name="actie" value="adres">
     <div class="veld">
       <label for="email">Naar dit adres gaat de code</label>
       <input type="text" id="email" name="email" value="{{ status.email }}"
              placeholder="jij@yahoo.com">
     </div>
     <div class="knoppen">
-      <button type="submit">Adres opslaan</button>
+      <button type="submit" name="actie" value="adres">Adres opslaan</button>
       <button type="submit" name="actie" value="test" class="stil">
         Testbericht sturen</button>
     </div>
