@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import time
 
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask import (Blueprint, flash, g, redirect, render_template, request, session,
+                   url_for)
 
 from .. import crypto as cryptomod
-from ..auth import (beeindig_sessie, controleer_aanmelding, huidige_sessie,
-                    maak_gebruiker, start_sessie)
-from ..database import connect, seed_categorieen, seed_voorbeeldregels, heeft_gebruikers
+from .. import lokaal, mail
+from ..auth import (HERSTELCODE_MINUTEN, beeindig_sessie, controleer_aanmelding,
+                    herstel_wachtwoord, huidige_sessie, login_vereist, maak_gebruiker,
+                    maak_herstelcode, start_sessie, zet_herstelsleutel)
+from ..database import connect, get_db, seed_categorieen, seed_voorbeeldregels, heeft_gebruikers
 
 bp = Blueprint("auth", __name__)
 
@@ -56,11 +59,16 @@ def installatie():
             try:
                 seed_categorieen(conn, crypto)
                 seed_voorbeeldregels(conn, crypto)
+                rij = conn.execute(
+                    "SELECT id FROM gebruikers WHERE gebruikersnaam=?", (naam,)).fetchone()
                 conn.commit()
             finally:
                 conn.close()
-            flash("Klaar. Meld je aan met je nieuwe account.", "goed")
-            return redirect(url_for("auth.login"))
+
+            herstelsleutel = zet_herstelsleutel(rij["id"], dek)
+            # Eén keer tonen, daarna nergens meer leesbaar.
+            session["nieuwe_herstelsleutel"] = herstelsleutel
+            return redirect(url_for("auth.herstelsleutel_tonen"))
 
     return render_template("installatie.html", min_wachtwoord=MIN_WACHTWOORD)
 
@@ -100,3 +108,85 @@ def logout():
     session.clear()
     flash("Je bent afgemeld.", "goed")
     return redirect(url_for("auth.login"))
+
+
+@bp.route("/herstelsleutel")
+def herstelsleutel_tonen():
+    sleutel = session.pop("nieuwe_herstelsleutel", None)
+    if not sleutel:
+        return redirect(url_for("auth.login"))
+    return render_template("herstelsleutel.html", sleutel=sleutel, na_installatie=True)
+
+
+# --------------------------------------------------------------------------
+# Wachtwoord vergeten
+# --------------------------------------------------------------------------
+
+@bp.route("/wachtwoord-vergeten", methods=["GET", "POST"])
+def wachtwoord_vergeten():
+    conn = get_db()
+    kan_mailen = mail.actief(conn)
+
+    if request.method == "POST":
+        naam = request.form.get("gebruikersnaam", "").strip()
+        ip = request.remote_addr or "onbekend"
+        if _te_veel_pogingen(ip):
+            flash("Te veel aanvragen. Wacht een paar minuten.", "fout")
+            return render_template("wachtwoord_vergeten.html", kan_mailen=kan_mailen), 429
+        _noteer_poging(ip)
+
+        rij = conn.execute(
+            "SELECT id, gebruikersnaam, email_lok, herstel_wrapped FROM gebruikers"
+            " WHERE gebruikersnaam=? AND actief=1", (naam,)).fetchone()
+
+        # Altijd hetzelfde antwoord: zo verraadt dit scherm niet welke
+        # gebruikersnamen bestaan.
+        if rij is not None and rij["herstel_wrapped"] and kan_mailen:
+            adres = lokaal.ontsleutel(rij["email_lok"])
+            if adres:
+                try:
+                    code = maak_herstelcode(rij["id"])
+                    mail.verstuur_herstelcode(conn, adres, rij["gebruikersnaam"], code,
+                                              HERSTELCODE_MINUTEN)
+                except mail.MailFout:
+                    pass
+        session["herstel_naam"] = naam
+        return redirect(url_for("auth.wachtwoord_herstellen"))
+
+    return render_template("wachtwoord_vergeten.html", kan_mailen=kan_mailen)
+
+
+@bp.route("/wachtwoord-herstellen", methods=["GET", "POST"])
+def wachtwoord_herstellen():
+    naam = session.get("herstel_naam", "")
+
+    if request.method == "POST":
+        naam = request.form.get("gebruikersnaam", naam).strip()
+        wachtwoord = request.form.get("wachtwoord", "")
+        herhaling = request.form.get("herhaling", "")
+
+        if len(wachtwoord) < MIN_WACHTWOORD:
+            flash(f"Het nieuwe wachtwoord moet minstens {MIN_WACHTWOORD} tekens "
+                  "lang zijn.", "fout")
+        elif wachtwoord != herhaling:
+            flash("De twee wachtwoorden zijn niet gelijk.", "fout")
+        else:
+            gelukt, boodschap = herstel_wachtwoord(
+                naam, request.form.get("code", ""),
+                request.form.get("herstelsleutel", ""), wachtwoord)
+            if gelukt:
+                session.pop("herstel_naam", None)
+                flash("Je wachtwoord is aangepast. Meld je aan.", "goed")
+                return redirect(url_for("auth.login"))
+            flash(boodschap, "fout")
+
+    return render_template("wachtwoord_herstellen.html", gebruikersnaam=naam,
+                           min_wachtwoord=MIN_WACHTWOORD,
+                           geldig_minuten=HERSTELCODE_MINUTEN)
+
+
+@bp.route("/nieuwe-herstelsleutel", methods=["POST"])
+@login_vereist
+def nieuwe_herstelsleutel():
+    sleutel = zet_herstelsleutel(g.sessie["id"], g.sessie["dek"])
+    return render_template("herstelsleutel.html", sleutel=sleutel, na_installatie=False)

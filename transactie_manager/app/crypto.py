@@ -73,6 +73,38 @@ def unwrap_dek(wrapped: str, kek: bytes) -> bytes:
 
 
 # --------------------------------------------------------------------------
+# Herstelsleutel
+# --------------------------------------------------------------------------
+
+# Crockford-base32 zonder I, L, O en U: die worden te makkelijk verward met
+# 1, 0 en elkaar wanneer je de sleutel overschrijft van papier.
+HERSTEL_ALFABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+HERSTEL_GROEPEN = 8
+HERSTEL_GROEPLENGTE = 4
+
+
+def nieuwe_herstelsleutel() -> str:
+    """Genereert een sleutel als AB3D-9FGH-... met ongeveer 160 bits entropie."""
+    import secrets
+
+    tekens = [secrets.choice(HERSTEL_ALFABET)
+              for _ in range(HERSTEL_GROEPEN * HERSTEL_GROEPLENGTE)]
+    groepen = ["".join(tekens[i:i + HERSTEL_GROEPLENGTE])
+               for i in range(0, len(tekens), HERSTEL_GROEPLENGTE)]
+    return "-".join(groepen)
+
+
+def normaliseer_herstelsleutel(waarde: str | None) -> str:
+    """Maakt het overtypen vergevingsgezind: koppeltekens, spaties en
+    hoofdletters doen er niet toe, en de letters I, L en O worden gelezen als
+    de cijfers 1, 1 en 0."""
+    if not waarde:
+        return ""
+    tekst = re.sub(r"[^A-Za-z0-9]", "", waarde).upper()
+    return tekst.translate(str.maketrans({"I": "1", "L": "1", "O": "0", "U": "V"}))
+
+
+# --------------------------------------------------------------------------
 # Normalisatie
 # --------------------------------------------------------------------------
 

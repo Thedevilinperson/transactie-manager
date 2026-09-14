@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wachtwoord vergeten · {{ app_naam }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/stijl.css') }}">
+</head>
+<body>
+<div class="poort">
+  <div class="kaart">
+    <h1>Wachtwoord vergeten</h1>
+    <p class="uitleg">We sturen een code naar het e-mailadres dat bij je account
+      hoort. Je hebt daarnaast je herstelsleutel nodig.</p>
+
+    {% with meldingen = get_flashed_messages(with_categories=true) %}
+      {% for soort, tekst in meldingen %}
+        <div class="melding {{ soort }}">{{ tekst }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    {% if not kan_mailen %}
+      <div class="melding fout">
+        Er is nog geen mailserver ingesteld, dus er kan geen code verstuurd
+        worden. Meld je aan en stel dat in bij Instellingen › Herstel en e-mail.
+      </div>
+    {% endif %}
+
+    <form method="post">
+      <div class="veld">
+        <label for="gebruikersnaam">Gebruikersnaam</label>
+        <input type="text" id="gebruikersnaam" name="gebruikersnaam"
+               autocomplete="username" autofocus required>
+      </div>
+      <button type="submit">Stuur mij een code</button>
+    </form>
+
+    <p class="voet"><a href="{{ url_for('auth.login') }}">Terug naar aanmelden</a></p>
+  </div>
+</div>
+</body>
+</html>

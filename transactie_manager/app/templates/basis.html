@@ -48,6 +48,8 @@
          class="{{ 'actief' if 'referentielijst' in (request.endpoint or '') }}">Referentielijst</a>
       <a href="{{ url_for('instellingen.model') }}"
          class="{{ 'actief' if request.endpoint == 'instellingen.model' }}">Automatisch indelen</a>
+      <a href="{{ url_for('instellingen.herstel') }}"
+         class="{{ 'actief' if request.endpoint == 'instellingen.herstel' }}">Herstel en e-mail</a>
       {% if is_beheerder %}
         <a href="{{ url_for('instellingen.gebruikers') }}"
            class="{{ 'actief' if request.endpoint == 'instellingen.gebruikers' }}">Gebruikers</a>

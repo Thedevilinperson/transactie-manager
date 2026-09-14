@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.2.1
+Versie 0.3.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -100,17 +100,41 @@ Je hebt Python 3.11 of nieuwer nodig. Vink bij het installeren van Python
 Bij de allereerste start kom je op het scherm **Eerste start**. Kies een
 gebruikersnaam en een wachtwoord van minstens tien tekens.
 
-> **Bewaar dit wachtwoord goed.** De datasleutel is ermee versleuteld. Raakt het
-> kwijt, dan zijn de gegevens niet meer te ontsleutelen. Er is geen
-> herstelprocedure, ook niet voor de beheerder.
+Daarna krijg je eenmalig je **herstelsleutel** te zien: 32 tekens in acht
+groepjes. Schrijf die over of zet hem in je wachtwoordbeheerder. Hij wordt
+nergens bewaard en kan niet opnieuw getoond worden.
 
-### 3.2 Rekening toevoegen
+> **Bewaar het wachtwoord én de herstelsleutel.** Ben je ze allebei kwijt, dan
+> zijn de gegevens niet meer te ontsleutelen. Bewaar de herstelsleutel niet in
+> dezelfde map als je back-up en niet enkel op het toestel waarop de toepassing
+> draait.
+
+### 3.2 Herstel instellen
+
+Ga naar **Instellingen › Herstel en e-mail** en vul in waar de herstelcode
+naartoe mag. Vul daaronder de mailserver in en stuur een testbericht.
+
+Voor Yahoo Mail:
+
+| Veld           | Waarde                                  |
+|----------------|-----------------------------------------|
+| Server         | `smtp.mail.yahoo.com`                   |
+| Poort          | 465 met SSL, of 587 met STARTTLS        |
+| Gebruikersnaam | je volledige adres, `jij@yahoo.com`     |
+| Wachtwoord     | een app-wachtwoord van zestien tekens   |
+
+> Yahoo aanvaardt je gewone wachtwoord niet meer voor SMTP. Maak in je
+> Yahoo-account onder **Accountbeveiliging › App-wachtwoord genereren** een
+> app-wachtwoord aan en vul dat hier in. Trek het in bij Yahoo als je het
+> toestel ooit weggeeft.
+
+### 3.3 Rekening toevoegen
 
 Ga naar **Instellingen › Rekeningen** en voeg je zichtrekening toe. Vul het
 rekeningnummer in: daarmee kan de toepassing bij een bestand met meerdere
 rekeningen elke rij aan de juiste rekening hangen.
 
-### 3.3 Categorieën
+### 3.4 Categorieën
 
 Je kan twee kanten op.
 
@@ -434,6 +458,32 @@ Werk je met meerdere gebruikers, dan krijgt elke gebruiker een eigen kopie van
 dezelfde datasleutel, versleuteld met zijn eigen wachtwoord. Iedereen ziet
 dezelfde gegevens; iedereen heeft zijn eigen wachtwoord.
 
+### Wachtwoord vergeten
+
+Klik op **Wachtwoord vergeten?** op het aanmeldscherm en vul je gebruikersnaam
+in. Er gaat een code van zes cijfers naar je e-mailadres, een kwartier geldig.
+Op het volgende scherm vul je die code in, samen met je herstelsleutel en je
+nieuwe wachtwoord.
+
+Je hebt ze **allebei** nodig. De code bewijst dat jij het bent; de
+herstelsleutel is het enige waarmee je gegevens ontsleuteld kunnen worden. Die
+sleutel zit niet in je mailbox en staat nergens op de machine, dus wie in je
+e-mail raakt, komt niet bij je boekhouding.
+
+Koppeltekens, spaties en hoofdletters in de herstelsleutel doen er niet toe. De
+letters I, L, O en U komen niet voor in het alfabet: lees ze als 1, 1, 0 en V.
+
+Een nieuwe sleutel maken kan bij **Instellingen › Herstel en e-mail**. De oude
+werkt daarna niet meer.
+
+### Waar de mailgegevens staan
+
+Het herstelmailadres en het app-wachtwoord van de mailserver moeten leesbaar
+zijn op het moment dat je je wachtwoord kwijt bent, dus voor je aangemeld bent.
+Ze kunnen daarom niet met je datasleutel versleuteld worden en staan versleuteld
+met een aparte sleutel in `lokaal.key`, naast de databank. Wie bij die map kan,
+kan bij je mailadres en dat app-wachtwoord — maar niet bij je transacties.
+
 ### Back-up
 
 Alles staat in de map die `TM_DATA_DIR` aanwijst: `/data` in de add-on,
@@ -451,10 +501,19 @@ aanmelden.
 
 ## 11. Bij problemen
 
-**Ik ben mijn wachtwoord vergeten.** Dan zijn de gegevens niet meer leesbaar.
-Verwijder de map `data` en begin opnieuw. Dit is geen tekortkoming maar de
-bedoeling: kon de toepassing je wachtwoord herstellen, dan kon iemand anders dat
-ook.
+**Ik ben mijn wachtwoord vergeten.** Gebruik *Wachtwoord vergeten?* op het
+aanmeldscherm. Je hebt de code uit je e-mail én je herstelsleutel nodig.
+
+**Ik ben mijn wachtwoord én mijn herstelsleutel kwijt.** Dan zijn de gegevens
+niet meer leesbaar. Verwijder de map `data` en begin opnieuw. Dit is geen
+tekortkoming maar de bedoeling: kon de toepassing je gegevens zonder een van
+beide openen, dan kon iemand anders dat ook.
+
+**De herstelcode komt niet aan.** Kijk in je map met ongewenste post. Stuur een
+testbericht bij *Instellingen › Herstel en e-mail*; de foutmelding van de
+mailserver komt dan rechtstreeks op het scherm. Weigert Yahoo de aanmelding, dan
+gebruik je waarschijnlijk je gewone wachtwoord in plaats van een
+app-wachtwoord.
 
 **Een kolom wordt niet herkend bij het inlezen.** Kies de juiste kolom zelf op
 het scherm *Kolommen nakijken* en klik *Voorbeeld verversen*.

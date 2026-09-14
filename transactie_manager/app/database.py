@@ -9,7 +9,7 @@ from flask import g
 
 from .config import DB_PATH, DEFAULT_SETTINGS
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS app_meta (
@@ -26,8 +26,30 @@ CREATE TABLE IF NOT EXISTS gebruikers (
     is_beheerder  INTEGER NOT NULL DEFAULT 0,
     actief        INTEGER NOT NULL DEFAULT 1,
     aangemaakt_op TEXT NOT NULL,
-    laatste_login TEXT
+    laatste_login TEXT,
+    herstel_salt   BLOB,
+    herstel_verif  TEXT,
+    herstel_wrapped TEXT,
+    herstel_op     TEXT,
+    email_lok      TEXT
 );
+
+CREATE TABLE IF NOT EXISTS lokale_instellingen (
+    sleutel    TEXT PRIMARY KEY,
+    waarde_lok TEXT
+);
+
+CREATE TABLE IF NOT EXISTS herstel_codes (
+    id            INTEGER PRIMARY KEY,
+    gebruiker_id  INTEGER NOT NULL REFERENCES gebruikers(id) ON DELETE CASCADE,
+    code_salt     BLOB NOT NULL,
+    code_hash     TEXT NOT NULL,
+    verloopt      TEXT NOT NULL,
+    pogingen      INTEGER NOT NULL DEFAULT 0,
+    gebruikt      INTEGER NOT NULL DEFAULT 0,
+    aangemaakt_op TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_herstel_gebruiker ON herstel_codes(gebruiker_id);
 
 CREATE TABLE IF NOT EXISTS instellingen (
     sleutel TEXT PRIMARY KEY,
@@ -177,6 +199,7 @@ def init_db() -> None:
     conn = connect()
     try:
         conn.executescript(SCHEMA)
+        _migreer(conn)
         cur = conn.execute("SELECT waarde FROM app_meta WHERE sleutel='schema_versie'")
         row = cur.fetchone()
         if row is None:
@@ -192,6 +215,30 @@ def init_db() -> None:
         conn.commit()
     finally:
         conn.close()
+
+
+def _migreer(conn: sqlite3.Connection) -> None:
+    """Voegt kolommen toe die in een latere versie bijgekomen zijn.
+
+    SQLite kan kolommen alleen toevoegen, niet wijzigen. Voor de uitbreidingen
+    tot nu toe volstaat dat.
+    """
+    bestaand = {rij["name"] for rij in conn.execute("PRAGMA table_info(gebruikers)")}
+    nieuw = {
+        "herstel_salt": "BLOB",
+        "herstel_verif": "TEXT",
+        "herstel_wrapped": "TEXT",
+        "herstel_op": "TEXT",
+        "email_lok": "TEXT",
+    }
+    for naam, soort in nieuw.items():
+        if naam not in bestaand:
+            conn.execute(f"ALTER TABLE gebruikers ADD COLUMN {naam} {soort}")
+    conn.execute(
+        "INSERT INTO app_meta (sleutel, waarde) VALUES ('schema_versie', ?) "
+        "ON CONFLICT(sleutel) DO UPDATE SET waarde = excluded.waarde",
+        (str(SCHEMA_VERSION),),
+    )
 
 
 def heeft_gebruikers() -> bool:

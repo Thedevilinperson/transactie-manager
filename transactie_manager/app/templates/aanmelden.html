@@ -33,8 +33,12 @@
       <button type="submit">Aanmelden</button>
     </form>
 
-    <p class="voet">Je wachtwoord ontgrendelt de sleutel waarmee je gegevens
-      versleuteld zijn. Zonder dat wachtwoord is de databank onleesbaar.</p>
+    <p class="voet">
+      <a href="{{ url_for('auth.wachtwoord_vergeten') }}">Wachtwoord vergeten?</a>
+    </p>
+    <p class="voet" style="margin-top:8px">Je wachtwoord ontgrendelt de sleutel
+      waarmee je gegevens versleuteld zijn. Zonder dat wachtwoord of je
+      herstelsleutel is de databank onleesbaar.</p>
   </div>
 </div>
 </body>

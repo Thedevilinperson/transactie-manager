@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from flask import Blueprint, flash, g, redirect, render_template, request, url_for
 
-from ..auth import beheerder_vereist, login_vereist, maak_gebruiker, wijzig_wachtwoord
+from .. import lokaal, mail
+from ..auth import (beheerder_vereist, herstelstatus, login_vereist, maak_gebruiker,
+                    wijzig_wachtwoord, zet_herstelmail)
 from ..categories import boom, keuzelijst, laad_alles
 from ..categorizer.ai import test_verbinding
 from ..crypto import normalize, normalize_iban
@@ -359,3 +361,59 @@ def logboek():
         for r in conn.execute("SELECT * FROM logboek ORDER BY id DESC LIMIT 200")
     ]
     return render_template("instellingen_logboek.html", rijen=rijen)
+
+
+# --------------------------------------------------------------------------
+# Herstel en e-mail
+# --------------------------------------------------------------------------
+
+@bp.route("/herstel", methods=["GET", "POST"])
+@login_vereist
+def herstel():
+    conn = get_db()
+
+    if request.method == "POST":
+        actie = request.form.get("actie")
+
+        if actie == "mailinstellingen":
+            for sleutel in ("smtp_server", "smtp_poort", "smtp_beveiliging",
+                            "smtp_gebruiker", "smtp_afzender"):
+                lokaal.schrijf(conn, sleutel, request.form.get(sleutel, "").strip())
+            # Een leeg wachtwoordveld laat het bestaande wachtwoord staan.
+            nieuw = request.form.get("smtp_wachtwoord", "")
+            if nieuw:
+                lokaal.schrijf(conn, "smtp_wachtwoord", nieuw)
+            lokaal.schrijf(conn, "smtp_actief",
+                           "1" if request.form.get("smtp_actief") else "0")
+            conn.commit()
+            flash("Mailinstellingen opgeslagen.", "goed")
+
+        elif actie == "adres":
+            adres = request.form.get("email", "").strip()
+            zet_herstelmail(g.sessie["id"], adres)
+            log(conn, g.crypto, g.gebruiker, "herstelmail_gewijzigd")
+            conn.commit()
+            flash("E-mailadres voor herstel opgeslagen." if adres
+                  else "E-mailadres verwijderd.", "goed")
+
+        elif actie == "test":
+            adres = request.form.get("email", "").strip() or herstelstatus(
+                g.sessie["id"])["email"]
+            if not adres:
+                flash("Vul eerst een e-mailadres in.", "fout")
+            else:
+                try:
+                    mail.verstuur_testbericht(conn, adres)
+                    flash(f"Testbericht verstuurd naar {adres}. "
+                          "Kijk ook in je map met ongewenste post.", "goed")
+                except mail.MailFout as exc:
+                    flash(str(exc), "fout")
+
+        return redirect(url_for("instellingen.herstel"))
+
+    return render_template(
+        "instellingen_herstel.html",
+        status=herstelstatus(g.sessie["id"]),
+        mailwaarden=mail.instellingen(conn),
+        kan_mailen=mail.actief(conn),
+    )

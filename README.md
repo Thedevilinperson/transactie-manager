@@ -4,7 +4,7 @@ Huishoudboekje op basis van bankafschriften. Draait als Home Assistant-add-on of
 lokaal op Windows, Linux en macOS. Toegang met een eigen gebruikersnaam en
 wachtwoord; de gegevens staan versleuteld in de databank.
 
-**Versie 0.2.1** — zie [CHANGELOG.md](CHANGELOG.md) voor de wijzigingen en
+**Versie 0.3.0** — zie [CHANGELOG.md](CHANGELOG.md) voor de wijzigingen en
 [docs/HANDLEIDING.md](docs/HANDLEIDING.md) voor de volledige handleiding.
 
 ## Wat het doet
@@ -62,8 +62,15 @@ basis van HMAC-SHA256.
 De datasleutel bestaat alleen in het geheugen van het draaiende proces. Na een
 herstart moet je opnieuw aanmelden.
 
-> Er is geen herstelprocedure voor een vergeten wachtwoord. Dat is de bedoeling:
-> kon de toepassing je wachtwoord herstellen, dan kon iemand anders dat ook.
+Vergeet je je wachtwoord, dan is er herstel in twee stappen: een code van zes
+cijfers naar je e-mailadres, plus de herstelsleutel die je bij de installatie
+eenmalig te zien kreeg. Je hebt ze allebei nodig. De herstelsleutel wordt
+nergens bewaard en zit niet in je mailbox, dus wie in je e-mail raakt komt niet
+bij je gegevens.
+
+> Ben je het wachtwoord én de herstelsleutel kwijt, dan zijn de gegevens niet
+> meer te ontsleutelen. Dat is de bedoeling: kon de toepassing ze zonder een van
+> beide openen, dan kon iemand anders dat ook.
 
 ## Mappen
 

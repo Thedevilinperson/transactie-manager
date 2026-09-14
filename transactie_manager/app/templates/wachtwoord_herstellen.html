@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nieuw wachtwoord · {{ app_naam }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/stijl.css') }}">
+</head>
+<body>
+<div class="poort">
+  <div class="kaart">
+    <h1>Nieuw wachtwoord instellen</h1>
+    <p class="uitleg">Staat er een account met een e-mailadres en een
+      herstelsleutel, dan is er een code onderweg. Ze blijft
+      {{ geldig_minuten }} minuten geldig.</p>
+
+    {% with meldingen = get_flashed_messages(with_categories=true) %}
+      {% for soort, tekst in meldingen %}
+        <div class="melding {{ soort }}">{{ tekst }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="post">
+      <div class="veld">
+        <label for="gebruikersnaam">Gebruikersnaam</label>
+        <input type="text" id="gebruikersnaam" name="gebruikersnaam"
+               value="{{ gebruikersnaam }}" autocomplete="username" required>
+      </div>
+      <div class="veld">
+        <label for="code">Code uit de e-mail</label>
+        <input type="text" id="code" name="code" inputmode="numeric"
+               autocomplete="one-time-code" maxlength="6" required>
+      </div>
+      <div class="veld">
+        <label for="herstelsleutel">Herstelsleutel</label>
+        <input type="text" id="herstelsleutel" name="herstelsleutel"
+               placeholder="AB3D-9FGH-..." required>
+      </div>
+      <div class="veld">
+        <label for="wachtwoord">Nieuw wachtwoord (minstens {{ min_wachtwoord }} tekens)</label>
+        <input type="password" id="wachtwoord" name="wachtwoord"
+               autocomplete="new-password" required minlength="{{ min_wachtwoord }}">
+      </div>
+      <div class="veld">
+        <label for="herhaling">Herhaal het nieuwe wachtwoord</label>
+        <input type="password" id="herhaling" name="herhaling"
+               autocomplete="new-password" required minlength="{{ min_wachtwoord }}">
+      </div>
+      <button type="submit">Wachtwoord instellen</button>
+    </form>
+
+    <p class="voet">Koppeltekens en hoofdletters in de herstelsleutel doen er
+      niet toe.<br>
+      <a href="{{ url_for('auth.wachtwoord_vergeten') }}">Nieuwe code aanvragen</a> ·
+      <a href="{{ url_for('auth.login') }}">Terug naar aanmelden</a></p>
+  </div>
+</div>
+</body>
+</html>

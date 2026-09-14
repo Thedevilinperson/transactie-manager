@@ -1,0 +1,130 @@
+{% extends "basis.html" %}
+{% block titel %}Herstel en e-mail{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Herstel en e-mail</h1>
+  <p>Wat er nodig is om weer binnen te raken als je je wachtwoord vergeet.</p>
+</div>
+
+<div class="vlak">
+  <h2>Hoe het herstel werkt</h2>
+  <p>Je hebt twee dingen nodig, en je moet ze allebei hebben. De <strong>code
+    per e-mail</strong> bewijst dat jij het bent. De <strong>herstelsleutel</strong>
+    is het enige waarmee je gegevens ontsleuteld kunnen worden: die zit niet in je
+    mailbox en staat nergens op deze machine. Wie in je e-mail raakt, komt dus
+    niet bij je boekhouding.</p>
+</div>
+
+<div class="vlak">
+  <h2>Herstelsleutel</h2>
+  {% if status.sleutel %}
+    <p>Er staat een herstelsleutel klaar, aangemaakt op
+      {{ status.op[:10] if status.op else 'onbekende datum' }}. De sleutel zelf
+      is nergens leesbaar bewaard, dus we kunnen hem niet opnieuw tonen.</p>
+    <form method="post" action="{{ url_for('auth.nieuwe_herstelsleutel') }}"
+          style="margin-top:14px"
+          data-bevestig="Een nieuwe sleutel maken? De oude werkt daarna niet meer.">
+      <button type="submit" class="stil">Nieuwe herstelsleutel maken</button>
+    </form>
+  {% else %}
+    <div class="melding fout">Er staat nog geen herstelsleutel klaar. Zonder
+      sleutel is herstel niet mogelijk.</div>
+    <form method="post" action="{{ url_for('auth.nieuwe_herstelsleutel') }}"
+          style="margin-top:14px">
+      <button type="submit">Herstelsleutel aanmaken</button>
+    </form>
+  {% endif %}
+</div>
+
+<div class="vlak">
+  <h2>E-mailadres voor herstel</h2>
+  <form method="post">
+    <input type="hidden" name="actie" value="adres">
+    <div class="veld">
+      <label for="email">Naar dit adres gaat de code</label>
+      <input type="text" id="email" name="email" value="{{ status.email }}"
+             placeholder="jij@yahoo.com">
+    </div>
+    <div class="knoppen">
+      <button type="submit">Adres opslaan</button>
+      <button type="submit" name="actie" value="test" class="stil">
+        Testbericht sturen</button>
+    </div>
+  </form>
+</div>
+
+<form method="post">
+  <input type="hidden" name="actie" value="mailinstellingen">
+  <div class="vlak">
+    <h2>Mailserver</h2>
+    <p>Voor Yahoo staan de juiste waarden al ingevuld. Bij
+      <strong>Wachtwoord</strong> hoort niet je gewone Yahoo-wachtwoord maar een
+      app-wachtwoord van zestien tekens. Dat maak je aan in je Yahoo-account
+      onder <em>Accountbeveiliging › App-wachtwoord genereren</em>.</p>
+
+    <div class="keuzeregel" style="margin-top:14px">
+      <input type="checkbox" id="smtp_actief" name="smtp_actief" value="1"
+             {{ 'checked' if mailwaarden.smtp_actief == '1' }}>
+      <label for="smtp_actief">Er mag e-mail verstuurd worden</label>
+    </div>
+
+    <div class="rooster" style="margin-top:14px">
+      <div class="veld">
+        <label for="smtp_server">Server</label>
+        <input type="text" id="smtp_server" name="smtp_server"
+               value="{{ mailwaarden.smtp_server }}">
+      </div>
+      <div class="veld">
+        <label for="smtp_poort">Poort</label>
+        <input type="text" id="smtp_poort" name="smtp_poort"
+               value="{{ mailwaarden.smtp_poort }}">
+      </div>
+      <div class="veld">
+        <label for="smtp_beveiliging">Beveiliging</label>
+        <select id="smtp_beveiliging" name="smtp_beveiliging">
+          <option value="ssl" {{ 'selected' if mailwaarden.smtp_beveiliging == 'ssl' }}>
+            SSL (poort 465)</option>
+          <option value="starttls" {{ 'selected' if mailwaarden.smtp_beveiliging == 'starttls' }}>
+            STARTTLS (poort 587)</option>
+          <option value="geen" {{ 'selected' if mailwaarden.smtp_beveiliging == 'geen' }}>
+            Geen</option>
+        </select>
+      </div>
+      <div class="veld">
+        <label for="smtp_gebruiker">Gebruikersnaam</label>
+        <input type="text" id="smtp_gebruiker" name="smtp_gebruiker"
+               value="{{ mailwaarden.smtp_gebruiker }}" placeholder="jij@yahoo.com">
+      </div>
+      <div class="veld">
+        <label for="smtp_wachtwoord">App-wachtwoord</label>
+        <input type="password" id="smtp_wachtwoord" name="smtp_wachtwoord"
+               autocomplete="new-password"
+               placeholder="{{ 'ingesteld, laat leeg om te behouden'
+                               if mailwaarden.smtp_wachtwoord else '' }}">
+      </div>
+      <div class="veld">
+        <label for="smtp_afzender">Afzender (leeg = de gebruikersnaam)</label>
+        <input type="text" id="smtp_afzender" name="smtp_afzender"
+               value="{{ mailwaarden.smtp_afzender }}">
+      </div>
+    </div>
+  </div>
+
+  <div class="knoppen">
+    <button type="submit">Mailinstellingen opslaan</button>
+  </div>
+</form>
+
+<div class="vlak">
+  <h2>Waar deze gegevens staan</h2>
+  <p>Het adres en het app-wachtwoord hierboven moeten leesbaar zijn op het moment
+    dat je je wachtwoord kwijt bent, en dus voor je aangemeld bent. Ze kunnen
+    daarom niet met je datasleutel versleuteld worden. Ze staan versleuteld met
+    een aparte sleutel in <code>lokaal.key</code>, naast de databank.</p>
+  <p class="klein-detail" style="margin-top:10px">Wie bij die map kan, kan dus bij
+    je mailadres en je app-wachtwoord — maar niet bij je transacties. Geef dat
+    app-wachtwoord alleen rechten om te versturen, en trek het in bij je
+    mailprovider als je het toestel ooit weggeeft.</p>
+</div>
+{% endblock %}

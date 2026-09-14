@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Herstelsleutel · {{ app_naam }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/stijl.css') }}">
+  <style>
+    .sleutel {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 19px; letter-spacing: .04em; line-height: 1.9;
+      background: var(--papier); border: 1px solid var(--lijn-sterk);
+      border-radius: 4px; padding: 16px; text-align: center; word-spacing: .3em;
+      user-select: all; margin: 18px 0;
+    }
+    .poort .kaart { max-width: 520px; }
+  </style>
+</head>
+<body>
+<div class="poort">
+  <div class="kaart">
+    <h1>Je herstelsleutel</h1>
+    <p class="uitleg">Schrijf deze over of zet hem in je wachtwoordbeheerder.
+      Je krijgt hem maar één keer te zien.</p>
+
+    <div class="sleutel">{{ sleutel }}</div>
+
+    <p style="font-size:14px;color:var(--inkt-zacht);margin:0 0 18px">
+      Vergeet je ooit je wachtwoord, dan sturen we een code naar je e-mailadres.
+      Met die code <strong>en</strong> deze sleutel stel je een nieuw wachtwoord
+      in. De code alleen volstaat niet: zonder deze sleutel is er niets om je
+      gegevens mee te ontsleutelen. Dat is ook precies waarom niemand anders bij
+      je boekhouding kan.
+    </p>
+
+    <div class="melding fout" style="font-size:13.5px">
+      Bewaar hem niet in dezelfde map als je back-up, en niet enkel op het
+      toestel waarop deze toepassing draait.
+    </div>
+
+    {% if na_installatie %}
+      <a class="knop" style="display:block;text-align:center;margin-top:18px"
+         href="{{ url_for('auth.login') }}">Ik heb hem bewaard, ga naar aanmelden</a>
+    {% else %}
+      <a class="knop" style="display:block;text-align:center;margin-top:18px"
+         href="{{ url_for('instellingen.herstel') }}">Ik heb hem bewaard</a>
+      <p class="voet">De vorige herstelsleutel werkt vanaf nu niet meer.</p>
+    {% endif %}
+  </div>
+</div>
+</body>
+</html>

@@ -4,6 +4,41 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.3.0] — 2026-09-10
+
+### Toegevoegd
+- **Wachtwoordherstel met een herstelsleutel en een code per e-mail.** Bij de
+  installatie krijg je eenmalig een herstelsleutel van 32 tekens te zien. Er
+  komt een tweede ingepakte kopie van de datasleutel mee, ontgrendeld met die
+  herstelsleutel. Vergeet je je wachtwoord, dan stuurt de toepassing een code
+  van zes cijfers naar je e-mailadres; met die code én de herstelsleutel stel
+  je een nieuw wachtwoord in.
+- De herstelsleutel wordt nergens leesbaar bewaard, ook niet versleuteld. Een
+  code uit je mailbox alleen volstaat dus niet: wie in je e-mail raakt, komt
+  niet bij je gegevens.
+- Bij het overtypen van de herstelsleutel doen hoofdletters, spaties en
+  koppeltekens er niet toe. De letters I, L, O en U komen niet in het alfabet
+  voor en worden gelezen als 1, 1, 0 en V.
+- Nieuw scherm *Instellingen › Herstel en e-mail*: het adres instellen, een
+  testbericht sturen, de mailserver invullen en een nieuwe herstelsleutel
+  maken.
+- Verzenden via SMTP met SSL, STARTTLS of onbeveiligd. De standaardwaarden
+  staan op Yahoo Mail.
+- Link *Wachtwoord vergeten?* op het aanmeldscherm.
+
+### Beveiliging
+- Codes zijn een kwartier geldig, eenmalig, en na vijf foute pogingen vervallen
+  ze. Een nieuwe aanvraag laat oudere codes vervallen.
+- Het scherm *Wachtwoord vergeten* geeft altijd hetzelfde antwoord, of de
+  gebruikersnaam nu bestaat of niet.
+- De SMTP-gegevens en het herstelmailadres moeten leesbaar zijn voor je
+  aangemeld bent en kunnen dus niet met de datasleutel versleuteld worden. Ze
+  staan versleuteld met een aparte sleutel in `lokaal.key`, naast de databank.
+  Financiële gegevens blijven onveranderd beschermd.
+- De databank kent een lichte migratie: bestaande installaties krijgen de
+  nieuwe kolommen erbij zonder gegevensverlies.
+
+
 ## [0.2.1] — 2026-09-10
 
 ### Opgelost
