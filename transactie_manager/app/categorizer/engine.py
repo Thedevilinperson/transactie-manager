@@ -52,6 +52,10 @@ except ImportError:  # terugval op de standaardbibliotheek
         return beste
 
 
+# Regels die wel indelen maar altijd om bevestiging vragen.
+ONZEKERE_HERKOMSTEN = {"referentie_onzeker", "historiek_onzeker"}
+
+
 @dataclass
 class Voorstel:
     categorie_id: int | None = None
@@ -184,20 +188,49 @@ def regel_past(regel: Regel, k: TransactieKenmerken) -> bool:
     return False
 
 
+def eerste_passende(regels: list[Regel], k: TransactieKenmerken) -> Regel | None:
+    """Geeft de eerste regel die past. De lijst staat op prioriteit gesorteerd."""
+    for regel in regels:
+        if regel_past(regel, k):
+            return regel
+    return None
+
+
+def naar_voorstel(regel: Regel) -> Voorstel:
+    omschrijving = regel.naam or f"regel #{regel.id}"
+    onzeker = regel.herkomst in ONZEKERE_HERKOMSTEN
+    return Voorstel(
+        categorie_id=regel.categorie_id,
+        subcategorie_id=regel.subcategorie_id,
+        subsub_id=regel.subsub_id,
+        handelaar=regel.handelaar,
+        land=regel.land,
+        zekerheid=0.6 if onzeker else 1.0,
+        methode="regel",
+        status="nazicht" if onzeker else "bevestigd",
+        toelichting=(f"{omschrijving} wijst naar meer dan één categorie. "
+                     "Kies zelf welke hier past."
+                     if onzeker else f"Toegewezen door {omschrijving}."),
+    )
+
+
 def pas_regels_toe(regels: list[Regel], k: TransactieKenmerken) -> Voorstel | None:
     for regel in regels:
         if regel_past(regel, k):
             omschrijving = regel.naam or f"regel #{regel.id}"
+            onzeker = regel.herkomst in ONZEKERE_HERKOMSTEN
             return Voorstel(
                 categorie_id=regel.categorie_id,
                 subcategorie_id=regel.subcategorie_id,
                 subsub_id=regel.subsub_id,
                 handelaar=regel.handelaar,
                 land=regel.land,
-                zekerheid=1.0,
+                zekerheid=0.6 if onzeker else 1.0,
                 methode="regel",
-                status="bevestigd",
-                toelichting=f"Toegewezen door {omschrijving}.",
+                status="nazicht" if onzeker else "bevestigd",
+                toelichting=(f"{omschrijving} wijst in de historiek naar meer dan "
+                             "één categorie. Kies zelf welke hier past."
+                             if onzeker else f"Toegewezen door {omschrijving}."),
             )
     return None
 
@@ -274,7 +307,7 @@ def bouw_geschiedenis(conn, crypto, regels: list["Regel"] | None = None,
             continue
         voeg_toe(basis, regel.categorie_id, regel.subcategorie_id, regel.subsub_id,
                  regel.handelaar, regel.land,
-                 onzeker=regel.herkomst == "referentie_onzeker")
+                 onzeker=regel.herkomst in ONZEKERE_HERKOMSTEN)
 
     return sorted(verzameld.values(), key=lambda r: -r.aantal)
 
@@ -341,7 +374,10 @@ class Motor:
         for regel in self.regels:
             if regel.operator == "gelijk" and regel.bedrag_min is None \
                     and regel.bedrag_max is None:
-                sleutel = (regel.veld, normalize(regel.waarde))
+                sleutel = (regel.veld,
+                           normalize_iban(regel.waarde)
+                           if regel.veld == "tegenpartij_rekening"
+                           else normalize(regel.waarde))
                 self.exact.setdefault(sleutel, regel)
             else:
                 self.los.append(regel)
@@ -352,35 +388,31 @@ class Motor:
         self.suggestie_drempel = float(instelling(conn, "fuzzy_suggestie_drempel", "72"))
 
     def beoordeel(self, k: TransactieKenmerken) -> Voorstel:
-        # Stap 1a: exacte treffer op de gecombineerde sleutel, dan op tegenpartij.
+        """Zoekt de best passende regel en valt anders terug op de fuzzy stap.
+
+        Exacte treffers en regels met een bedragvork worden samen beoordeeld en
+        niet na elkaar: anders zou een brede regel op de tegenpartij altijd
+        voorgaan op een nauwkeurigere regel die het bedrag meeneemt.
+        """
+        kandidaten: list[Regel] = []
         for veld, waarde in (("sleutel", k.sleutel()),
                              ("beschrijving", normalize(k.beschrijving)),
-                             ("tegenpartij_naam", normalize(k.tegenpartij_naam))):
+                             ("tegenpartij_naam", normalize(k.tegenpartij_naam)),
+                             ("tegenpartij_rekening", normalize_iban(k.tegenpartij_rekening))):
+            if not waarde:
+                continue
             regel = self.exact.get((veld, waarde))
             if regel is not None and (regel.richting is None or regel.richting == k.richting):
-                onzeker = regel.herkomst == "referentie_onzeker"
-                return Voorstel(
-                    categorie_id=regel.categorie_id,
-                    subcategorie_id=regel.subcategorie_id,
-                    subsub_id=regel.subsub_id,
-                    handelaar=regel.handelaar, land=regel.land,
-                    zekerheid=0.6 if onzeker else 1.0,
-                    methode="regel",
-                    status="nazicht" if onzeker else "bevestigd",
-                    toelichting=(
-                        f"{regel.naam or veld} komt in de referentielijst onder "
-                        "meer dan één categorie voor. Kies zelf welke hier past."
-                        if onzeker else
-                        f"Exacte treffer in de referentielijst ({regel.naam or veld})."
-                    ),
-                )
+                kandidaten.append(regel)
 
-        # Stap 1b: de overige regels, met bedragvork en bevat-vergelijking.
-        voorstel = pas_regels_toe(self.los, k)
-        if voorstel is not None:
-            return voorstel
+        los = eerste_passende(self.los, k)
+        if los is not None:
+            kandidaten.append(los)
 
-        # Stap 2: fuzzy vergelijking.
+        if kandidaten:
+            beste = min(kandidaten, key=lambda r: (r.prioriteit, r.id))
+            return naar_voorstel(beste)
+
         voorstel = fuzzy_voorstel(self.geschiedenis, self.kandidaten, k,
                                   self.auto_drempel, self.suggestie_drempel)
         if voorstel is not None:

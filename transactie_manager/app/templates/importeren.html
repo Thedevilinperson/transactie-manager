@@ -43,10 +43,57 @@
 </form>
 
 <div class="vlak">
-  <h2>Wat er ingelezen wordt</h2>
-  <p>Elke rij wordt één transactie, met datum, rekeningnummers, naam van de
-    tegenpartij, naam van de begunstigde en één of meer mededelingen. Rijen die
-    al in de databank staan worden overgeslagen, dus je mag gerust overlappende
-    afschriften inlezen.</p>
+  <h2>Welke kolommen</h2>
+  <p>Alleen <strong>Boekdatum</strong> en <strong>Bedrag</strong> zijn verplicht.
+    De rest is optioneel maar maakt het automatisch indelen beter. De volgorde
+    van de kolommen doet er niet toe: je duidt ze zelf aan op het volgende
+    scherm, en voor de bekende banken staat dat al goed.</p>
+
+  <div class="tabel-omhulsel" style="margin-top:14px">
+    <table>
+      <thead><tr><th>Kolom</th><th>Nodig</th><th>Waarvoor</th></tr></thead>
+      <tbody>
+        <tr><td>Boekdatum</td><td>verplicht</td><td>Bepaalt het jaar in de overzichten</td></tr>
+        <tr><td>Bedrag</td><td>verplicht</td><td>Negatief is uitgave, positief is inkomst</td></tr>
+        <tr><td>Referentie</td><td>aangeraden</td><td>De unieke verwijzing van de bank; hiermee worden dubbels vermeden</td></tr>
+        <tr><td>Beschrijving</td><td>aangeraden</td><td>De soort verrichting; samen met de tegenpartij de referentiesleutel</td></tr>
+        <tr><td>Naam tegenpartij</td><td>aangeraden</td><td>Het belangrijkste veld voor het indelen</td></tr>
+        <tr><td>Rekening tegenpartij</td><td>aangeraden</td><td>Sterkste aanwijzing: een IBAN hoort bij één partij</td></tr>
+        <tr><td>Rekening</td><td>optioneel</td><td>Je eigen rekeningnummer, om rijen over meerdere rekeningen te verdelen</td></tr>
+        <tr><td>Mededeling</td><td>optioneel</td><td>Meerdere mededelingskolommen worden samengevoegd</td></tr>
+        <tr><td>Valutadatum, Verrichtingsdatum, Munt</td><td>optioneel</td><td>Worden mee bewaard</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="vlak">
+  <h2>Historiek met de indeling er al in</h2>
+  <p>Heb je je transacties elders al ingedeeld, dan kan je die indeling
+    meteen mee inlezen. Voeg dan vijf kolommen toe:
+    <strong>Hoofdcategorie</strong>, <strong>Subcategorie</strong>,
+    <strong>Sub-subcategorie</strong>, <strong>Winkel</strong> en
+    <strong>Land</strong>. Categorieën die nog niet bestaan worden vanzelf
+    aangemaakt, en die transacties komen meteen als bevestigd binnen — ze gaan
+    niet door het nazicht.</p>
+  <p style="margin-top:10px">Daarna kan je uit die historiek in één keer een
+    referentielijst laten opbouwen, bij
+    <a href="{{ url_for('bijzonder.regels_uit_historiek') }}">Regels uit
+    historiek</a>.</p>
+  <div class="knoppen" style="margin-top:14px">
+    <a class="knop stil"
+       href="{{ url_for('bijzonder.voorbeeldbestand', naam='historiek') }}">
+      Voorbeeldbestand downloaden</a>
+  </div>
+  <p class="klein-detail" style="margin-top:10px">In dat bestand staat een tweede
+    werkblad met per kolom een toelichting.</p>
+</div>
+
+<div class="vlak">
+  <h2>Dubbels</h2>
+  <p>Rijen die al in de databank staan worden overgeslagen. Ontdubbelen gebeurt
+    op de referentie van de bank; ontbreekt die kolom, dan op een vingerafdruk
+    van datum, bedrag, rekening, tegenpartij en mededeling. Je mag dus gerust
+    overlappende afschriften inlezen.</p>
 </div>
 {% endblock %}

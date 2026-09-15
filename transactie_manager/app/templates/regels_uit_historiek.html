@@ -1,0 +1,111 @@
+{% extends "basis.html" %}
+{% block titel %}Regels uit historiek{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Regels uit historiek</h1>
+  <p>Een referentielijst afleiden uit wat je al ingedeeld hebt.</p>
+</div>
+
+<div class="vlak">
+  <h2>Hoe dit werkt</h2>
+  <p>Er wordt gekeken naar elke transactie die al een categorie heeft, en per
+    veld nagegaan of dat veld steeds naar dezelfde indeling verwijst. Is dat zo,
+    dan wordt er een regel van gemaakt. Wijst een veld naar meerdere indelingen,
+    dan wordt eerst geprobeerd of het bedrag de gevallen scheidt; lukt dat niet,
+    dan komt er een regel die om bevestiging blijft vragen.</p>
+</div>
+
+<div class="vlak">
+  <form method="get" class="filterbalk">
+    <div>
+      <label for="alleen_bevestigd">Waarop baseren</label>
+      <select id="alleen_bevestigd" name="alleen_bevestigd">
+        <option value="1" {{ 'selected' if alleen_bevestigd }}>
+          Alleen bevestigde transacties</option>
+        <option value="0" {{ 'selected' if not alleen_bevestigd }}>
+          Alles met een categorie, ook wat nog nazicht vraagt</option>
+      </select>
+    </div>
+    <div class="acties"><button type="submit">Opnieuw berekenen</button></div>
+  </form>
+</div>
+
+{% if analyse.transacties == 0 %}
+  <div class="vlak">
+    <div class="leeg">
+      <strong>Nog niets om uit te leren</strong>
+      Er staan geen ingedeelde transacties. Lees eerst je historiek in, of
+      bevestig een aantal voorstellen in het nazicht.
+    </div>
+  </div>
+{% else %}
+  <div class="vlak">
+    <h2>Wat eruit komt</h2>
+    <div class="balans">
+      <div class="cijfer"><b>{{ analyse.transacties }}</b>
+        <span>transacties bekeken</span></div>
+      <div class="cijfer in"><b>{{ analyse.regels|length }}</b>
+        <span>regels afgeleid</span></div>
+      <div class="cijfer"><b>{{ analyse.botsingen_opgelost }}</b>
+        <span>opgelost met een bedragvork</span></div>
+      <div class="cijfer uit"><b>{{ analyse.onzeker }}</b>
+        <span>blijven om bevestiging vragen</span></div>
+    </div>
+  </div>
+
+  <div class="vlak">
+    <h2>Welke velden wat opleverden</h2>
+    <div class="tabel-omhulsel">
+      <table>
+        <thead><tr><th>Aanwijzing</th><th class="getal">Regels</th></tr></thead>
+        <tbody>
+          {% for naam, aantal in analyse.per_veld.items() %}
+            <tr><td>{{ naam }}</td><td class="getal">{{ aantal }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="klein-detail" style="margin-top:12px">Een rekeningnummer weegt het
+      zwaarst: dat hoort bij één partij en verandert niet. Een tegenpartij alleen
+      is het breedst inzetbaar maar botst het vaakst.</p>
+  </div>
+
+  {% if analyse.voorbeelden_bedragsplitsing %}
+    <div class="vlak">
+      <h2>Gesplitst op bedrag</h2>
+      <p>Bij deze tegenpartijen wees het bedrag de weg. Kleine en grote bedragen
+        bleken steevast naar een andere categorie te gaan, dus is er een grens
+        tussen gelegd.</p>
+      <ul style="margin-top:10px">
+        {% for v in analyse.voorbeelden_bedragsplitsing %}<li>{{ v }}</li>{% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  <form method="post">
+    <input type="hidden" name="actie" value="wegschrijven">
+    <input type="hidden" name="alleen_bevestigd" value="{{ '1' if alleen_bevestigd else '0' }}">
+    <div class="vlak">
+      <h2>Wegschrijven</h2>
+      <div class="keuzeregel">
+        <input type="checkbox" id="vervang_geleerd" name="vervang_geleerd" value="1" checked>
+        <label for="vervang_geleerd">Wat een vorige keer uit de historiek is
+          afgeleid eerst wissen</label>
+      </div>
+      <p class="klein-detail">Regels die je zelf hebt ingevoerd en regels uit een
+        categorieënbestand blijven hoe dan ook staan.</p>
+      <div class="keuzeregel" style="margin-top:12px">
+        <input type="checkbox" id="herindelen" name="herindelen" value="1" checked>
+        <label for="herindelen">Daarna alles wat nog niet bevestigd is opnieuw
+          indelen</label>
+      </div>
+    </div>
+    <div class="knoppen">
+      <button type="submit">{{ analyse.regels|length }} regels wegschrijven</button>
+      <a class="knop stil" href="{{ url_for('instellingen.regels') }}">Bestaande regels
+        bekijken</a>
+    </div>
+  </form>
+{% endif %}
+{% endblock %}

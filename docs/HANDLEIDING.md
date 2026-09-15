@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.3.1
+Versie 0.4.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -139,7 +139,7 @@ rekeningen elke rij aan de juiste rekening hangen.
 Je kan twee kanten op.
 
 **Je hebt al een categorieënbestand.** Ga naar **Instellingen ›
-Referentielijst**. Het werkblad moet vijf kolommen hebben, in deze volgorde:
+Referentielijst**. Er staat een voorbeeldbestand klaar om te downloaden. Het werkblad moet vijf kolommen hebben, in deze volgorde:
 
 | Kolom | Inhoud                                                          |
 |-------|-----------------------------------------------------------------|
@@ -153,6 +153,14 @@ Je krijgt eerst een analysescherm te zien: hoeveel categorieën eruit volgen, ho
 de boom eruitziet, en welke tegenpartijen in je lijst naar meer dan één
 categorie verwijzen. Pas als je op **Referentielijst inlezen** klikt, wordt er
 iets weggeschreven.
+
+Daar kies je ook wat er met je huidige categorieën gebeurt:
+
+- **Behouden en aanvullen** — wat er al staat blijft; nieuwe categorieën en
+  regels komen erbij. De indeling van je transacties blijft ongemoeid.
+- **Integraal vervangen** — alles wordt gewist en vervangen door deze lijst. Je
+  transacties blijven bestaan maar verliezen hun categorie. Zet dan meteen
+  *opnieuw indelen* aan.
 
 Uit zo'n bestand komen twee soorten regels. Voor elke rij komt er een regel die
 exact op die sleutel past. Daarnaast komt er een bredere regel op enkel de
@@ -212,7 +220,23 @@ bij.
 invoer** en draai die invoerbeurt terug. Alle transacties uit die beurt worden
 dan verwijderd.
 
-### 4.2 Met de hand
+### 4.2 Historiek met de indeling er al in
+
+Heb je je transacties elders al ingedeeld, dan kan je die indeling mee inlezen.
+Voeg vijf kolommen toe aan je bestand: **Hoofdcategorie**, **Subcategorie**,
+**Sub-subcategorie**, **Winkel** en **Land**.
+
+Op het scherm *Bestand inlezen* staat een knop om een voorbeeldbestand te
+downloaden. Daarin zit een tweede werkblad dat per kolom uitlegt waarvoor ze
+dient en of ze verplicht is. Alleen **Boekdatum** en **Bedrag** zijn echt
+verplicht; de volgorde van de kolommen doet er niet toe.
+
+Herkent de toepassing een kolom Hoofdcategorie, dan verschijnt op het
+controlescherm de keuze **Indeling uit het bestand overnemen**. Die gaat voor op
+het automatisch indelen. Categorieën die nog niet bestaan worden aangemaakt, en
+die transacties komen meteen bevestigd binnen.
+
+### 4.3 Met de hand
 
 **Nieuwe transactie** in het menu. Laat de categorie leeg als je wil dat de
 toepassing er zelf een kiest.
@@ -360,6 +384,32 @@ de gekozen hoofdcategorie, en de sub-subcategorieën op de gekozen subcategorie.
 
 Vink **Deze keuze onthouden als vaste regel** aan om er meteen een regel van te
 maken. De volgende keer gaat het dan vanzelf.
+
+### Regels afleiden uit je historiek
+
+Staat je historiek eenmaal ingedeeld in de databank, dan kan je daar in één keer
+een referentielijst uit laten opbouwen: **Regels uit historiek** in het menu.
+
+Er wordt gekeken naar elke transactie die al een categorie heeft, en per veld
+nagegaan of dat veld steeds naar dezelfde indeling verwijst. Vier soorten
+aanwijzingen doen mee, in volgorde van hoe hard ze zijn:
+
+| Aanwijzing                        | Waarom ze werkt |
+|-----------------------------------|-----------------|
+| Rekeningnummer van de tegenpartij | Een IBAN hoort bij één partij en verandert niet |
+| Gestructureerde mededeling        | Het `+++...+++`-nummer hoort bij één schuldeiser |
+| Beschrijving plus tegenpartij     | Onderscheidt een aankoop van een overschrijving aan dezelfde naam |
+| Tegenpartij alleen                | Breed inzetbaar, maar botst het vaakst |
+
+Verwijst een aanwijzing naar meerdere categorieën, dan wordt eerst geprobeerd of
+het **bedrag** de gevallen scheidt. Zijn alle broodjes bij het tankstation onder
+de tien euro en alle tankbeurten erboven, dan legt de toepassing daar zelf een
+grens en maakt ze er twee regels van. Overlappen de bedragen wel, dan komt er
+een regel die om bevestiging blijft vragen.
+
+Je krijgt eerst een overzicht van wat eruit zou komen. Pas als je bevestigt,
+wordt er weggeschreven. Regels die je zelf hebt ingevoerd en regels uit een
+categorieënbestand blijven daarbij staan.
 
 ### Alles opnieuw laten indelen
 

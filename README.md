@@ -4,7 +4,7 @@ Huishoudboekje op basis van bankafschriften. Draait als Home Assistant-add-on of
 lokaal op Windows, Linux en macOS. Toegang met een eigen gebruikersnaam en
 wachtwoord; de gegevens staan versleuteld in de databank.
 
-**Versie 0.3.1** — zie [CHANGELOG.md](CHANGELOG.md) voor de wijzigingen en
+**Versie 0.4.0** — zie [CHANGELOG.md](CHANGELOG.md) voor de wijzigingen en
 [docs/HANDLEIDING.md](docs/HANDLEIDING.md) voor de volledige handleiding.
 
 ## Wat het doet
@@ -35,7 +35,16 @@ Vier stappen, in volgorde. Zodra er één lukt, stopt het.
    bovenliggende categorie.
 
 Heb je al een categorieënbestand, lees dat dan in bij *Instellingen ›
-Referentielijst*. Daaruit komen zowel de categorieboom als de regels.
+Referentielijst*. Daaruit komen zowel de categorieboom als de regels; je kiest
+of je je huidige categorieën behoudt of integraal vervangt.
+
+Breng je een historiek mee waarin de indeling al staat, dan wordt die
+overgenomen. Daarna kan je bij *Regels uit historiek* in één keer een
+referentielijst laten opbouwen uit wat er in de databank zit. Daarbij doen alle
+bruikbare velden mee: het rekeningnummer van de tegenpartij, de gestructureerde
+mededeling, de combinatie van beschrijving en tegenpartij, en de tegenpartij
+alleen — en waar een tegenpartij twee categorieën dekt, wordt gekeken of het
+bedrag ze scheidt.
 
 ## Snel starten
 

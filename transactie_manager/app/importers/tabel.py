@@ -35,7 +35,16 @@ VELDEN = [
     ("mededeling", "Mededeling", False),
     ("mededeling_2", "Tweede mededeling", False),
     ("mededeling_3", "Derde mededeling", False),
+    # Alleen nodig wanneer het bestand de indeling al bevat.
+    ("hoofdcategorie", "Hoofdcategorie", False),
+    ("subcategorie", "Subcategorie", False),
+    ("subsubcategorie", "Sub-subcategorie", False),
+    ("winkel", "Winkel of zaak", False),
+    ("land", "Land van bestemming", False),
 ]
+
+# Velden die samen de al toegekende indeling vormen.
+INDELINGSVELDEN = ["hoofdcategorie", "subcategorie", "subsubcategorie", "winkel", "land"]
 
 VERPLICHT = [naam for naam, _, verplicht in VELDEN if verplicht]
 
@@ -64,6 +73,12 @@ TREFWOORDEN = {
                    "detail", "communication", "mededeling 1", "vrije mededeling 1"],
     "mededeling_2": ["mededeling 2", "vrije mededeling 2", "detail 2", "omschrijving 2"],
     "mededeling_3": ["mededeling 3", "vrije mededeling 3", "detail 3", "omschrijving 3"],
+    "hoofdcategorie": ["hoofdcategorie", "hoofd categorie", "categorie 1", "hoofdgroep"],
+    "subcategorie": ["subcategorie", "categorie", "sub categorie", "categorie 2"],
+    "subsubcategorie": ["subsubcategorie", "sub subcategorie", "sub-subcategorie",
+                        "categorie 3", "subcategorie 2"],
+    "winkel": ["winkel", "zaak", "handelaar", "merchant", "winkel of land"],
+    "land": ["land", "bestemming", "land van bestemming", "country"],
 }
 
 
@@ -97,6 +112,23 @@ PROFIELEN: dict[str, Kolomprofiel] = {
         "bedrag": "Bedrag", "munt": "Munteenheid", "eigen_rekening": "Rekeningnummer",
         "tegenpartij_rekening": "Rekening tegenpartij",
         "tegenpartij_naam": "Naam tegenpartij", "mededeling": "Mededeling",
+    }),
+    "historiek": Kolomprofiel("Historiek met indeling (voorbeeldbestand)", {
+        "boekdatum": "Boekdatum",
+        "valutadatum": "Valutadatum",
+        "referentie": "Referentie",
+        "beschrijving": "Beschrijving",
+        "bedrag": "Bedrag",
+        "munt": "Munt",
+        "eigen_rekening": "Rekening",
+        "tegenpartij_rekening": "Rekening tegenpartij",
+        "tegenpartij_naam": "Naam tegenpartij",
+        "mededeling": "Mededeling",
+        "hoofdcategorie": "Hoofdcategorie",
+        "subcategorie": "Subcategorie",
+        "subsubcategorie": "Sub-subcategorie",
+        "winkel": "Winkel",
+        "land": "Land",
     }),
     "argenta": Kolomprofiel("Argenta", {
         "boekdatum": "Boekdatum",
@@ -330,5 +362,10 @@ def rij_naar_velden(rij: list, kop: list[str], mapping: dict[str, str],
         "tegenpartij_naam": tekst("tegenpartij_naam"),
         "begunstigde": tekst("begunstigde"),
         "mededeling": " | ".join(mededelingen),
+        "hoofdcategorie": tekst("hoofdcategorie"),
+        "subcategorie": tekst("subcategorie"),
+        "subsubcategorie": tekst("subsubcategorie"),
+        "winkel": tekst("winkel"),
+        "land": tekst("land"),
         "ruw": {k: (str(v) if v is not None else "") for k, v in zip(kop, rij)},
     }

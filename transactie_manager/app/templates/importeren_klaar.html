@@ -13,6 +13,13 @@
     <div class="cijfer"><b>{{ dubbel }}</b><span>al aanwezig, overgeslagen</span></div>
     <div class="cijfer uit"><b>{{ overgeslagen }}</b><span>onleesbaar</span></div>
   </div>
+  {% if uit_bestand %}
+    <p style="margin-top:18px">{{ uit_bestand }} daarvan kregen hun indeling
+      rechtstreeks uit het bestand en staan meteen bevestigd. Uit die historiek
+      kan je nu een referentielijst laten opbouwen bij
+      <a href="{{ url_for('bijzonder.regels_uit_historiek') }}">Regels uit
+      historiek</a>.</p>
+  {% endif %}
 </div>
 
 {% if fouten %}

@@ -7,7 +7,8 @@ import secrets
 from decimal import Decimal
 from pathlib import Path
 
-from flask import Blueprint, flash, g, redirect, render_template, request, url_for
+from flask import (Blueprint, flash, g, redirect, render_template, request,
+                   send_from_directory, url_for)
 from werkzeug.utils import secure_filename
 
 from ..auth import login_vereist
@@ -16,6 +17,7 @@ from ..config import UPLOAD_DIR
 from ..database import get_db, log, now_iso
 from ..importers import kredietkaart as kk
 from ..importers import referentie as ref
+from ..importers import regelbouwer
 from ..transacties import bewaar, haal, werk_bij
 
 bp = Blueprint("bijzonder", __name__)
@@ -267,3 +269,57 @@ def losmaken(tx_id: int):
     conn.commit()
     flash(f"{aantal} aankopen verwijderd; de afrekening telt weer mee.", "goed")
     return redirect(url_for("bijzonder.kredietkaart"))
+
+
+# ==========================================================================
+# Voorbeeldbestanden
+# ==========================================================================
+
+VOORBEELDEN = {
+    "historiek": ("voorbeeld_historiek_met_categorieen.xlsx",
+                  "Historiek met kolommen en al toegekende indeling"),
+    "referentielijst": ("voorbeeld_referentielijst.xlsx",
+                        "Referentielijst met vijf kolommen"),
+}
+
+
+@bp.route("/voorbeeld/<naam>")
+@login_vereist
+def voorbeeldbestand(naam: str):
+    if naam not in VOORBEELDEN:
+        flash("Dat voorbeeldbestand bestaat niet.", "fout")
+        return redirect(url_for("importeren.start"))
+    bestand = VOORBEELDEN[naam][0]
+    map_ = Path(__file__).resolve().parent.parent / "voorbeelden"
+    return send_from_directory(map_, bestand, as_attachment=True)
+
+
+# ==========================================================================
+# Referentielijst opbouwen uit de historiek
+# ==========================================================================
+
+@bp.route("/instellingen/regels-uit-historiek", methods=["GET", "POST"])
+@login_vereist
+def regels_uit_historiek():
+    conn = get_db()
+    crypto = g.crypto
+    alleen_bevestigd = request.values.get("alleen_bevestigd", "1") == "1"
+
+    if request.method == "POST" and request.form.get("actie") == "wegschrijven":
+        analyse = regelbouwer.analyseer(conn, crypto, alleen_bevestigd)
+        resultaat = regelbouwer.schrijf(
+            conn, crypto, analyse,
+            vervang_geleerd=request.form.get("vervang_geleerd", "1") == "1")
+        log(conn, crypto, g.gebruiker, "regels_uit_historiek", str(resultaat))
+        conn.commit()
+        flash(f"{resultaat['regels']} regels afgeleid uit je historiek, waarvan "
+              f"{resultaat['bedragsplitsingen']} bedragvorken en "
+              f"{resultaat['onzeker']} die om bevestiging blijven vragen.", "goed")
+        if request.form.get("herindelen") == "1":
+            return redirect(url_for("tx.herindelen_get"))
+        return redirect(url_for("instellingen.regels"))
+
+    analyse = regelbouwer.analyseer(conn, crypto, alleen_bevestigd)
+    return render_template("regels_uit_historiek.html", analyse=analyse,
+                           alleen_bevestigd=alleen_bevestigd,
+                           veldnaam=regelbouwer.VELDNAAM)

@@ -4,6 +4,49 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.4.0] — 2026-09-14
+
+### Toegevoegd
+- **Historiek met de indeling er al in.** De invoer neemt nu ook de kolommen
+  Hoofdcategorie, Subcategorie, Sub-subcategorie, Winkel en Land over.
+  Categorieën die nog niet bestaan worden aangemaakt; die transacties komen
+  meteen als bevestigd binnen en gaan niet door het nazicht.
+- **Voorbeeldbestanden om te downloaden**, één voor de historiek en één voor de
+  referentielijst. Elk met een tweede werkblad dat per kolom uitlegt waarvoor
+  ze dient en of ze verplicht is.
+- Het invoerscherm toont nu een tabel met alle kolommen, of ze verplicht zijn
+  en waarvoor ze gebruikt worden.
+- **Regels uit historiek**: een referentielijst afleiden uit de transacties die
+  al ingedeeld zijn. Vier soorten aanwijzingen doen mee, elk met een eigen
+  gewicht: het rekeningnummer van de tegenpartij, de gestructureerde mededeling,
+  de combinatie van beschrijving en tegenpartij, en de tegenpartij alleen.
+- Botst een tegenpartij tussen twee categorieën, dan wordt gekeken of het bedrag
+  de gevallen scheidt. Overlappen de reeksen niet, dan komt er een grens tussen
+  en worden het twee regels met een bedragvork. Dat is het geval van het
+  tankstation: kleine bedragen zijn een broodje, grote bedragen zijn brandstof.
+  Lukt dat niet, dan komt er een regel die om bevestiging blijft vragen.
+- Analysescherm vooraf met de aantallen per aanwijzing en de gevonden
+  bedragvorken; er wordt pas weggeschreven als je bevestigt.
+
+### Gewijzigd
+- De keuze bij het inlezen van een referentielijst is nu een uitdrukkelijke
+  keuze tussen **behouden en aanvullen** en **integraal vervangen**, in plaats
+  van een aankruisvakje. Behouden is voortaan de standaard.
+
+### Opgelost
+- **De kolom Beschrijving werd bij de invoer niet aan de motor doorgegeven.**
+  Daardoor kwamen de regels op de gecombineerde sleutel nooit aan bod en deden
+  alleen de bredere tegenpartijregels hun werk. Op de Argenta-uitvoer stijgt het
+  aantal treffers via een regel daardoor van 147 naar 154.
+- **De volgorde waarin regels beoordeeld werden negeerde de prioriteit.** Een
+  exacte treffer op de tegenpartij won altijd van een nauwkeurigere regel met
+  een bedragvork, waardoor een uitgave van vijf euro bij het tankstation toch
+  bij brandstof belandde. Alle passende regels worden nu samen beoordeeld en de
+  laagste prioriteit wint.
+- Regels met een bedragvork werken nu ook op het rekeningnummer van de
+  tegenpartij; dat veld zat niet in de snelle index.
+
+
 ## [0.3.1] — 2026-09-14
 
 ### Opgelost

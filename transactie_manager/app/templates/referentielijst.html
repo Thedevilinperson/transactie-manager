@@ -26,6 +26,11 @@
       <label for="bestand">Excel met categorieën (.xlsx)</label>
       <input type="file" id="bestand" name="bestand" accept=".xlsx,.xlsm" required>
     </div>
+    <div class="knoppen" style="margin-top:6px">
+      <a class="knop stil"
+         href="{{ url_for('bijzonder.voorbeeldbestand', naam='referentielijst') }}">
+        Voorbeeldbestand downloaden</a>
+    </div>
   </div>
   <div class="knoppen">
     <button type="submit">Bestand analyseren</button>

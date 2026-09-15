@@ -150,3 +150,48 @@ def nakomelingen(platte: dict[int, Categorie], cat_id: int) -> set[int]:
                 resultaat.add(kind)
                 te_doen.append(kind)
     return resultaat
+
+
+def zoek_of_maak(conn, crypto, hoofd: str, sub: str = "", subsub: str = "",
+                 soort: str = "beide", cache: dict | None = None) -> tuple:
+    """Zoekt het pad (hoofd, sub, subsub) op naam en maakt aan wat ontbreekt.
+
+    Geeft een tupel met drie id's terug; ontbrekende niveaus worden None. De
+    vergelijking is hoofdletterongevoelig, zodat "Auto" en "auto" dezelfde
+    categorie blijven. Geef een woordenboek mee als `cache` om bij een grote
+    invoer niet per rij opnieuw te hoeven opzoeken.
+    """
+    if cache is None:
+        cache = {}
+    if "_geladen" not in cache:
+        cache["_geladen"] = True
+        cache["_paden"] = {}
+        for row in conn.execute("SELECT id, ouder_id, naam_enc FROM categorieen"):
+            cache["_paden"][(row["ouder_id"], normalize(crypto.dec(row["naam_enc"])))] = row["id"]
+
+    paden = cache["_paden"]
+
+    def niveau(naam: str, diepte: int, ouder_id):
+        genormaliseerd = normalize(naam)
+        if not genormaliseerd:
+            return None
+        sleutel = (ouder_id, genormaliseerd)
+        if sleutel in paden:
+            return paden[sleutel]
+        volgorde = conn.execute(
+            "SELECT COUNT(*) n FROM categorieen WHERE IFNULL(ouder_id,0)=?",
+            (ouder_id or 0,)).fetchone()["n"]
+        cur = conn.execute(
+            "INSERT INTO categorieen (ouder_id, niveau, soort, naam_enc, naam_idx, volgorde)"
+            " VALUES (?,?,?,?,?,?)",
+            (ouder_id, diepte, soort, crypto.enc(naam.strip()), crypto.blind(naam), volgorde),
+        )
+        paden[sleutel] = cur.lastrowid
+        return cur.lastrowid
+
+    hid = niveau(hoofd, 0, None)
+    if hid is None:
+        return (None, None, None)
+    sid = niveau(sub, 1, hid)
+    ssid = niveau(subsub, 2, sid) if sid else None
+    return (hid, sid, ssid)

@@ -7,6 +7,13 @@
   <p>{{ bestandsnaam }} · {{ aantal_rijen }} rijen</p>
 </div>
 
+{% if heeft_indeling %}
+  <div class="melding goed">
+    Dit bestand bevat al een indeling. Die wordt overgenomen en gaat voor op het
+    automatisch indelen. Categorieën die nog niet bestaan worden aangemaakt.
+  </div>
+{% endif %}
+
 {% if ontbrekend %}
   <div class="melding fout">
     Nog niet ingevuld: {{ ontbrekend|join(', ') }}. Zonder deze velden kan een
@@ -84,6 +91,13 @@
           <input type="checkbox" id="auto_toewijzen" name="auto_toewijzen" value="1" checked>
           <label for="auto_toewijzen">Regels en fuzzy logica meteen toepassen</label>
         </div>
+        {% if heeft_indeling %}
+          <div class="keuzeregel" style="margin-top:10px">
+            <input type="checkbox" id="neem_indeling_over" name="neem_indeling_over"
+                   value="1" checked>
+            <label for="neem_indeling_over">Indeling uit het bestand overnemen</label>
+          </div>
+        {% endif %}
       </div>
     </div>
   </div>

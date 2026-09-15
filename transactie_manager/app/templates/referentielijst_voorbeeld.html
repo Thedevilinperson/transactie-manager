@@ -68,12 +68,24 @@
   <input type="hidden" name="token" value="{{ token }}">
   <div class="vlak">
     <h2>Hoe inlezen</h2>
-    <div class="keuzeregel">
-      <input type="checkbox" id="vervang" name="vervang" value="1" checked>
-      <label for="vervang">Bestaande categorieën en regels eerst wissen</label>
+    <div class="veld">
+      <label>Wat met je huidige categorieën?</label>
+      <div class="keuzeregel" style="align-items:flex-start;margin-top:6px">
+        <input type="radio" id="vervang_nee" name="vervang" value="0" checked
+               style="margin-top:4px">
+        <label for="vervang_nee"><strong>Behouden en aanvullen.</strong>
+          Wat er al staat blijft; nieuwe categorieën en regels komen erbij.
+          Bestaande indelingen van transacties blijven ongemoeid.</label>
+      </div>
+      <div class="keuzeregel" style="align-items:flex-start;margin-top:10px">
+        <input type="radio" id="vervang_ja" name="vervang" value="1"
+               style="margin-top:4px">
+        <label for="vervang_ja"><strong>Integraal vervangen.</strong>
+          Alle categorieën en regels worden gewist en vervangen door deze lijst.
+          Je transacties blijven bestaan maar verliezen hun categorie; zet
+          hieronder “opnieuw indelen” aan om ze meteen te herverdelen.</label>
+      </div>
     </div>
-    <p class="klein-detail">Transacties blijven bestaan, maar verliezen hun
-      categorie. Zet daarna “opnieuw indelen” aan om ze meteen te herverdelen.</p>
     <div class="keuzeregel" style="margin-top:12px">
       <input type="checkbox" id="partijregels" name="partijregels" value="1" checked>
       <label for="partijregels">Ook brede regels maken op enkel de tegenpartij</label>

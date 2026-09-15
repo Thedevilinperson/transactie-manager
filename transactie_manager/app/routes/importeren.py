@@ -12,12 +12,13 @@ from flask import Blueprint, flash, g, redirect, render_template, request, url_f
 from werkzeug.utils import secure_filename
 
 from ..auth import login_vereist
-from ..categorizer.engine import Motor, TransactieKenmerken
+from ..categories import zoek_of_maak
+from ..categorizer.engine import Motor, TransactieKenmerken, Voorstel
 from ..config import UPLOAD_DIR
 from ..crypto import normalize_iban
 from ..database import get_db, log, now_iso
-from ..importers.tabel import (BESTANDSTYPES, PROFIELEN, VELDEN, detecteer_mapping,
-                               lees_bestand, rij_naar_velden)
+from ..importers.tabel import (BESTANDSTYPES, INDELINGSVELDEN, PROFIELEN, VELDEN,
+                               detecteer_mapping, lees_bestand, rij_naar_velden)
 from ..transacties import bewaar
 
 bp = Blueprint("importeren", __name__, url_prefix="/importeren")
@@ -92,12 +93,14 @@ def voorbeeld(token: str):
         label for veld, label, verplicht in VELDEN
         if verplicht and veld not in mapping and f"{veld}_debet" not in mapping
     ]
+    heeft_indeling = "hoofdcategorie" in mapping
 
     return render_template(
         "importeren_voorbeeld.html",
         token=token, bestandsnaam=request.args.get("naam", pad.name),
         kop=kop, mapping=mapping, velden=VELDEN, profiel=profiel, profielen=PROFIELEN,
         voorbeeldrijen=voorbeeldrijen, aantal_rijen=len(rijen), ontbrekend=ontbrekend,
+        heeft_indeling=heeft_indeling, indelingsvelden=INDELINGSVELDEN,
         rekeningen=_rekeningen(conn, g.crypto),
     )
 
@@ -130,9 +133,14 @@ def uitvoeren():
     decimaal = request.form.get("decimaal", "auto")
     standaard_rekening = request.form.get("rekening_id", type=int) or rekeningen[0]["id"]
     auto_toewijzen = request.form.get("auto_toewijzen", "1") == "1"
+    # Staat de indeling in het bestand, dan gaat die voor op de motor.
+    neem_indeling_over = (request.form.get("neem_indeling_over") == "1"
+                          and "hoofdcategorie" in mapping)
 
     kop, rijen = lees_bestand(pad)
     motor = Motor(conn, crypto) if auto_toewijzen else None
+    cat_cache: dict = {}
+    uit_bestand = 0
 
     # Rekeningen opzoekbaar maken op IBAN, zodat een bestand met meerdere
     # rekeningen automatisch juist verdeeld wordt.
@@ -163,8 +171,23 @@ def uitvoeren():
 
         bedrag = Decimal(velden["bedrag"])
         voorstel = None
-        if motor is not None:
+
+        if neem_indeling_over and velden["hoofdcategorie"]:
+            ids = zoek_of_maak(conn, crypto, velden["hoofdcategorie"],
+                               velden["subcategorie"], velden["subsubcategorie"],
+                               cache=cat_cache)
+            if ids[0] is not None:
+                voorstel = Voorstel(
+                    categorie_id=ids[0], subcategorie_id=ids[1], subsub_id=ids[2],
+                    handelaar=velden["winkel"] or None, land=velden["land"] or None,
+                    zekerheid=1.0, methode="bestand", status="bevestigd",
+                    toelichting="Indeling stond in het ingelezen bestand.",
+                )
+                uit_bestand += 1
+
+        if voorstel is None and motor is not None:
             kenmerken = TransactieKenmerken(
+                beschrijving=velden["beschrijving"],
                 tegenpartij_naam=velden["tegenpartij_naam"],
                 tegenpartij_rekening=velden["tegenpartij_rekening"],
                 mededeling=velden["mededeling"],
@@ -187,6 +210,9 @@ def uitvoeren():
             or velden["tegenpartij_rekening"],
             begunstigde=velden["begunstigde"],
             mededeling=velden["mededeling"],
+            beschrijving=velden["beschrijving"],
+            referentie=velden["referentie"],
+            verrichtingsdatum=velden["verrichtingsdatum"],
             voorstel=voorstel,
             batch_id=batch,
             ruwe_data=json.dumps(velden["ruw"], ensure_ascii=False),
@@ -201,7 +227,8 @@ def uitvoeren():
         (nieuw, dubbel, batch),
     )
     log(conn, crypto, g.gebruiker, "import",
-        f"nieuw={nieuw} dubbel={dubbel} overgeslagen={overgeslagen}")
+        f"nieuw={nieuw} dubbel={dubbel} overgeslagen={overgeslagen} "
+        f"uit_bestand={uit_bestand}")
     conn.commit()
 
     try:
@@ -212,7 +239,7 @@ def uitvoeren():
     return render_template(
         "importeren_klaar.html",
         nieuw=nieuw, dubbel=dubbel, overgeslagen=overgeslagen, fouten=fouten,
-        totaal=len(rijen),
+        totaal=len(rijen), uit_bestand=uit_bestand,
     )
 
 

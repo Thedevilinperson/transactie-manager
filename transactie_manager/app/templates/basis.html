@@ -46,6 +46,8 @@
          class="{{ 'actief' if request.endpoint == 'instellingen.regels' }}">Regels</a>
       <a href="{{ url_for('bijzonder.referentielijst') }}"
          class="{{ 'actief' if 'referentielijst' in (request.endpoint or '') }}">Referentielijst</a>
+      <a href="{{ url_for('bijzonder.regels_uit_historiek') }}"
+         class="{{ 'actief' if 'historiek' in (request.endpoint or '') }}">Regels uit historiek</a>
       <a href="{{ url_for('instellingen.model') }}"
          class="{{ 'actief' if request.endpoint == 'instellingen.model' }}">Automatisch indelen</a>
       <a href="{{ url_for('instellingen.herstel') }}"
