@@ -16,11 +16,18 @@ transactie-manager/
     ├── build.yaml
     ├── Dockerfile
     ├── run.sh
+    ├── CHANGELOG.md         ← het wijzigingslogboek in Home Assistant
+    ├── DOCS.md              ← het tabblad Documentatie
+    ├── README.md            ← de inleiding in de add-on-winkel
+    ├── icon.png, logo.png   ← de afbeeldingen in de winkel
     ├── requirements.txt
     ├── wsgi.py
     ├── start.py
     └── app/
 ```
+
+> Deze presentatiebestanden moeten in de add-on-map staan, niet aan de wortel
+> van de repository. De Supervisor kijkt enkel naast `config.yaml`.
 
 Pas in `repository.yaml` en in `transactie_manager/config.yaml` het adres bij
 `url` aan naar dat van je eigen repository.
@@ -41,6 +48,11 @@ Server-add-on. Het resultaat is:
 ├── build.yaml
 ├── Dockerfile
 ├── run.sh
+├── CHANGELOG.md
+├── DOCS.md
+├── README.md
+├── icon.png
+├── logo.png
 ├── requirements.txt
 ├── wsgi.py
 ├── start.py

@@ -4,7 +4,8 @@ Huishoudboekje op basis van bankafschriften. Draait als Home Assistant-add-on of
 lokaal op Windows, Linux en macOS. Toegang met een eigen gebruikersnaam en
 wachtwoord; de gegevens staan versleuteld in de databank.
 
-**Versie 0.4.0** — zie [CHANGELOG.md](CHANGELOG.md) voor de wijzigingen en
+**Versie 0.4.1** — zie [het wijzigingslogboek](transactie_manager/CHANGELOG.md)
+voor de wijzigingen en
 [docs/HANDLEIDING.md](docs/HANDLEIDING.md) voor de volledige handleiding.
 
 ## Wat het doet
@@ -95,6 +96,10 @@ transactie-manager/
 │   ├── build.yaml            basisimage per architectuur
 │   ├── Dockerfile
 │   ├── run.sh                startscript binnen de add-on
+│   ├── CHANGELOG.md          het wijzigingslogboek, gelezen door Home Assistant
+│   ├── DOCS.md               het tabblad Documentatie bij de add-on
+│   ├── README.md             de inleiding in de add-on-winkel
+│   ├── icon.png, logo.png    de afbeeldingen in de winkel
 │   ├── requirements.txt
 │   ├── start.py              starten buiten Home Assistant
 │   ├── wsgi.py
@@ -104,6 +109,7 @@ transactie-manager/
 │       ├── routes/           de webschermen
 │       ├── static/           stijlblad en schermlogica
 │       └── templates/        de opmaak van de schermen
+├── CHANGELOG.md              verwijzing naar het logboek in de add-on-map
 ├── docs/HANDLEIDING.md       de volledige handleiding
 ├── docs/ADDON.md             installeren in Home Assistant
 ├── voorbeelden/              een voorbeeldafschrift om mee te proberen
