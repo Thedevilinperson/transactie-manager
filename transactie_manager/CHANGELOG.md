@@ -4,6 +4,25 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.4.2] — 2026-09-15
+
+### Opgelost
+- **Na het aanmelden opende Home Assistant zichzelf binnen de add-on**, met een
+  tweede zijbalk als gevolg. Was je niet aangemeld toen je een scherm opende,
+  dan onthield de toepassing dat scherm als pad zonder het ingress-voorvoegsel.
+  Na het aanmelden werd daar rechtstreeks naartoe gestuurd, en binnen het venster
+  van de add-on wijst zo'n pad naar Home Assistant zelf in plaats van naar de
+  add-on. Meegegeven paden worden nu altijd aangevuld met het voorvoegsel.
+- Dezelfde fout zat in de knoppen **Opslaan**, **Annuleren**, **Verwijderen** en
+  **Klopt** bij het bewerken van een transactie: die gebruikten het onthouden
+  adres van de vorige bladzijde en kwamen zo eveneens buiten de add-on terecht.
+
+### Beveiliging
+- Een meegegeven terugkeeradres kan niet langer naar een andere site wijzen. Een
+  waarde die begint met `//` of met een volledig webadres wordt genegeerd; er
+  wordt dan teruggevallen op het startscherm.
+
+
 ## [0.4.1] — 2026-09-15
 
 ### Opgelost

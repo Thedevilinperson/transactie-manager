@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 from decimal import Decimal
 
-from flask import Flask, g, redirect, url_for
+from flask import Flask, g, redirect, request, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .config import APP_NAME, MAX_UPLOAD_MB, SESSION_MINUTES, VERSION, flask_secret_key
@@ -41,6 +41,28 @@ class Ingress:
             if pad.startswith(voorvoegsel):
                 omgeving["PATH_INFO"] = pad[len(voorvoegsel):] or "/"
         return self.toepassing(omgeving, start_antwoord)
+
+
+def veilig_terug(waarde: str | None, standaard: str) -> str:
+    """Maakt van een meegegeven pad een adres binnen deze toepassing.
+
+    Twee dingen gaan hier mis als je het niet doet. Achter de ingress van Home
+    Assistant draait de toepassing onder een voorvoegsel; een pad als
+    `/transacties/` wijst dan niet naar de add-on maar naar Home Assistant zelf,
+    dat vervolgens binnen het venster van de add-on opent. En een meegegeven
+    pad mag nooit naar een andere site kunnen wijzen.
+    """
+    if not waarde or not waarde.startswith("/") or waarde.startswith("//"):
+        return standaard
+    wortel = request.script_root or ""
+    if wortel and not (waarde == wortel or waarde.startswith(wortel + "/")):
+        waarde = wortel + waarde
+    return waarde
+
+
+def huidig_pad() -> str:
+    """Het volledige adres van de huidige bladzijde, voorvoegsel inbegrepen."""
+    return (request.script_root or "") + request.full_path
 
 
 def euro(waarde) -> str:
@@ -85,6 +107,7 @@ def create_app() -> Flask:
     app.jinja_env.filters["euro"] = euro
     app.jinja_env.filters["datum"] = datum_kort
     app.jinja_env.filters["procent"] = procent
+    app.jinja_env.globals["huidig_pad"] = huidig_pad
 
     from .routes import aanmelden, bijzonder, dashboard, importeren, instellingen
     from .routes import koppelvlak

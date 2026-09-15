@@ -7,6 +7,7 @@ from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, flash, g, redirect, render_template, request, url_for
 
+from .. import veilig_terug
 from ..auth import login_vereist
 from ..categories import boom, keuzelijst, laad_alles, nakomelingen, pad_tekst
 from ..categorizer.ai import maak_regel_van_voorstel
@@ -188,12 +189,13 @@ def bewerken(tx_id: int):
             flash("Transactie opgeslagen.", "goed")
         log(conn, crypto, g.gebruiker, "transactie_gewijzigd", f"id={tx_id}")
         conn.commit()
-        return redirect(request.form.get("terug") or url_for("tx.lijst"))
+        return redirect(veilig_terug(request.form.get("terug"), url_for("tx.lijst")))
 
     return render_template(
         "transactie_bewerken.html",
         tx=tx, rekeningen=_rekeningen(conn, crypto),
-        terug=request.args.get("terug", ""), **_cat_context(conn, crypto),
+        terug=veilig_terug(request.args.get("terug"), url_for("tx.lijst")),
+        **_cat_context(conn, crypto),
     )
 
 
@@ -205,7 +207,7 @@ def verwijderen(tx_id: int):
     log(conn, g.crypto, g.gebruiker, "transactie_verwijderd", f"id={tx_id}")
     conn.commit()
     flash("Transactie verwijderd.", "goed")
-    return redirect(request.form.get("terug") or url_for("tx.lijst"))
+    return redirect(veilig_terug(request.form.get("terug"), url_for("tx.lijst")))
 
 
 @bp.route("/nazicht")
@@ -243,7 +245,7 @@ def bevestigen(tx_id: int):
             ))
     conn.commit()
     flash("Bevestigd.", "goed")
-    return redirect(request.form.get("terug") or url_for("tx.nazicht"))
+    return redirect(veilig_terug(request.form.get("terug"), url_for("tx.nazicht")))
 
 
 @bp.route("/alles-bevestigen", methods=["POST"])

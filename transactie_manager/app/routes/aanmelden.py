@@ -7,6 +7,7 @@ import time
 from flask import (Blueprint, flash, g, redirect, render_template, request, session,
                    url_for)
 
+from .. import veilig_terug
 from .. import crypto as cryptomod
 from .. import lokaal, mail
 from ..auth import (HERSTELCODE_MINUTEN, beeindig_sessie, controleer_aanmelding,
@@ -95,9 +96,7 @@ def login():
         else:
             _POGINGEN.pop(ip, None)
             start_sessie(rij, dek)
-            if volgende.startswith("/"):
-                return redirect(volgende)
-            return redirect(url_for("dashboard.index"))
+            return redirect(veilig_terug(volgende, url_for("dashboard.index")))
 
     return render_template("aanmelden.html", volgende=volgende)
 
