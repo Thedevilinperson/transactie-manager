@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
@@ -160,6 +161,9 @@ def bewerken(tx_id: int):
     if request.method == "POST":
         werk_bij(
             conn, crypto, tx_id,
+            beschrijving=request.form.get("beschrijving", "").strip(),
+            tegenpartij_rekening=request.form.get("tegenpartij_rekening", "").strip(),
+            begunstigde=request.form.get("begunstigde", "").strip(),
             categorie_id=request.form.get("categorie_id", type=int),
             subcategorie_id=request.form.get("subcategorie_id", type=int),
             subsub_id=request.form.get("subsub_id", type=int),
@@ -195,8 +199,54 @@ def bewerken(tx_id: int):
         "transactie_bewerken.html",
         tx=tx, rekeningen=_rekeningen(conn, crypto),
         terug=veilig_terug(request.args.get("terug"), url_for("tx.lijst")),
-        **_cat_context(conn, crypto),
+        **_herkomst(conn, crypto, tx), **_cat_context(conn, crypto),
     )
+
+
+def _herkomst(conn, crypto, tx) -> dict:
+    """Alles wat aan een transactie vasthangt, voor het bewerkscherm."""
+    rekening = conn.execute(
+        "SELECT naam_enc, iban_enc FROM rekeningen WHERE id = ?", (tx.rekening_id,)
+    ).fetchone()
+
+    rij = conn.execute(
+        "SELECT ruwe_data_enc, batch_id FROM transacties WHERE id = ?", (tx.id,)
+    ).fetchone()
+
+    ruwe_data = {}
+    if rij and rij["ruwe_data_enc"]:
+        try:
+            ruwe_data = {k: v for k, v in
+                         json.loads(crypto.dec(rij["ruwe_data_enc"])).items() if v}
+        except (ValueError, TypeError):
+            ruwe_data = {}
+
+    batch = None
+    if rij and rij["batch_id"]:
+        b = conn.execute("SELECT * FROM import_batches WHERE id = ?",
+                         (rij["batch_id"],)).fetchone()
+        if b:
+            batch = {"bestand": crypto.dec(b["bestand_enc"]) or "—",
+                     "tijdstip": b["tijdstip"], "profiel": b["profiel"]}
+
+    # Kredietkaart: de afrekening waaronder deze aankoop hangt, of net omgekeerd
+    # de aankopen die onder deze afrekening hangen.
+    ouder = haal(conn, crypto, tx.ouder_tx_id) if tx.ouder_tx_id else None
+    kinderen = []
+    if tx.is_afrekening:
+        from ..transacties import rij_naar_object
+        kinderen = [rij_naar_object(r, crypto) for r in conn.execute(
+            "SELECT * FROM transacties WHERE ouder_tx_id = ? ORDER BY boekdatum",
+            (tx.id,))]
+
+    return {
+        "rekening_naam": crypto.dec(rekening["naam_enc"]) if rekening else "—",
+        "rekening_iban": (crypto.dec(rekening["iban_enc"]) or "") if rekening else "",
+        "ruwe_data": ruwe_data,
+        "batch": batch,
+        "ouder": ouder,
+        "kinderen": kinderen,
+    }
 
 
 @bp.route("/<int:tx_id>/verwijderen", methods=["POST"])

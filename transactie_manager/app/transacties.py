@@ -168,6 +168,9 @@ def werk_bij(conn, crypto, tx_id: int, **velden) -> None:
         "zekerheid": ("zekerheid", None),
         "methode": ("methode", None),
         "status": ("status", None),
+        "beschrijving": ("beschrijving_enc", "enc"),
+        "tegenpartij_rekening": ("tegenpartij_rek_enc", "enc"),
+        "valutadatum": ("valutadatum", None),
         "handelaar": ("handelaar_enc", "enc"),
         "land": ("land_enc", "enc"),
         "mededeling": ("mededeling_enc", "enc"),
@@ -191,6 +194,12 @@ def werk_bij(conn, crypto, tx_id: int, **velden) -> None:
         if sleutel == "tegenpartij_naam":
             stukken.append("tegenpartij_naam_idx = ?")
             waarden.append(crypto.blind(waarde) if waarde else None)
+        if sleutel == "beschrijving":
+            stukken.append("beschrijving_idx = ?")
+            waarden.append(crypto.blind(waarde) if waarde else None)
+        if sleutel == "tegenpartij_rekening":
+            stukken.append("tegenpartij_rek_idx = ?")
+            waarden.append(crypto.blind(waarde, iban=True) if waarde else None)
 
     if "bedrag" in velden and velden["bedrag"] is not None:
         bedrag = Decimal(str(velden["bedrag"]))
@@ -203,6 +212,21 @@ def werk_bij(conn, crypto, tx_id: int, **velden) -> None:
     waarden.append(now_iso())
     waarden.append(tx_id)
     conn.execute(f"UPDATE transacties SET {', '.join(stukken)} WHERE id = ?", waarden)
+
+    # De gecombineerde sleutel hangt van twee velden af; die berekenen we na
+    # afloop opnieuw uit wat er nu werkelijk staat.
+    if "beschrijving" in velden or "tegenpartij_naam" in velden:
+        rij = conn.execute(
+            "SELECT beschrijving_enc, tegenpartij_naam_enc FROM transacties WHERE id = ?",
+            (tx_id,)).fetchone()
+        if rij is not None:
+            beschrijving = crypto.dec(rij["beschrijving_enc"]) or ""
+            tegenpartij = crypto.dec(rij["tegenpartij_naam_enc"]) or ""
+            conn.execute(
+                "UPDATE transacties SET sleutel_idx = ? WHERE id = ?",
+                (crypto.blind(f"{beschrijving}-{tegenpartij}") if beschrijving else None,
+                 tx_id),
+            )
 
 
 def haal(conn, crypto, tx_id: int) -> Transactie | None:

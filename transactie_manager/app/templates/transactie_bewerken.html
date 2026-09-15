@@ -7,7 +7,43 @@
   <h1>Transactie bewerken</h1>
   <p>{{ tx.boekdatum|datum }} ·
     <span class="{{ 'bedrag-in' if tx.richting == 'in' else 'bedrag-uit' }}">
-      {{ tx.bedrag|euro }} EUR</span></p>
+      {{ tx.bedrag|euro }} {{ tx.munt }}</span></p>
+</div>
+
+<div class="vlak">
+  <h2>Zoals de bank ze aanleverde</h2>
+  <p>Deze gegevens komen van je afschrift. Boekdatum, bedrag en referentie liggen
+    vast; de rest mag je bijwerken als de motor er beter mee overweg kan.</p>
+
+  <div class="tabel-omhulsel" style="margin-top:14px">
+    <table>
+      <tbody>
+        <tr><th style="width:34%">Rekening</th>
+          <td>{{ rekening_naam }}{% if rekening_iban %}
+            <span class="klein-detail">{{ rekening_iban }}</span>{% endif %}</td></tr>
+        <tr><th>Boekdatum</th><td>{{ tx.boekdatum|datum }}</td></tr>
+        {% if tx.valutadatum %}
+          <tr><th>Valutadatum</th><td>{{ tx.valutadatum|datum }}</td></tr>
+        {% endif %}
+        <tr><th>Bedrag</th>
+          <td class="{{ 'bedrag-in' if tx.richting == 'in' else 'bedrag-uit' }}">
+            {{ tx.bedrag|euro }} {{ tx.munt }}
+            <span class="klein-detail">
+              {{ 'inkomst' if tx.richting == 'in' else 'uitgave' }}</span></td></tr>
+        <tr><th>Referentie van de bank</th>
+          <td>{{ tx.referentie or '—' }}</td></tr>
+        <tr><th>Herkomst</th>
+          <td>
+            {% if tx.bron == 'kredietkaart' %}aankoop van een kredietkaartuittreksel
+            {% else %}bankafschrift{% endif %}
+            {% if batch %}
+              <span class="klein-detail">ingelezen uit {{ batch.bestand }} op
+                {{ batch.tijdstip[:16].replace('T', ' ') }}</span>
+            {% endif %}
+          </td></tr>
+      </tbody>
+    </table>
+  </div>
 </div>
 
 {% if tx.toelichting %}
@@ -16,20 +52,74 @@
     <p>
       <span class="merkje {{ tx.methode }}">{{ tx.methode }}</span>
       {{ tx.toelichting }}
+      {% if tx.methode in ('fuzzy', 'ai') %}
+        <span class="klein-detail">zekerheid: {{ tx.zekerheid|procent }}</span>
+      {% endif %}
     </p>
   </div>
 {% endif %}
 
-<form method="post" class="smal" data-categoriekiezer>
+{% if ouder %}
+  <div class="vlak">
+    <h2>Hoort bij een kaartafrekening</h2>
+    <p>Deze aankoop hangt onder de afrekening van {{ ouder.boekdatum|datum }} van
+      {{ ouder.bedrag|euro }} EUR.
+      <a href="{{ url_for('tx.bewerken', tx_id=ouder.id, terug=huidig_pad()) }}">
+        Die afrekening openen</a></p>
+  </div>
+{% endif %}
+
+{% if kinderen %}
+  <div class="vlak">
+    <h2>Uitgesplitste aankopen</h2>
+    <p>Deze afrekening telt niet mee in de overzichten; deze
+      {{ kinderen|length }} aankopen wel.</p>
+    <div class="tabel-omhulsel" style="margin-top:14px">
+      <table>
+        <thead><tr><th>Datum</th><th>Omschrijving</th><th class="getal">Bedrag</th></tr></thead>
+        <tbody>
+          {% for kind in kinderen %}
+            <tr>
+              <td>{{ kind.boekdatum|datum }}</td>
+              <td><a href="{{ url_for('tx.bewerken', tx_id=kind.id, terug=huidig_pad()) }}">
+                {{ kind.tegenpartij_naam or 'Onbekend' }}</a></td>
+              <td class="getal {{ 'bedrag-in' if kind.richting == 'in' else 'bedrag-uit' }}">
+                {{ kind.bedrag|euro }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endif %}
+
+<form method="post" data-categoriekiezer>
   <input type="hidden" name="terug" value="{{ terug }}">
 
   <div class="vlak">
-    <h2>Gegevens</h2>
+    <h2>Tegenpartij en omschrijving</h2>
     <div class="rooster">
+      <div class="veld breed">
+        <label for="beschrijving">Beschrijving (soort verrichting)</label>
+        <input type="text" id="beschrijving" name="beschrijving"
+               value="{{ tx.beschrijving }}">
+        <p class="klein-detail">Samen met de naam van de tegenpartij vormt dit de
+          sleutel waarop de regels werken.</p>
+      </div>
       <div class="veld">
         <label for="tegenpartij_naam">Naam tegenpartij</label>
         <input type="text" id="tegenpartij_naam" name="tegenpartij_naam"
                value="{{ tx.tegenpartij_naam }}">
+      </div>
+      <div class="veld">
+        <label for="tegenpartij_rekening">Rekening tegenpartij</label>
+        <input type="text" id="tegenpartij_rekening" name="tegenpartij_rekening"
+               value="{{ tx.tegenpartij_rekening }}">
+      </div>
+      <div class="veld">
+        <label for="begunstigde">Naam begunstigde</label>
+        <input type="text" id="begunstigde" name="begunstigde"
+               value="{{ tx.begunstigde }}">
       </div>
       <div class="veld">
         <label for="handelaar">Winkel, restaurant of andere zaak</label>
@@ -39,20 +129,16 @@
         <label for="mededeling">Mededeling</label>
         <textarea id="mededeling" name="mededeling" rows="2">{{ tx.mededeling }}</textarea>
       </div>
-      <div class="veld">
-        <label>Rekening tegenpartij</label>
-        <input type="text" value="{{ tx.tegenpartij_rekening }}" readonly>
-      </div>
-      <div class="veld">
-        <label for="land">Land van bestemming</label>
-        <input type="text" id="land" name="land" value="{{ tx.land }}">
-      </div>
     </div>
   </div>
 
   <div class="vlak">
     <h2>Indeling</h2>
     {{ categoriekiezer(alle_keuzes, tx.categorie_id, tx.subcategorie_id, tx.subsub_id) }}
+    <div class="veld">
+      <label for="land">Land van bestemming (bij vakantie-uitgaven)</label>
+      <input type="text" id="land" name="land" value="{{ tx.land }}">
+    </div>
     <div class="keuzeregel">
       <input type="checkbox" id="onthouden" name="onthouden" value="1">
       <label for="onthouden">Deze keuze onthouden als vaste regel voor deze tegenpartij</label>
@@ -65,8 +151,25 @@
   </div>
 </form>
 
+{% if ruwe_data %}
+  <details class="vlak" style="margin-top:8px">
+    <summary><strong>De rij zoals ze in het bestand stond</strong></summary>
+    <p class="klein-detail" style="margin:10px 0">Alle kolommen uit het ingelezen
+      bestand, ook die waarvoor de toepassing geen veld heeft.</p>
+    <div class="tabel-omhulsel">
+      <table>
+        <tbody>
+          {% for kolom, waarde in ruwe_data.items() %}
+            <tr><th style="width:34%">{{ kolom }}</th><td>{{ waarde }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+{% endif %}
+
 <form method="post" action="{{ url_for('tx.verwijderen', tx_id=tx.id) }}"
-      class="smal" style="margin-top:8px"
+      style="margin-top:8px"
       data-bevestig="Deze transactie definitief verwijderen?">
   <input type="hidden" name="terug" value="{{ terug }}">
   <button type="submit" class="gevaar">Transactie verwijderen</button>

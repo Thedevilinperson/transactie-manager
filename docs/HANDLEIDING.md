@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.4.2
+Versie 0.5.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -236,7 +236,28 @@ controlescherm de keuze **Indeling uit het bestand overnemen**. Die gaat voor op
 het automatisch indelen. Categorieën die nog niet bestaan worden aangemaakt, en
 die transacties komen meteen bevestigd binnen.
 
-### 4.3 Met de hand
+### 4.3 Een transactie openen
+
+Klik op de naam van een tegenpartij in de lijst om een transactie te openen. Je
+ziet daar alles wat eraan vasthangt:
+
+- **Zoals de bank ze aanleverde** — rekening, boekdatum, valutadatum, bedrag,
+  richting, de referentie van de bank, en uit welk bestand ze kwam.
+- **Hoe deze indeling tot stand kwam** — welke stap de categorie toekende en
+  waarom, met de zekerheid erbij als het om een vergelijking ging.
+- **De rij zoals ze in het bestand stond** — uitklapbaar onderaan, met alle
+  kolommen, ook die waarvoor de toepassing geen eigen veld heeft. Handig als je
+  je afvraagt waar een indeling vandaan komt.
+
+Aanpasbaar zijn de beschrijving, de tegenpartij en diens rekeningnummer, de
+begunstigde, de winkel, de mededeling, het land en de indeling. Boekdatum,
+bedrag en de referentie van de bank liggen vast.
+
+Gaat het om een aankoop van een kredietkaartuittreksel, dan staat er een
+verwijzing naar de afrekening waaronder ze hangt. Bij een afrekening zie je
+omgekeerd de lijst van uitgesplitste aankopen.
+
+### 4.4 Met de hand
 
 **Nieuwe transactie** in het menu. Laat de categorie leeg als je wil dat de
 toepassing er zelf een kiest.

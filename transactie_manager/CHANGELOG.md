@@ -4,6 +4,34 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.5.0] — 2026-09-15
+
+### Gewijzigd
+- **Het bewerkscherm toont nu alles wat aan een transactie vasthangt.** Voordien
+  bleven de beschrijving, de referentie van de bank, de begunstigde, de rekening
+  waarop ze staat en de valutadatum onzichtbaar, ook al stonden ze wel degelijk
+  in de databank. Bij een transactie waar de tegenpartij en de mededeling leeg
+  waren, leek het scherm daardoor haast leeg terwijl er genoeg stond om te zien
+  waarover het ging.
+- Bovenaan staat een blok *Zoals de bank ze aanleverde* met rekening, boekdatum,
+  valutadatum, bedrag, richting, referentie en waar de transactie vandaan komt,
+  inclusief de naam van het ingelezen bestand en wanneer dat gebeurde.
+- De rij zoals ze letterlijk in het bestand stond is uitklapbaar op te vragen,
+  met alle kolommen — ook die waarvoor de toepassing geen eigen veld heeft.
+- Bij een aankoop van een kredietkaartuittreksel staat er een verwijzing naar de
+  afrekening waaronder ze hangt; bij een afrekening een lijst van de
+  uitgesplitste aankopen, elk aanklikbaar.
+- De zekerheid in procenten staat nu bij de toelichting wanneer de indeling van
+  de fuzzy vergelijking of van het AI-model komt.
+
+### Toegevoegd
+- De **beschrijving**, de **rekening van de tegenpartij** en de **begunstigde**
+  zijn nu aan te passen. Dat waren net de velden waarop de motor werkt, en de
+  eerste twee waren voordien niet of alleen als leesveld zichtbaar.
+- De gecombineerde sleutel en de index op het rekeningnummer worden na zo'n
+  wijziging opnieuw berekend, zodat de regels erop blijven werken.
+
+
 ## [0.4.2] — 2026-09-15
 
 ### Opgelost
