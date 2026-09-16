@@ -17,6 +17,7 @@ from ..categorizer.engine import Motor, TransactieKenmerken, Voorstel
 from ..config import UPLOAD_DIR
 from ..crypto import normalize_iban
 from ..database import get_db, log, now_iso
+from ..filters import vergeet_keuzes
 from ..importers.tabel import (BESTANDSTYPES, INDELINGSVELDEN, PROFIELEN, VELDEN,
                                detecteer_mapping, lees_bestand, rij_naar_velden)
 from ..transacties import bewaar
@@ -230,6 +231,7 @@ def uitvoeren():
         f"nieuw={nieuw} dubbel={dubbel} overgeslagen={overgeslagen} "
         f"uit_bestand={uit_bestand}")
     conn.commit()
+    vergeet_keuzes()
 
     try:
         pad.unlink()

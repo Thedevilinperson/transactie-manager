@@ -73,6 +73,17 @@ def euro(waarde) -> str:
     return ("-" if getal < 0 else "") + tekst
 
 
+def euro_rond(waarde) -> str:
+    """Hele euro's, zonder decimalen en zonder overbodige nullen."""
+    if waarde in (None, ""):
+        return "—"
+    getal = Decimal(str(waarde)).quantize(Decimal("1"))
+    if getal == 0:
+        return "—"
+    tekst = f"{abs(getal):,}".replace(",", "\u00a0")
+    return ("-" if getal < 0 else "") + tekst
+
+
 def datum_kort(waarde) -> str:
     if not waarde:
         return ""
@@ -105,6 +116,7 @@ def create_app() -> Flask:
     init_db()
 
     app.jinja_env.filters["euro"] = euro
+    app.jinja_env.filters["euro0"] = euro_rond
     app.jinja_env.filters["datum"] = datum_kort
     app.jinja_env.filters["procent"] = procent
     app.jinja_env.globals["huidig_pad"] = huidig_pad

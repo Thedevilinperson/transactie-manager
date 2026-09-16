@@ -263,14 +263,36 @@ def lees_pdf(pad: Path, patroon: str = "automatisch") -> Uittreksel:
 # Koppelen aan de afrekening op het bankafschrift
 # --------------------------------------------------------------------------
 
+# De maandafrekening ziet er bij Argenta uit als "Debet ten voordele van BCC"
+# met de kaartreferentie erachter. Het is die ene regel waarmee de bank de hele
+# maand in één keer verrekent.
 AFREKENING = re.compile(
-    r"\b(bcc|mastercard|master card|visa|kredietkaart|creditcard|amex|"
-    r"american express)\b", re.IGNORECASE)
+    r"(debet ten voordele van\s+(bcc|mastercard|visa)"
+    r"|afrekening\s+(kredietkaart|creditcard|mastercard|visa)"
+    r"|betaling\s+kredietkaart"
+    r"|\b(bcc|kredietkaart|creditcard)\b)",
+    re.IGNORECASE)
+
+# Een betaling met een debetkaart is geen kredietkaartverrichting: het bedrag
+# gaat meteen van de rekening en staat dus al als gewone uitgave op het
+# afschrift. "Mastercard Debit" en "Maestro" horen hier bij, ondanks de naam van
+# het kaartmerk in de omschrijving.
+DEBETKAART = re.compile(
+    r"\b(debit|debet ?kaart|debetkaart|maestro|bancontact|vpay|v ?pay)\b",
+    re.IGNORECASE)
 
 
 def is_afrekeningsregel(beschrijving: str, tegenpartij: str) -> bool:
-    """Herkent de maandelijkse kaartafrekening op het bankafschrift."""
-    return bool(AFREKENING.search(f"{beschrijving} {tegenpartij}"))
+    """Herkent de maandelijkse kaartafrekening op het bankafschrift.
+
+    Betalingen met een debetkaart worden uitgesloten, ook wanneer er
+    "Mastercard" of "Visa" in de omschrijving staat. Die staan al als gewone
+    uitgave op het afschrift en mogen niet nog eens uitgesplitst worden.
+    """
+    tekst = f"{beschrijving} {tegenpartij}"
+    if DEBETKAART.search(tekst):
+        return False
+    return bool(AFREKENING.search(tekst))
 
 
 def zoek_afrekeningen(conn, crypto, van: date | None = None, tot: date | None = None,

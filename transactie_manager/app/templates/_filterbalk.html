@@ -1,0 +1,193 @@
+{# Herbruikbare filterbalk. Elke wijziging verstuurt het formulier vanzelf;
+   er is geen knop "Toepassen" nodig. Met `p` kan je alle veldnamen een
+   voorvoegsel geven, zodat twee filterbalken op één bladzijde elkaar niet in
+   de weg zitten. #}
+
+{% macro filterbalk(filters, keuzes, rekeningen, hoofdcategorieen, doel,
+                    p='', toon_groepering=false, toon_uitsluiten=false,
+                    alle_categorieen=none, titel='Filters') %}
+<form method="get" action="{{ doel }}" class="filterblok" data-autofilter>
+  <div class="filterkop">
+    <strong>{{ titel }}</strong>
+    <a class="knop stil klein" href="{{ doel }}">Alles wissen</a>
+  </div>
+
+  <div class="filterrij">
+    <div class="veld">
+      <label for="{{ p }}richting">Soort</label>
+      <select id="{{ p }}richting" name="{{ p }}richting">
+        <option value="uit" {{ 'selected' if filters.richting == 'uit' }}>Uitgaven</option>
+        <option value="in" {{ 'selected' if filters.richting == 'in' }}>Inkomsten</option>
+        <option value="" {{ 'selected' if not filters.richting }}>Allebei</option>
+      </select>
+    </div>
+
+    <div class="veld">
+      <label for="{{ p }}rekening_id">Rekening</label>
+      <select id="{{ p }}rekening_id" name="{{ p }}rekening_id">
+        <option value="">Alle</option>
+        {% for r in rekeningen %}
+          <option value="{{ r.id }}" {{ 'selected' if filters.rekening_id == r.id }}>
+            {{ r.naam }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    {% if toon_groepering %}
+      <div class="veld">
+        <label for="{{ p }}groepering">Verdelen per</label>
+        <select id="{{ p }}groepering" name="{{ p }}groepering">
+          <option value="hoofd" {{ 'selected' if filters.groepering == 'hoofd' }}>
+            Hoofdcategorie</option>
+          <option value="sub" {{ 'selected' if filters.groepering == 'sub' }}>
+            Subcategorie</option>
+          <option value="subsub" {{ 'selected' if filters.groepering == 'subsub' }}>
+            Sub-subcategorie</option>
+          <option value="land" {{ 'selected' if filters.groepering == 'land' }}>
+            Land van bestemming</option>
+          <option value="winkel" {{ 'selected' if filters.groepering == 'winkel' }}>
+            Winkel</option>
+        </select>
+      </div>
+      <div class="veld">
+        <label for="{{ p }}periode">Periode</label>
+        <select id="{{ p }}periode" name="{{ p }}periode">
+          <option value="jaar" {{ 'selected' if filters.periode == 'jaar' }}>Per jaar</option>
+          <option value="maand" {{ 'selected' if filters.periode == 'maand' }}>Per maand</option>
+        </select>
+      </div>
+    {% endif %}
+
+    <div class="veld">
+      <label>Alleen bevestigd</label>
+      <div class="keuzeregel">
+        <input type="checkbox" id="{{ p }}alleen_bevestigd" name="{{ p }}alleen_bevestigd"
+               value="1" {{ 'checked' if filters.alleen_bevestigd }}>
+        <label for="{{ p }}alleen_bevestigd">Nazicht weglaten</label>
+      </div>
+    </div>
+  </div>
+
+  {# --- jaren als aanvinkbare blokjes ------------------------------------ #}
+  {% if keuzes.jaren %}
+    <div class="filterdeel">
+      <span class="filterlabel">Jaren</span>
+      <div class="jaarkeuze">
+        {% for jaar in keuzes.jaren %}
+          <label class="chip {{ 'aan' if jaar in filters.jaren }}">
+            <input type="checkbox" name="{{ p }}jaar" value="{{ jaar }}"
+                   {{ 'checked' if jaar in filters.jaren }}>{{ jaar }}</label>
+        {% endfor %}
+      </div>
+      <span class="klein-detail">Niets aangevinkt betekent alle jaren.</span>
+    </div>
+  {% endif %}
+
+  {# --- categorie in drie trappen, in plaats van één lange lijst --------- #}
+  <details class="filterdeel" {{ 'open' if filters.hoofd_id }}>
+    <summary>Categorie
+      {% if filters.hoofd_id %}<span class="merkje regel">ingesteld</span>{% endif %}
+    </summary>
+    <div class="filterrij" data-categoriekiezer data-plat>
+      <div class="veld">
+        <label for="{{ p }}hoofd_id">Hoofdcategorie</label>
+        <select id="{{ p }}hoofd_id" name="{{ p }}hoofd_id" data-cat-niveau="0">
+          <option value="">Alle</option>
+          {% for k in hoofdcategorieen %}
+            <option value="{{ k.id }}" data-soort="{{ k.soort }}"
+                    {{ 'selected' if filters.hoofd_id == k.id }}>{{ k.naam }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="veld">
+        <label for="{{ p }}sub_id">Subcategorie</label>
+        <select id="{{ p }}sub_id" name="{{ p }}sub_id" data-cat-niveau="1"
+                data-gekozen="{{ filters.sub_id or '' }}" data-leeg="Alle">
+          <option value="">Alle</option>
+        </select>
+      </div>
+      <div class="veld">
+        <label for="{{ p }}subsub_id">Sub-subcategorie</label>
+        <select id="{{ p }}subsub_id" name="{{ p }}subsub_id" data-cat-niveau="2"
+                data-gekozen="{{ filters.subsub_id or '' }}" data-leeg="Alle">
+          <option value="">Alle</option>
+        </select>
+      </div>
+    </div>
+  </details>
+
+  {# --- land en winkel ---------------------------------------------------- #}
+  {% if keuzes.landen %}
+    <details class="filterdeel" {{ 'open' if filters.landen }}>
+      <summary>Land van bestemming
+        {% if filters.landen %}
+          <span class="merkje regel">{{ filters.landen|length }}</span>{% endif %}
+      </summary>
+      <select name="{{ p }}land" multiple size="6" class="meerkeuze">
+        {% for naam, aantal in keuzes.landen %}
+          <option value="{{ naam }}" {{ 'selected' if naam in filters.landen }}>
+            {{ naam }} ({{ aantal }})</option>
+        {% endfor %}
+      </select>
+      <span class="klein-detail">Meerdere kiezen met Ctrl of Cmd ingedrukt.</span>
+    </details>
+  {% endif %}
+
+  {% if keuzes.winkels %}
+    <details class="filterdeel" {{ 'open' if filters.winkels }}>
+      <summary>Winkel
+        {% if filters.winkels %}
+          <span class="merkje regel">{{ filters.winkels|length }}</span>{% endif %}
+      </summary>
+      <input type="search" class="zoekinlijst" placeholder="Winkel zoeken"
+             data-zoekt="{{ p }}winkel" autocomplete="off">
+      <select name="{{ p }}winkel" multiple size="8" class="meerkeuze"
+              id="lijst-{{ p }}winkel">
+        {% for naam, aantal in keuzes.winkels %}
+          <option value="{{ naam }}" {{ 'selected' if naam in filters.winkels }}>
+            {{ naam }} ({{ aantal }})</option>
+        {% endfor %}
+      </select>
+    </details>
+  {% endif %}
+
+  {% if toon_uitsluiten %}
+    <details class="filterdeel"
+             {{ 'open' if filters.uit_winkels or filters.uit_categorieen }}>
+      <summary>Uitsluiten
+        {% set aantal = filters.uit_winkels|length + filters.uit_categorieen|length %}
+        {% if aantal %}<span class="merkje fuzzy">{{ aantal }}</span>{% endif %}
+      </summary>
+      <div class="filterrij">
+        <div class="veld">
+          <label>Categorieën die niet mee mogen tellen</label>
+          <input type="search" class="zoekinlijst" placeholder="Categorie zoeken"
+                 data-zoekt="{{ p }}uit_categorie" autocomplete="off">
+          <select name="{{ p }}uit_categorie" multiple size="8" class="meerkeuze"
+                  id="lijst-{{ p }}uit_categorie">
+            {% for k in alle_categorieen if k.niveau > 0 %}
+              <option value="{{ k.id }}"
+                      {{ 'selected' if k.id in filters.uit_categorieen }}>
+                {{ k.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="veld">
+          <label>Winkels die niet mee mogen tellen</label>
+          <input type="search" class="zoekinlijst" placeholder="Winkel zoeken"
+                 data-zoekt="{{ p }}uit_winkel" autocomplete="off">
+          <select name="{{ p }}uit_winkel" multiple size="8" class="meerkeuze"
+                  id="lijst-{{ p }}uit_winkel">
+            {% for naam, aantal in keuzes.winkels %}
+              <option value="{{ naam }}" {{ 'selected' if naam in filters.uit_winkels }}>
+                {{ naam }} ({{ aantal }})</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </details>
+  {% endif %}
+
+  <noscript><button type="submit">Toepassen</button></noscript>
+</form>
+{% endmacro %}

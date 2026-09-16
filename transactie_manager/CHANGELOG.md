@@ -4,6 +4,57 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.6.0] — 2026-09-16
+
+### Toegevoegd
+- **Filters gaan vanzelf.** Elke wijziging past de selectie meteen toe; de knop
+  *Toepassen* is weg. In het zoekveld wordt even gewacht tot je uitgetikt bent.
+  Zonder JavaScript verschijnt er alsnog een knop.
+- **Jaren kies je als aanvinkbare blokjes** in plaats van een bereik tussen twee
+  datums. Niets aangevinkt betekent alle jaren.
+- **Filter op land en op winkel**, allebei als meerkeuzelijst. Bij de winkels
+  staat er een zoekveldje boven, want die lijst wordt lang.
+- **De transactielijst filtert nu op de bron van de indeling**: vaste regel,
+  gelijkenis, AI-model, uit het bestand, met de hand, of niets gevonden.
+  Daarmee zie je in één klik wat de fuzzy vergelijking zelf heeft bevestigd.
+- **Kolommen zijn sorteerbaar** door op de hoofding te klikken: datum,
+  tegenpartij, mededeling, categorie, bron en bedrag. Op bedrag wordt gesorteerd
+  op de grootte, niet op het teken, zodat bij een lijst vol uitgaven de zwaarste
+  bovenaan komt.
+- **De grafiekbladzijde heeft er een taartdiagram bij**, met een eigen
+  filterbalk los van die van de staafgrafiek.
+- In de grafieken kan je **winkels en sub- of sub-subcategorieën uitsluiten** via
+  een meerkeuzelijst, en **verdelen per land**, per winkel of per categorieniveau.
+  Voor vakantie geeft dat de verdeling per land van bestemming.
+- Het zoekveld van de transactielijst zoekt nu ook **in de categorienamen**, en
+  in de beschrijving, het land en de winkel.
+
+### Gewijzigd
+- **De jaartabel toont hele euro's**, zonder decimalen en zonder een bedrag van
+  nul te schrijven; daar staat een streepje.
+- **De jaarkolommen staan van recent naar oud**, want daar kijk je het vaakst
+  naar.
+- **De categoriefilter is geen lange lijst meer** maar drie keuzelijsten die
+  elkaar opvolgen: hoofdcategorie, subcategorie, sub-subcategorie. Het blok
+  staat dichtgeklapt tot je het opent. Land, winkel en uitsluiten werken
+  hetzelfde.
+- **De horizontale schuifbalk blijft in beeld.** De tabel krijgt een vaste
+  hoogte met de schuifbalk aan de onderrand, de hoofding blijft bovenaan staan
+  en de categoriekolom blijft links staan tijdens het zijwaarts schuiven.
+- In de kolom *Tegenpartij* staat nu de naam van de tegenpartij; winkel en land
+  staan eronder als bijschrift in plaats van in de plaats ervan.
+- De lijst met beschikbare jaren, landen en winkels wordt in het geheugen
+  bewaard en pas opnieuw opgebouwd wanneer er transacties veranderen. Op twintig
+  duizend transacties blijft elk scherm daardoor onder de seconde.
+
+### Opgelost
+- **Betalingen met een debetkaart werden aangezien voor een kaartafrekening.**
+  Een regel als "Mastercard Debit betaling — STRADVARIUS GENT" is een gewone
+  uitgave die al op je afschrift staat; die mocht nooit als uit te splitsen
+  afrekening voorgesteld worden. Herkenning gebeurt nu op de afrekeningsregel
+  zelf, met debetkaart, Maestro, Bancontact en V Pay uitdrukkelijk uitgesloten.
+
+
 ## [0.5.0] — 2026-09-15
 
 ### Gewijzigd

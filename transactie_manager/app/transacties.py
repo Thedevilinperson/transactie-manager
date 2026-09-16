@@ -234,53 +234,75 @@ def haal(conn, crypto, tx_id: int) -> Transactie | None:
     return rij_naar_object(row, crypto) if row else None
 
 
-def zoek(conn, crypto, *, status=None, rekening_id=None, categorie_ids=None,
-         van=None, tot=None, richting=None, zoekterm="", limiet=200, offset=0):
-    """Haalt transacties op. Zoeken op tekst gebeurt na ontsleuteling."""
-    sql = "SELECT * FROM transacties WHERE 1=1"
-    params: list = []
-    if status:
-        sql += " AND status = ?"
-        params.append(status)
-    if rekening_id:
-        sql += " AND rekening_id = ?"
-        params.append(rekening_id)
-    if richting in ("in", "uit"):
-        sql += " AND richting = ?"
-        params.append(richting)
-    if van:
-        sql += " AND boekdatum >= ?"
-        params.append(van)
-    if tot:
-        sql += " AND boekdatum <= ?"
-        params.append(tot)
+def zoek(conn, crypto, *, filters=None, categorie_ids=None, cat_namen=None,
+         sorteer="datum", aflopend=True, limiet=200, offset=0):
+    """Haalt transacties op volgens de filters.
+
+    Zoeken op tekst en sorteren op een versleuteld veld kunnen niet in SQL, dus
+    die gebeuren na het ontsleutelen. Bij een zoekterm of een sortering op naam
+    wordt de selectie eerst volledig opgehaald en dan pas afgesneden.
+    """
+    from .filters import Filters
+    from .crypto import normalize
+
+    filters = filters or Filters()
+    waar, params = filters.sql()
     if categorie_ids:
         plaatsen = ",".join("?" * len(categorie_ids))
-        sql += (f" AND (categorie_id IN ({plaatsen}) OR subcategorie_id IN ({plaatsen})"
-                f" OR subsub_id IN ({plaatsen}))")
-        params += list(categorie_ids) * 3
-    sql += " ORDER BY boekdatum DESC, id DESC"
+        waar += (f" AND (categorie_id IN ({plaatsen}) OR subcategorie_id IN ({plaatsen})"
+                 f" OR subsub_id IN ({plaatsen}))")
+        params = params + list(categorie_ids) * 3
 
-    if zoekterm:
-        # Tekst staat versleuteld: alles ophalen en in het geheugen filteren.
-        from .crypto import normalize
-        naald = normalize(zoekterm)
-        gevonden = []
-        for row in conn.execute(sql, params):
-            tx = rij_naar_object(row, crypto)
+    sql = f"SELECT * FROM transacties WHERE {waar}"
+
+    # Sorteringen die rechtstreeks in SQL kunnen.
+    in_sql = {"datum": "boekdatum", "status": "status", "bron": "methode",
+              "zekerheid": "zekerheid"}
+    in_geheugen = sorteer in ("tegenpartij", "mededeling", "categorie", "bedrag")
+    naar_geheugen = bool(filters.zoekterm) or in_geheugen or filters.vraagt_tekst
+
+    if not naar_geheugen:
+        richting_sql = "DESC" if aflopend else "ASC"
+        sql += f" ORDER BY {in_sql.get(sorteer, 'boekdatum')} {richting_sql}, id {richting_sql}"
+        sql += " LIMIT ? OFFSET ?"
+        return ([rij_naar_object(r, crypto)
+                 for r in conn.execute(sql, params + [limiet, offset])], None)
+
+    naald = normalize(filters.zoekterm) if filters.zoekterm else ""
+    cat_namen = cat_namen or {}
+    gevonden = []
+    for row in conn.execute(sql, params):
+        tx = rij_naar_object(row, crypto)
+        if filters.vraagt_tekst and not filters.past_tekst(land=tx.land,
+                                                           winkel=tx.handelaar):
+            continue
+        if naald:
+            pad = " ".join(cat_namen.get(i, "") for i in
+                           (tx.categorie_id, tx.subcategorie_id, tx.subsub_id) if i)
             hooiberg = normalize(" ".join([
-                tx.tegenpartij_naam, tx.mededeling, tx.begunstigde,
-                tx.handelaar, tx.tegenpartij_rekening,
+                tx.tegenpartij_naam, tx.mededeling, tx.begunstigde, tx.handelaar,
+                tx.land, tx.beschrijving, tx.tegenpartij_rekening, pad,
             ]))
-            if naald in hooiberg:
-                gevonden.append(tx)
-            if len(gevonden) >= offset + limiet:
-                break
-        return gevonden[offset:offset + limiet]
+            if naald not in hooiberg:
+                continue
+        gevonden.append(tx)
 
-    sql += " LIMIT ? OFFSET ?"
-    params += [limiet, offset]
-    return [rij_naar_object(r, crypto) for r in conn.execute(sql, params)]
+    sleutels = {
+        "datum": lambda t: (t.boekdatum, t.id),
+        "tegenpartij": lambda t: (t.tegenpartij_naam or t.handelaar or "").lower(),
+        "mededeling": lambda t: (t.mededeling or "").lower(),
+        "categorie": lambda t: " ".join(
+            cat_namen.get(i, "") for i in
+            (t.categorie_id, t.subcategorie_id, t.subsub_id) if i).lower(),
+        # Op de grootte van het bedrag, niet op het teken: bij een lijst vol
+        # uitgaven wil je de zwaarste bovenaan, niet de kleinste.
+        "bedrag": lambda t: abs(t.bedrag),
+        "bron": lambda t: t.methode,
+        "status": lambda t: t.status,
+        "zekerheid": lambda t: t.zekerheid,
+    }
+    gevonden.sort(key=sleutels.get(sorteer, sleutels["datum"]), reverse=aflopend)
+    return gevonden[offset:offset + limiet], len(gevonden)
 
 
 def tel(conn, status: str | None = None) -> int:

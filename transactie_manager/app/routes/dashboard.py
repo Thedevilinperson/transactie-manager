@@ -17,5 +17,5 @@ bp = Blueprint("dashboard", __name__)
 def index():
     conn = get_db()
     cijfers = kerncijfers(conn, g.crypto)
-    recent = zoek(conn, g.crypto, limiet=8)
+    recent, _ = zoek(conn, g.crypto, limiet=8)
     return render_template("dashboard.html", cijfers=cijfers, recent=recent)

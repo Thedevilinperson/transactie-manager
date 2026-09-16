@@ -1,7 +1,8 @@
-"""Overzichten: jaartabel per categorie en reeksen voor grafieken.
+"""Overzichten: jaartabel per categorie en reeksen voor de grafieken.
 
 Bedragen staan versleuteld, dus optellen gebeurt in Python na ontsleuteling.
-Voor een huishoudboekje (tienduizenden rijen) is dat ruim snel genoeg.
+Land en winkel eveneens; die worden alleen ontsleuteld wanneer een filter of een
+groepering ze nodig heeft, want dat scheelt bij tienduizenden rijen merkbaar.
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 
 from .categories import Categorie, bouw_boom, laad_alles, nakomelingen
+from .filters import LEEG, Filters
 
 
 @dataclass
@@ -19,90 +21,74 @@ class Regelrij:
     id: int | None
     naam: str
     niveau: int
-    per_jaar: dict[int, Decimal] = field(default_factory=dict)
+    per_jaar: dict = field(default_factory=dict)
     totaal: Decimal = Decimal("0")
     kinderen: list["Regelrij"] = field(default_factory=list)
-    ouder_pad: str = ""
 
     @property
     def heeft_kinderen(self) -> bool:
         return bool(self.kinderen)
 
 
-def _basis_query(filters: dict) -> tuple[str, list]:
-    # Kaartafrekeningen tellen niet mee: hun aankopen staan er los onder.
-    sql = ("SELECT boekdatum, bedrag_enc, richting, categorie_id, subcategorie_id, subsub_id"
-           " FROM transacties WHERE is_afrekening = 0")
-    params: list = []
-    if filters.get("richting") in ("in", "uit"):
-        sql += " AND richting = ?"
-        params.append(filters["richting"])
-    if filters.get("rekening_id"):
-        sql += " AND rekening_id = ?"
-        params.append(filters["rekening_id"])
-    if filters.get("van"):
-        sql += " AND boekdatum >= ?"
-        params.append(filters["van"])
-    if filters.get("tot"):
-        sql += " AND boekdatum <= ?"
-        params.append(filters["tot"])
-    if filters.get("alleen_bevestigd"):
-        sql += " AND status = 'bevestigd'"
-    return sql, params
+def _rijen(conn, crypto, filters: Filters, platte, *, velden_nodig: bool):
+    """Haalt de transacties op en levert per rij het nodige, al ontsleuteld."""
+    waar, params = filters.sql()
+    kolommen = ("boekdatum, bedrag_enc, categorie_id, subcategorie_id, subsub_id"
+                + (", land_enc, handelaar_enc" if velden_nodig else ""))
+    toegelaten = (nakomelingen(platte, filters.categorie_id)
+                  if filters.categorie_id else None)
 
-
-def jaartabel(conn, crypto, filters: dict | None = None):
-    """Bouwt de uitklapbare tabel: categorie x jaar.
-
-    Geeft (rijen, jaren, eindtotalen) terug. Bedragen zijn absoluut; de
-    richting bepaalt of het om inkomsten of uitgaven gaat.
-    """
-    filters = filters or {}
-    platte = laad_alles(conn, crypto)
-
-    beperking: set[int] | None = None
-    if filters.get("categorie_id"):
-        beperking = nakomelingen(platte, int(filters["categorie_id"]))
-
-    sql, params = _basis_query(filters)
-
-    # sleutel = (hoofd, sub, subsub) met None voor ontbrekende niveaus
-    bedragen: dict[tuple, dict[int, Decimal]] = defaultdict(lambda: defaultdict(Decimal))
-    jaren: set[int] = set()
-
-    for row in conn.execute(sql, params):
-        cat = row["categorie_id"]
-        if beperking is not None:
-            geraakt = {row["categorie_id"], row["subcategorie_id"], row["subsub_id"]}
-            if not (geraakt & beperking):
+    for row in conn.execute(f"SELECT {kolommen} FROM transacties WHERE {waar}", params):
+        cat_ids = {row["categorie_id"], row["subcategorie_id"], row["subsub_id"]}
+        if not filters.past_categorie(cat_ids, toegelaten):
+            continue
+        land = winkel = ""
+        if velden_nodig:
+            land = (crypto.dec(row["land_enc"]) or "").strip()
+            winkel = (crypto.dec(row["handelaar_enc"]) or "").strip()
+            if not filters.past_tekst(land=land, winkel=winkel):
                 continue
+        yield row, abs(crypto.dec_amount(row["bedrag_enc"])), land, winkel
+
+
+def jaartabel(conn, crypto, filters: Filters):
+    """Bouwt de uitklapbare tabel: categorie tegenover jaar.
+
+    Geeft (rijen, jaren, eindtotalen) terug. De jaren staan van recent naar oud,
+    want daar kijk je het vaakst naar.
+    """
+    platte = laad_alles(conn, crypto)
+    beperking = (nakomelingen(platte, filters.categorie_id)
+                 if filters.categorie_id else None)
+    velden_nodig = filters.vraagt_tekst
+
+    bedragen: dict = defaultdict(lambda: defaultdict(Decimal))
+    jaren: set = set()
+
+    for row, bedrag, _land, _winkel in _rijen(conn, crypto, filters, platte,
+                                              velden_nodig=velden_nodig):
         jaar = int(row["boekdatum"][:4])
         jaren.add(jaar)
-        bedrag = abs(crypto.dec_amount(row["bedrag_enc"]))
-        sleutel = (cat, row["subcategorie_id"], row["subsub_id"])
-        bedragen[sleutel][jaar] += bedrag
+        bedragen[(row["categorie_id"], row["subcategorie_id"],
+                  row["subsub_id"])][jaar] += bedrag
 
-    jaren_gesorteerd = sorted(jaren)
+    jaren_gesorteerd = sorted(jaren, reverse=True)
     wortels = bouw_boom(platte)
+    if filters.richting in ("in", "uit"):
+        wortels = [c for c in wortels if c.soort in (filters.richting, "beide")]
 
-    if filters.get("richting") in ("in", "uit"):
-        wortels = [c for c in wortels if c.soort in (filters["richting"], "beide")]
-
-    def bouw(cat: Categorie, pad: tuple) -> Regelrij | None:
-        eigen_sleutel = pad + (None,) * (3 - len(pad))
+    def bouw(cat: Categorie, pad: tuple):
+        eigen = pad + (None,) * (3 - len(pad))
         rij = Regelrij(id=cat.id, naam=cat.naam, niveau=cat.niveau)
         rij.per_jaar = defaultdict(Decimal)
-
-        for jaar, bedrag in bedragen.get(eigen_sleutel, {}).items():
+        for jaar, bedrag in bedragen.get(eigen, {}).items():
             rij.per_jaar[jaar] += bedrag
-
         for kind in cat.kinderen:
             kindrij = bouw(kind, pad + (kind.id,))
             if kindrij is not None:
                 rij.kinderen.append(kindrij)
                 for jaar, bedrag in kindrij.per_jaar.items():
                     rij.per_jaar[jaar] += bedrag
-
         rij.totaal = sum(rij.per_jaar.values(), Decimal("0"))
         if rij.totaal == 0 and not rij.kinderen:
             return None
@@ -110,7 +96,7 @@ def jaartabel(conn, crypto, filters: dict | None = None):
             return None
         return rij
 
-    rijen: list[Regelrij] = []
+    rijen = []
     for wortel in wortels:
         if beperking is not None and wortel.id not in beperking:
             continue
@@ -118,7 +104,6 @@ def jaartabel(conn, crypto, filters: dict | None = None):
         if rij is not None:
             rijen.append(rij)
 
-    # Niet-toegewezen transacties krijgen een eigen rij.
     zonder = defaultdict(Decimal)
     for sleutel, per_jaar in bedragen.items():
         if sleutel[0] is None:
@@ -135,25 +120,19 @@ def jaartabel(conn, crypto, filters: dict | None = None):
         for jaar, bedrag in rij.per_jaar.items():
             eindtotalen[jaar] += bedrag
     eindtotalen["totaal"] = sum(eindtotalen.values(), Decimal("0"))
-
     return rijen, jaren_gesorteerd, eindtotalen
 
 
-def plat(rijen: list[Regelrij], _ouder: str = "") -> list[dict]:
+def plat(rijen):
     """Zet de boom om naar platte rijen met een oudersleutel, voor de tabel."""
-    resultaat: list[dict] = []
+    resultaat = []
 
-    def loop(rij: Regelrij, ouder_sleutel: str):
+    def loop(rij, ouder_sleutel):
         sleutel = f"{ouder_sleutel}-{rij.id or 'x'}"
         resultaat.append({
-            "sleutel": sleutel,
-            "ouder": ouder_sleutel,
-            "id": rij.id,
-            "naam": rij.naam,
-            "niveau": rij.niveau,
-            "per_jaar": rij.per_jaar,
-            "totaal": rij.totaal,
-            "heeft_kinderen": rij.heeft_kinderen,
+            "sleutel": sleutel, "ouder": ouder_sleutel, "id": rij.id,
+            "naam": rij.naam, "niveau": rij.niveau, "per_jaar": rij.per_jaar,
+            "totaal": rij.totaal, "heeft_kinderen": rij.heeft_kinderen,
         })
         for kind in rij.kinderen:
             loop(kind, sleutel)
@@ -163,60 +142,90 @@ def plat(rijen: list[Regelrij], _ouder: str = "") -> list[dict]:
     return resultaat
 
 
-def reeksen(conn, crypto, filters: dict | None = None, groepering: str = "jaar"):
-    """Tijdreeksen per hoofdcategorie, voor de grafieken.
+# --------------------------------------------------------------------------
+# Grafieken
+# --------------------------------------------------------------------------
 
-    groepering is 'jaar' of 'maand'.
-    """
-    filters = filters or {}
+def _label(row, platte, groepering: str, land: str, winkel: str) -> str:
+    if groepering == "land":
+        return land or LEEG
+    if groepering == "winkel":
+        return winkel or LEEG
+    sleutel = {"sub": "subcategorie_id", "subsub": "subsub_id"}.get(
+        groepering, "categorie_id")
+    cat_id = row[sleutel]
+    if cat_id is None:
+        cat_id = row["subcategorie_id"] or row["categorie_id"]
+    if cat_id in platte:
+        return platte[cat_id].naam
+    return "Nog niet toegewezen"
+
+
+def reeksen(conn, crypto, filters: Filters, maximum: int = 12):
+    """Tijdreeksen per groepering, voor de gestapelde staafgrafiek."""
     platte = laad_alles(conn, crypto)
-    beperking: set[int] | None = None
-    if filters.get("categorie_id"):
-        beperking = nakomelingen(platte, int(filters["categorie_id"]))
+    velden_nodig = filters.vraagt_tekst or filters.groepering in ("land", "winkel")
 
-    # Welk niveau tonen we als aparte lijn?
-    detail = filters.get("detailniveau", "hoofd")
+    per_label = defaultdict(lambda: defaultdict(Decimal))
+    perioden = set()
 
-    sql, params = _basis_query(filters)
-    reeks: dict[str, dict[str, Decimal]] = defaultdict(lambda: defaultdict(Decimal))
-    perioden: set[str] = set()
-
-    for row in conn.execute(sql, params):
-        if beperking is not None:
-            geraakt = {row["categorie_id"], row["subcategorie_id"], row["subsub_id"]}
-            if not (geraakt & beperking):
-                continue
-        periode = row["boekdatum"][:4] if groepering == "jaar" else row["boekdatum"][:7]
+    for row, bedrag, land, winkel in _rijen(conn, crypto, filters, platte,
+                                            velden_nodig=velden_nodig):
+        periode = (row["boekdatum"][:4] if filters.periode == "jaar"
+                   else row["boekdatum"][:7])
         perioden.add(periode)
-        if detail == "sub" and row["subcategorie_id"] in platte:
-            label = platte[row["subcategorie_id"]].naam
-        elif row["categorie_id"] in platte:
-            label = platte[row["categorie_id"]].naam
-        else:
-            label = "Nog niet toegewezen"
-        reeks[label][periode] += abs(crypto.dec_amount(row["bedrag_enc"]))
+        per_label[_label(row, platte, filters.groepering, land, winkel)][periode] += bedrag
 
     labels = sorted(perioden)
+    op_totaal = sorted(per_label.items(), key=lambda p: -sum(p[1].values(), Decimal("0")))
+
     uitvoer = []
-    for naam, waarden in reeks.items():
-        totaal = sum(waarden.values(), Decimal("0"))
+    for naam, waarden in op_totaal[:maximum]:
         uitvoer.append({
             "naam": naam,
-            "totaal": float(totaal),
+            "totaal": float(sum(waarden.values(), Decimal("0"))),
             "waarden": [float(waarden.get(p, Decimal("0"))) for p in labels],
         })
-    uitvoer.sort(key=lambda r: -r["totaal"])
+    rest = op_totaal[maximum:]
+    if rest:
+        samen = defaultdict(Decimal)
+        for _naam, waarden in rest:
+            for periode, bedrag in waarden.items():
+                samen[periode] += bedrag
+        uitvoer.append({
+            "naam": f"Overige ({len(rest)})",
+            "totaal": float(sum(samen.values(), Decimal("0"))),
+            "waarden": [float(samen.get(p, Decimal("0"))) for p in labels],
+        })
     return labels, uitvoer
+
+
+def verdeling(conn, crypto, filters: Filters, maximum: int = 12):
+    """Eén taart: het totaal per groepering over de gekozen selectie."""
+    platte = laad_alles(conn, crypto)
+    velden_nodig = filters.vraagt_tekst or filters.groepering in ("land", "winkel")
+
+    per_label = defaultdict(Decimal)
+    for row, bedrag, land, winkel in _rijen(conn, crypto, filters, platte,
+                                            velden_nodig=velden_nodig):
+        per_label[_label(row, platte, filters.groepering, land, winkel)] += bedrag
+
+    op_totaal = sorted(per_label.items(), key=lambda p: -p[1])
+    stukken = [{"naam": n, "waarde": float(b)} for n, b in op_totaal[:maximum]]
+    rest = op_totaal[maximum:]
+    if rest:
+        stukken.append({"naam": f"Overige ({len(rest)})",
+                        "waarde": float(sum((b for _n, b in rest), Decimal("0")))})
+    return stukken, float(sum(per_label.values(), Decimal("0")))
 
 
 def kerncijfers(conn, crypto) -> dict:
     """Cijfers voor het startscherm."""
     rows = conn.execute(
         "SELECT boekdatum, bedrag_enc, richting, status FROM transacties"
-        " WHERE is_afrekening = 0"
-    ).fetchall()
-    per_jaar_in: dict[int, Decimal] = defaultdict(Decimal)
-    per_jaar_uit: dict[int, Decimal] = defaultdict(Decimal)
+        " WHERE is_afrekening = 0").fetchall()
+    per_jaar_in = defaultdict(Decimal)
+    per_jaar_uit = defaultdict(Decimal)
     nazicht = niet_toegewezen = 0
     for row in rows:
         jaar = int(row["boekdatum"][:4])
@@ -232,10 +241,8 @@ def kerncijfers(conn, crypto) -> dict:
 
     jaren = sorted(set(per_jaar_in) | set(per_jaar_uit))
     return {
-        "aantal": len(rows),
-        "nazicht": nazicht,
-        "niet_toegewezen": niet_toegewezen,
-        "jaren": jaren,
+        "aantal": len(rows), "nazicht": nazicht, "niet_toegewezen": niet_toegewezen,
+        "jaren": jaren[-8:],
         "inkomsten": {j: per_jaar_in.get(j, Decimal("0")) for j in jaren},
         "uitgaven": {j: per_jaar_uit.get(j, Decimal("0")) for j in jaren},
         "laatste_jaar": jaren[-1] if jaren else None,

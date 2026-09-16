@@ -11,6 +11,7 @@ from flask import Blueprint, flash, g, redirect, render_template, request, url_f
 from .. import veilig_terug
 from ..auth import login_vereist
 from ..categories import boom, keuzelijst, laad_alles, nakomelingen, pad_tekst
+from ..filters import METHODEN, STATUSSEN, Filters, keuzes, rekeningen as alle_rekeningen
 from ..categorizer.ai import maak_regel_van_voorstel
 from ..categorizer.engine import Motor, TransactieKenmerken, Voorstel
 from ..database import get_db, instelling, log
@@ -42,34 +43,32 @@ def _cat_context(conn, crypto):
 def lijst():
     conn = get_db()
     crypto = g.crypto
-    filters = {
-        "status": request.args.get("status") or None,
-        "rekening_id": request.args.get("rekening_id", type=int),
-        "richting": request.args.get("richting") or None,
-        "van": request.args.get("van") or None,
-        "tot": request.args.get("tot") or None,
-        "zoekterm": request.args.get("q", "").strip(),
-    }
-    categorie_id = request.args.get("categorie_id", type=int)
+    filters = Filters.uit_aanvraag()
     platte = laad_alles(conn, crypto)
-    categorie_ids = sorted(nakomelingen(platte, categorie_id)) if categorie_id else None
+    cat_namen = {i: c.naam for i, c in platte.items()}
+    categorie_ids = (sorted(nakomelingen(platte, filters.categorie_id))
+                     if filters.categorie_id else None)
 
+    sorteer = request.args.get("sorteer", "datum")
+    aflopend = request.args.get("richting_sortering", "af") != "op"
     pagina = max(1, request.args.get("pagina", 1, type=int))
     per_pagina = 100
-    rijen = zoek(
-        conn, crypto,
-        status=filters["status"], rekening_id=filters["rekening_id"],
-        richting=filters["richting"], van=filters["van"], tot=filters["tot"],
-        zoekterm=filters["zoekterm"], categorie_ids=categorie_ids,
+
+    rijen, aantal_gevonden = zoek(
+        conn, crypto, filters=filters, categorie_ids=categorie_ids,
+        cat_namen=cat_namen, sorteer=sorteer, aflopend=aflopend,
         limiet=per_pagina, offset=(pagina - 1) * per_pagina,
     )
 
     return render_template(
         "transacties.html",
-        rijen=rijen, filters=filters, categorie_id=categorie_id, pagina=pagina,
-        rekeningen=_rekeningen(conn, crypto),
+        rijen=rijen, filters=filters, pagina=pagina, per_pagina=per_pagina,
+        aantal_gevonden=aantal_gevonden, sorteer=sorteer, aflopend=aflopend,
+        rekeningen=alle_rekeningen(conn, crypto),
+        keuzes=keuzes(conn, crypto),
+        methoden=METHODEN, statussen=STATUSSEN,
         pad_tekst=lambda *ids: pad_tekst(platte, *ids),
-        keuzes=keuzelijst(boom(conn, crypto)),
+        hoofdcategorieen=[c for c in keuzelijst(boom(conn, crypto)) if c["niveau"] == 0],
         totaal_aantal=tel(conn),
     )
 
@@ -266,8 +265,9 @@ def nazicht():
     conn = get_db()
     crypto = g.crypto
     platte = laad_alles(conn, crypto)
-    onzeker = zoek(conn, crypto, status="nazicht", limiet=100)
-    open_rijen = zoek(conn, crypto, status="niet_toegewezen", limiet=100)
+    onzeker, _ = zoek(conn, crypto, filters=Filters(status="nazicht"), limiet=100)
+    open_rijen, _ = zoek(conn, crypto, filters=Filters(status="niet_toegewezen"),
+                         limiet=100)
     return render_template(
         "nazicht.html",
         onzeker=onzeker, open_rijen=open_rijen,

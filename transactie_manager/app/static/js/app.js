@@ -17,7 +17,8 @@
     select.innerHTML = "";
     var leeg = document.createElement("option");
     leeg.value = "";
-    leeg.textContent = opties.length ? "— kies —" : "— geen —";
+    leeg.textContent = select.dataset.leeg
+      || (opties.length ? "— kies —" : "— geen —");
     select.appendChild(leeg);
     opties.forEach(function (optie) {
       var el = document.createElement("option");
@@ -246,15 +247,196 @@
     });
   }
 
+  /* ------------------------------------------------- filters die zelf gaan */
+
+  function koppelAutofilter(formulier) {
+    var wacht = null;
+
+    function verstuur() {
+      // De bladzijde begint weer vooraan wanneer de selectie verandert.
+      var pagina = formulier.querySelector("[name='pagina']");
+      if (pagina) pagina.value = "1";
+      formulier.submit();
+    }
+
+    formulier.addEventListener("change", function (gebeurtenis) {
+      if (gebeurtenis.target.classList.contains("zoekinlijst")) return;
+      verstuur();
+    });
+
+    // Tikken in een zoekveld wacht even af, anders vertrekt het formulier
+    // na elke aanslag.
+    formulier.querySelectorAll("[data-traag]").forEach(function (veld) {
+      veld.addEventListener("input", function () {
+        window.clearTimeout(wacht);
+        wacht = window.setTimeout(verstuur, 600);
+      });
+      veld.addEventListener("keydown", function (gebeurtenis) {
+        if (gebeurtenis.key === "Enter") {
+          gebeurtenis.preventDefault();
+          window.clearTimeout(wacht);
+          verstuur();
+        }
+      });
+    });
+  }
+
+  /* Zoeken binnen een lange meerkeuzelijst. */
+  function koppelLijstzoeker(veld) {
+    var lijst = document.getElementById("lijst-" + veld.dataset.zoekt);
+    if (!lijst) return;
+    var alle = Array.prototype.map.call(lijst.options, function (o) {
+      return { waarde: o.value, tekst: o.textContent, gekozen: o.selected };
+    });
+    veld.addEventListener("input", function () {
+      var naald = veld.value.trim().toLowerCase();
+      Array.prototype.forEach.call(lijst.options, function (optie) {
+        if (optie.selected) return;   // een keuze blijft altijd zichtbaar
+        optie.hidden = naald !== "" && optie.textContent.toLowerCase().indexOf(naald) === -1;
+      });
+      void alle;
+    });
+  }
+
+  /* De aanvinkbare jaartallen kleuren mee. */
+  function koppelChips(wortel) {
+    wortel.querySelectorAll(".chip input").forEach(function (vakje) {
+      vakje.addEventListener("change", function () {
+        vakje.closest(".chip").classList.toggle("aan", vakje.checked);
+      });
+    });
+  }
+
+  /* ------------------------------------------------- gestapelde staafgrafiek */
+
+  function tekenStapelgrafiek(doel) {
+    var gegevens = JSON.parse(doel.dataset.reeksen || "{}");
+    var labels = gegevens.labels || [];
+    var series = gegevens.series || [];
+    if (!labels.length || !series.length) return;
+
+    var breedte = 920, hoogte = 420;
+    var marge = { boven: 16, rechts: 18, onder: 46, links: 78 };
+    var vlakB = breedte - marge.links - marge.rechts;
+    var vlakH = hoogte - marge.boven - marge.onder;
+
+    var totalen = labels.map(function (_l, i) {
+      return series.reduce(function (som, reeks) { return som + (reeks.waarden[i] || 0); }, 0);
+    });
+    var max = Math.max.apply(null, totalen) || 1;
+    var stap = Math.pow(10, Math.floor(Math.log10(max)));
+    var bovengrens = Math.ceil(max / stap) * stap;
+
+    var vakbreedte = vlakB / labels.length;
+    var staaf = Math.min(vakbreedte * 0.68, 64);
+
+    function y(waarde) { return marge.boven + vlakH - (vlakH * waarde) / bovengrens; }
+
+    var svg = ['<svg viewBox="0 0 ' + breedte + " " + hoogte +
+      '" class="grafiek" role="img" aria-label="Gestapelde staafgrafiek">'];
+
+    for (var t = 0; t <= 4; t++) {
+      var waarde = (bovengrens / 4) * t;
+      var yy = y(waarde);
+      svg.push('<line x1="' + marge.links + '" y1="' + yy + '" x2="' +
+        (breedte - marge.rechts) + '" y2="' + yy + '" stroke="#dbe1e9"/>');
+      svg.push('<text x="' + (marge.links - 8) + '" y="' + (yy + 4) +
+        '" text-anchor="end" font-size="11" fill="#5a6675">' +
+        Math.round(waarde).toLocaleString("nl-BE") + "</text>");
+    }
+
+    labels.forEach(function (label, i) {
+      var x = marge.links + vakbreedte * i + (vakbreedte - staaf) / 2;
+      var onder = marge.boven + vlakH;
+      series.forEach(function (reeks, index) {
+        var waarde = reeks.waarden[i] || 0;
+        if (waarde <= 0) return;
+        var hoog = (vlakH * waarde) / bovengrens;
+        onder -= hoog;
+        svg.push('<rect x="' + x + '" y="' + onder + '" width="' + staaf +
+          '" height="' + hoog + '" fill="' + PALET[index % PALET.length] + '">' +
+          "<title>" + reeks.naam + " " + label + ": " +
+          Math.round(waarde).toLocaleString("nl-BE") + " EUR</title></rect>");
+      });
+      svg.push('<text x="' + (x + staaf / 2) + '" y="' + (hoogte - 26) +
+        '" text-anchor="middle" font-size="11" fill="#5a6675">' + label + "</text>");
+      svg.push('<text x="' + (x + staaf / 2) + '" y="' + (hoogte - 12) +
+        '" text-anchor="middle" font-size="10" fill="#8b95a3">' +
+        Math.round(totalen[i]).toLocaleString("nl-BE") + "</text>");
+    });
+
+    svg.push("</svg>");
+    doel.innerHTML = svg.join("");
+    zetLegende(doel, series.map(function (r) { return r.naam; }));
+  }
+
+  /* ------------------------------------------------------------------ taart */
+
+  function tekenTaart(doel) {
+    var gegevens = JSON.parse(doel.dataset.stukken || "{}");
+    var stukken = (gegevens.stukken || []).filter(function (s) { return s.waarde > 0; });
+    var totaal = gegevens.totaal || stukken.reduce(function (s, d) { return s + d.waarde; }, 0);
+    if (!stukken.length || totaal <= 0) return;
+
+    var maat = 340, straal = 150, mid = maat / 2;
+    var hoek = -Math.PI / 2;
+    var svg = ['<svg viewBox="0 0 ' + maat + " " + maat +
+      '" width="340" height="340" role="img" aria-label="Verdeling">'];
+
+    stukken.forEach(function (stuk, index) {
+      var deel = stuk.waarde / totaal;
+      var eind = hoek + deel * Math.PI * 2;
+      var kleur = PALET[index % PALET.length];
+      if (deel > 0.9999) {
+        svg.push('<circle cx="' + mid + '" cy="' + mid + '" r="' + straal +
+          '" fill="' + kleur + '"/>');
+      } else {
+        var x1 = mid + straal * Math.cos(hoek), y1 = mid + straal * Math.sin(hoek);
+        var x2 = mid + straal * Math.cos(eind), y2 = mid + straal * Math.sin(eind);
+        var groot = deel > 0.5 ? 1 : 0;
+        svg.push('<path d="M' + mid + ' ' + mid + ' L' + x1 + ' ' + y1 +
+          ' A' + straal + ' ' + straal + ' 0 ' + groot + ' 1 ' + x2 + ' ' + y2 +
+          ' Z" fill="' + kleur + '" stroke="#fff" stroke-width="1.5">' +
+          "<title>" + stuk.naam + ": " + Math.round(stuk.waarde).toLocaleString("nl-BE") +
+          " EUR (" + (deel * 100).toFixed(1) + "%)</title></path>");
+      }
+      hoek = eind;
+    });
+
+    svg.push("</svg>");
+    doel.classList.add("taartvlak");
+    doel.innerHTML = svg.join("");
+    zetLegende(doel, stukken.map(function (s) {
+      return s.naam + " — " + Math.round(s.waarde).toLocaleString("nl-BE") +
+        " (" + (s.waarde / totaal * 100).toFixed(1) + "%)";
+    }));
+  }
+
+  function zetLegende(doel, namen) {
+    var legende = doel.parentNode.querySelector(".legende");
+    if (!legende) return;
+    legende.innerHTML = namen.map(function (naam, index) {
+      return '<span><i style="background:' + PALET[index % PALET.length] + '"></i>' +
+        naam + "</span>";
+    }).join("");
+  }
+
   /* ------------------------------------------------------------------ start */
 
   document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll("[data-categoriekiezer]").forEach(function (wortel) {
       koppelKeuzelijsten(wortel);
-      koppelRichtingfilter(wortel);
+      if (!wortel.hasAttribute("data-plat")) koppelRichtingfilter(wortel);
     });
     document.querySelectorAll("[data-boomtabel]").forEach(koppelBoomtabel);
     document.querySelectorAll("[data-lijngrafiek]").forEach(tekenLijngrafiek);
+    document.querySelectorAll("[data-stapelgrafiek]").forEach(tekenStapelgrafiek);
+    document.querySelectorAll("[data-taartgrafiek]").forEach(tekenTaart);
+    document.querySelectorAll("[data-autofilter]").forEach(function (formulier) {
+      koppelAutofilter(formulier);
+      koppelChips(formulier);
+    });
+    document.querySelectorAll(".zoekinlijst").forEach(koppelLijstzoeker);
     koppelAiKnoppen();
 
     document.querySelectorAll("[data-bevestig]").forEach(function (formulier) {

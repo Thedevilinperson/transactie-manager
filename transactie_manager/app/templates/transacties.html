@@ -1,24 +1,41 @@
 {% extends "basis.html" %}
+{% from "_filterbalk.html" import filterbalk %}
 {% block titel %}Transacties{% endblock %}
+
+{% macro kop(sleutel, label, uitlijning='') %}
+  {% set actief = sorteer == sleutel %}
+  {% set nieuwe = 'op' if actief and aflopend else 'af' %}
+  <th class="{{ uitlijning }}">
+    <a class="sorteerkop {{ 'actief' if actief }}"
+       href="{{ url_for('tx.lijst', **dict(request.args.to_dict(flat=false),
+                                           sorteer=[sleutel],
+                                           richting_sortering=[nieuwe],
+                                           pagina=['1'])) }}">
+      {{ label }}<span class="pijl">{{ '▼' if actief and aflopend
+                                       else ('▲' if actief else '') }}</span></a>
+  </th>
+{% endmacro %}
 
 {% block inhoud %}
 <div class="kop">
   <h1>Transacties</h1>
-  <p>{{ totaal_aantal }} in totaal</p>
+  <p>{{ totaal_aantal }} in totaal{% if aantal_gevonden is not none %},
+    {{ aantal_gevonden }} in deze selectie{% endif %}</p>
   <div class="rechts">
     <a class="knop stil" href="{{ url_for('tx.nieuw') }}">Nieuwe transactie</a>
     <a class="knop" href="{{ url_for('importeren.start') }}">Bestand inlezen</a>
   </div>
 </div>
 
-<div class="vlak">
-  <form method="get" class="filterbalk">
-    <div>
+<form method="get" action="{{ url_for('tx.lijst') }}" class="filterblok"
+      data-autofilter>
+  <div class="filterrij">
+    <div class="veld">
       <label for="q">Zoeken</label>
       <input type="search" id="q" name="q" value="{{ filters.zoekterm }}"
-             placeholder="naam, mededeling, rekening">
+             placeholder="naam, mededeling, rekening, categorie" data-traag>
     </div>
-    <div>
+    <div class="veld">
       <label for="rekening_id">Rekening</label>
       <select id="rekening_id" name="rekening_id">
         <option value="">Alle</option>
@@ -28,16 +45,7 @@
         {% endfor %}
       </select>
     </div>
-    <div>
-      <label for="categorie_id">Categorie</label>
-      <select id="categorie_id" name="categorie_id">
-        <option value="">Alle</option>
-        {% for k in keuzes %}
-          <option value="{{ k.id }}" {{ 'selected' if categorie_id == k.id }}>{{ k.label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div>
+    <div class="veld">
       <label for="richting">Soort</label>
       <select id="richting" name="richting">
         <option value="">Alle</option>
@@ -45,43 +53,88 @@
         <option value="in" {{ 'selected' if filters.richting == 'in' }}>Inkomsten</option>
       </select>
     </div>
-    <div>
+    <div class="veld">
       <label for="status">Status</label>
       <select id="status" name="status">
         <option value="">Alle</option>
-        <option value="bevestigd" {{ 'selected' if filters.status == 'bevestigd' }}>Bevestigd</option>
-        <option value="nazicht" {{ 'selected' if filters.status == 'nazicht' }}>Nazicht</option>
-        <option value="niet_toegewezen"
-                {{ 'selected' if filters.status == 'niet_toegewezen' }}>Zonder categorie</option>
+        {% for waarde, label in statussen %}
+          <option value="{{ waarde }}" {{ 'selected' if filters.status == waarde }}>
+            {{ label }}</option>
+        {% endfor %}
       </select>
     </div>
-    <div>
-      <label for="van">Van</label>
-      <input type="date" id="van" name="van" value="{{ filters.van or '' }}">
+    <div class="veld">
+      <label for="methode">Bron van de indeling</label>
+      <select id="methode" name="methode" multiple size="6" class="meerkeuze">
+        {% for waarde, label in methoden %}
+          <option value="{{ waarde }}" {{ 'selected' if waarde in filters.methoden }}>
+            {{ label }}</option>
+        {% endfor %}
+      </select>
     </div>
-    <div>
-      <label for="tot">Tot</label>
-      <input type="date" id="tot" name="tot" value="{{ filters.tot or '' }}">
+  </div>
+
+  <div class="filterdeel">
+    <span class="filterlabel">Jaren</span>
+    <div class="jaarkeuze">
+      {% for jaar in keuzes.jaren %}
+        <label class="chip {{ 'aan' if jaar in filters.jaren }}">
+          <input type="checkbox" name="jaar" value="{{ jaar }}"
+                 {{ 'checked' if jaar in filters.jaren }}>{{ jaar }}</label>
+      {% endfor %}
     </div>
-    <div class="acties">
-      <button type="submit">Filteren</button>
-      <a class="knop stil" href="{{ url_for('tx.lijst') }}">Wissen</a>
+  </div>
+
+  <details class="filterdeel" {{ 'open' if filters.hoofd_id }}>
+    <summary>Categorie
+      {% if filters.hoofd_id %}<span class="merkje regel">ingesteld</span>{% endif %}
+    </summary>
+    <div class="filterrij" data-categoriekiezer data-plat>
+      <div class="veld">
+        <label for="hoofd_id">Hoofdcategorie</label>
+        <select id="hoofd_id" name="hoofd_id" data-cat-niveau="0">
+          <option value="">Alle</option>
+          {% for k in hoofdcategorieen %}
+            <option value="{{ k.id }}" data-soort="{{ k.soort }}"
+                    {{ 'selected' if filters.hoofd_id == k.id }}>{{ k.naam }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="veld">
+        <label for="sub_id">Subcategorie</label>
+        <select id="sub_id" name="sub_id" data-cat-niveau="1"
+                data-gekozen="{{ filters.sub_id or '' }}" data-leeg="Alle">
+          <option value="">Alle</option>
+        </select>
+      </div>
+      <div class="veld">
+        <label for="subsub_id">Sub-subcategorie</label>
+        <select id="subsub_id" name="subsub_id" data-cat-niveau="2"
+                data-gekozen="{{ filters.subsub_id or '' }}" data-leeg="Alle">
+          <option value="">Alle</option>
+        </select>
+      </div>
     </div>
-  </form>
-</div>
+  </details>
+
+  <div class="filterkop" style="border-top:1px solid var(--lijn);padding-top:10px">
+    <a class="knop stil klein" href="{{ url_for('tx.lijst') }}">Alles wissen</a>
+    <noscript><button type="submit">Toepassen</button></noscript>
+  </div>
+</form>
 
 <div class="vlak">
   {% if rijen %}
-    <div class="tabel-omhulsel">
+    <div class="tabel-omhulsel vasthoogte">
       <table>
         <thead>
           <tr>
-            <th>Datum</th>
-            <th>Tegenpartij</th>
-            <th>Mededeling</th>
-            <th>Categorie</th>
-            <th>Bron</th>
-            <th class="getal">Bedrag</th>
+            {{ kop('datum', 'Datum') }}
+            {{ kop('tegenpartij', 'Tegenpartij') }}
+            {{ kop('mededeling', 'Mededeling') }}
+            {{ kop('categorie', 'Categorie') }}
+            {{ kop('bron', 'Bron') }}
+            {{ kop('bedrag', 'Bedrag', 'getal') }}
             <th></th>
           </tr>
         </thead>
@@ -90,21 +143,22 @@
             <tr class="status-{{ tx.status }}">
               <td>{{ tx.boekdatum|datum }}</td>
               <td>
-                {{ tx.handelaar or tx.tegenpartij_naam or "Onbekend" }}
-                {% if tx.tegenpartij_rekening %}
-                  <span class="klein-detail">{{ tx.tegenpartij_rekening }}</span>
-                {% endif %}
+                {{ tx.tegenpartij_naam or 'Onbekend' }}
+                <span class="klein-detail">
+                  {%- if tx.handelaar %}{{ tx.handelaar }}{% endif -%}
+                  {%- if tx.handelaar and tx.land %} · {% endif -%}
+                  {%- if tx.land %}{{ tx.land }}{% endif -%}
+                  {%- if not tx.handelaar and not tx.land and tx.tegenpartij_rekening -%}
+                    {{ tx.tegenpartij_rekening }}{% endif -%}
+                </span>
               </td>
-              <td>
-                {{ tx.mededeling[:80] }}
-                {% if tx.land %}<span class="klein-detail">Land: {{ tx.land }}</span>{% endif %}
-              </td>
-              <td>
-                {{ pad_tekst(tx.categorie_id, tx.subcategorie_id, tx.subsub_id) }}
-              </td>
+              <td>{{ tx.mededeling[:70] }}
+                {% if tx.beschrijving %}
+                  <span class="klein-detail">{{ tx.beschrijving }}</span>{% endif %}</td>
+              <td>{{ pad_tekst(tx.categorie_id, tx.subcategorie_id, tx.subsub_id) }}</td>
               <td>
                 <span class="merkje {{ tx.methode }}">{{ tx.methode }}</span>
-                {% if tx.status == 'nazicht' %}
+                {% if tx.methode in ('fuzzy', 'ai') %}
                   <span class="klein-detail">{{ tx.zekerheid|procent }} zeker</span>
                 {% endif %}
               </td>
@@ -124,12 +178,14 @@
 
     <div class="knoppen" style="margin-top:16px">
       {% if pagina > 1 %}
-        <a class="knop stil" href="{{ url_for('tx.lijst', **dict(request.args, pagina=pagina-1)) }}">
-          Vorige</a>
+        <a class="knop stil"
+           href="{{ url_for('tx.lijst', **dict(request.args.to_dict(flat=false),
+                                               pagina=[pagina - 1])) }}">Vorige</a>
       {% endif %}
-      {% if rijen|length == 100 %}
-        <a class="knop stil" href="{{ url_for('tx.lijst', **dict(request.args, pagina=pagina+1)) }}">
-          Volgende</a>
+      {% if rijen|length == per_pagina %}
+        <a class="knop stil"
+           href="{{ url_for('tx.lijst', **dict(request.args.to_dict(flat=false),
+                                               pagina=[pagina + 1])) }}">Volgende</a>
       {% endif %}
       <span class="klein-detail">Pagina {{ pagina }}</span>
     </div>
