@@ -421,6 +421,80 @@
     }).join("");
   }
 
+  /* ------------------------------------------------------------- voortgang */
+  /* Werk dat in de achtergrond loopt: om de seconde de stand opvragen en de
+     balk bijwerken, zodat je ziet dat er iets gebeurt. */
+
+  function koppelVoortgang(vlak) {
+    var balk = vlak.querySelector(".voortgangsvulling");
+    var fase = vlak.querySelector(".voortgangsfase");
+    var teller = vlak.querySelector(".teller");
+    var verstreken = vlak.querySelector(".verstreken");
+    var uitslag = document.querySelector("[data-uitslag]");
+    var mislukt = document.querySelector("[data-mislukt]");
+    var mislukken = 0;
+
+    function toonUitslag(gegevens) {
+      vlak.classList.add("verborgen");
+      if (!gegevens.gelukt) {
+        if (!mislukt) return;
+        mislukt.classList.remove("verborgen");
+        mislukt.querySelector("[data-boodschap]").textContent =
+          "Het inlezen is misgelopen: " + (gegevens.fout || "onbekende reden");
+        return;
+      }
+      if (!uitslag) { window.location.reload(); return; }
+      var r = gegevens.resultaat || {};
+      uitslag.classList.remove("verborgen");
+      uitslag.querySelectorAll("[data-veld]").forEach(function (el) {
+        el.textContent = (r[el.dataset.veld] || 0).toLocaleString("nl-BE");
+      });
+      if (r.uit_bestand) {
+        var p = uitslag.querySelector("[data-uit-bestand]");
+        p.classList.remove("verborgen");
+        p.textContent = r.uit_bestand +
+          " daarvan kregen hun indeling rechtstreeks uit het bestand.";
+      }
+      if (r.fouten && r.fouten.length) {
+        var doel = uitslag.querySelector("[data-fouten]");
+        doel.classList.remove("verborgen");
+        doel.innerHTML = "<h2>Rijen die niet gelukt zijn</h2><ul>" +
+          r.fouten.map(function (f) { return "<li>" + f + "</li>"; }).join("") + "</ul>";
+      }
+    }
+
+    function vraag() {
+      fetch(vlak.dataset.bron, { headers: { "Accept": "application/json" } })
+        .then(function (antwoord) {
+          if (!antwoord.ok) throw new Error("geen antwoord");
+          return antwoord.json();
+        })
+        .then(function (gegevens) {
+          mislukken = 0;
+          balk.style.width = gegevens.percent + "%";
+          fase.textContent = gegevens.fase;
+          if (gegevens.totaal) {
+            teller.textContent = gegevens.stand.toLocaleString("nl-BE") + " van " +
+              gegevens.totaal.toLocaleString("nl-BE") + " rijen";
+          }
+          verstreken.textContent = gegevens.seconden + " seconden";
+          if (gegevens.klaar) { toonUitslag(gegevens); return; }
+          window.setTimeout(vraag, 1000);
+        })
+        .catch(function () {
+          mislukken += 1;
+          if (mislukken > 10) {
+            fase.textContent = "De verbinding met de toepassing is weg. " +
+              "Herlaad de bladzijde om te zien waar de invoer staat.";
+            return;
+          }
+          window.setTimeout(vraag, 2000);
+        });
+    }
+
+    vraag();
+  }
+
   /* ------------------------------------------------------------------ start */
 
   document.addEventListener("DOMContentLoaded", function () {
@@ -437,6 +511,7 @@
       koppelChips(formulier);
     });
     document.querySelectorAll(".zoekinlijst").forEach(koppelLijstzoeker);
+    document.querySelectorAll("[data-voortgang]").forEach(koppelVoortgang);
     koppelAiKnoppen();
 
     document.querySelectorAll("[data-bevestig]").forEach(function (formulier) {

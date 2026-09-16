@@ -421,3 +421,26 @@ tfoot td { font-weight: 600; border-top: 2px solid var(--lijn-sterk); border-bot
 
 .taartvlak { display: flex; gap: 26px; align-items: center; flex-wrap: wrap; }
 .taartvlak svg { flex: 0 0 auto; }
+
+/* ------------------------------------------------------------- voortgang */
+
+.verborgen { display: none; }
+
+.voortgangsfase { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+
+.voortgangsbalk {
+  height: 12px; background: var(--papier); border: 1px solid var(--lijn);
+  border-radius: 6px; overflow: hidden;
+}
+.voortgangsvulling {
+  height: 100%; background: var(--actie); border-radius: 6px 0 0 6px;
+  transition: width .25s ease-out; min-width: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .voortgangsvulling { transition: none; }
+}
+
+.voortgangsdetail {
+  display: flex; gap: 14px; margin-top: 10px;
+  font-size: 13px; color: var(--inkt-zacht); font-variant-numeric: tabular-nums;
+}

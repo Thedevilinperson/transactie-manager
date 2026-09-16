@@ -159,6 +159,93 @@ def bewaar(conn, crypto, *, rekening_id: int, boekdatum: date | str, bedrag: Dec
     return cur.lastrowid
 
 
+def bestaande_id(conn, crypto, *, rekening_id: int, boekdatum, bedrag: Decimal,
+                 referentie: str = "", tegenpartij_rekening: str = "",
+                 mededeling: str = "", tegenpartij_naam: str = "",
+                 gebruikt: set | None = None) -> int | None:
+    """Zoekt of deze verrichting al in de databank staat.
+
+    Drie manieren, van betrouwbaar naar minder betrouwbaar:
+
+    1. de referentie van de bank, die uniek is per verrichting;
+    2. een vingerafdruk over de hele rij;
+    3. rekening, datum, bedrag en rekening van de tegenpartij samen.
+
+    Die derde is nodig wanneer je hetzelfde bestand opnieuw aanbiedt met een
+    kolom erbij: de mededeling verandert dan, en daarmee ook de vingerafdruk.
+    Ze wordt alleen gebruikt wanneer er precies één kandidaat overblijft die in
+    deze invoer nog niet gebruikt is, zodat twee identieke verrichtingen op
+    dezelfde dag niet op elkaar worden geplakt.
+    """
+    bedrag = Decimal(str(bedrag))
+    datum = boekdatum.isoformat() if isinstance(boekdatum, date) else str(boekdatum)
+    gebruikt = gebruikt if gebruikt is not None else set()
+
+    if referentie:
+        rij = conn.execute(
+            "SELECT id FROM transacties WHERE vingerafdruk = ?",
+            (crypto.fingerprint("ref", str(rekening_id), referentie),)).fetchone()
+        if rij:
+            return rij["id"]
+
+    rij = conn.execute(
+        "SELECT id FROM transacties WHERE vingerafdruk = ?",
+        (vingerafdruk(crypto, rekening_id, datum, bedrag, tegenpartij_rekening,
+                      mededeling, tegenpartij_naam),)).fetchone()
+    if rij:
+        return rij["id"]
+
+    kandidaten = [
+        r["id"] for r in conn.execute(
+            "SELECT id, bedrag_enc, tegenpartij_rek_idx FROM transacties"
+            " WHERE rekening_id = ? AND boekdatum = ?", (rekening_id, datum))
+        if r["id"] not in gebruikt
+        and crypto.dec_amount(r["bedrag_enc"]) == bedrag
+        and r["tegenpartij_rek_idx"] == (
+            crypto.blind(tegenpartij_rekening, iban=True) if tegenpartij_rekening else None)
+    ]
+    return kandidaten[0] if len(kandidaten) == 1 else None
+
+
+# Velden die bij een tweede aanbieding van hetzelfde bestand aangevuld mogen
+# worden. Alleen wat leeg is wordt ingevuld; wat je zelf hebt aangepast blijft.
+AANVULBAAR = ["referentie", "beschrijving", "tegenpartij_naam", "tegenpartij_rekening",
+              "begunstigde", "mededeling", "handelaar", "land", "valutadatum"]
+
+
+def vul_aan(conn, crypto, tx_id: int, velden: dict) -> list[str]:
+    """Vult lege velden aan met wat er in het bestand staat.
+
+    De mededeling is het geval waarvoor dit bestaat: staat er nu "A | B" en komt
+    er "A | B | C" binnen, dan is het nieuwe een uitbreiding van het oude en mag
+    het vervangen. Is het iets anders, dan blijft staan wat er stond.
+    """
+    rij = conn.execute("SELECT * FROM transacties WHERE id = ?", (tx_id,)).fetchone()
+    if rij is None:
+        return []
+
+    huidig = rij_naar_object(rij, crypto)
+    aanpassingen: dict = {}
+
+    for veld in AANVULBAAR:
+        nieuw = velden.get(veld)
+        nieuw = str(nieuw).strip() if nieuw not in (None, "") else ""
+        if not nieuw:
+            continue
+        oud = (getattr(huidig, veld, "") or "") if veld != "valutadatum" else (
+            rij["valutadatum"] or "")
+        oud = str(oud).strip()
+        if not oud:
+            aanpassingen[veld] = nieuw
+        elif veld == "mededeling" and oud != nieuw and oud in nieuw:
+            aanpassingen[veld] = nieuw
+
+    if not aanpassingen:
+        return []
+    werk_bij(conn, crypto, tx_id, **aanpassingen)
+    return sorted(aanpassingen)
+
+
 def werk_bij(conn, crypto, tx_id: int, **velden) -> None:
     """Past velden aan. Onbekende sleutels worden genegeerd."""
     kolommen = {
@@ -169,6 +256,7 @@ def werk_bij(conn, crypto, tx_id: int, **velden) -> None:
         "methode": ("methode", None),
         "status": ("status", None),
         "beschrijving": ("beschrijving_enc", "enc"),
+        "referentie": ("referentie_enc", "enc"),
         "tegenpartij_rekening": ("tegenpartij_rek_enc", "enc"),
         "valutadatum": ("valutadatum", None),
         "handelaar": ("handelaar_enc", "enc"),

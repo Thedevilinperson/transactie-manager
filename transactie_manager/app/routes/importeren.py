@@ -8,19 +8,21 @@ import secrets
 from decimal import Decimal
 from pathlib import Path
 
-from flask import Blueprint, flash, g, redirect, render_template, request, url_for
+from flask import (Blueprint, flash, g, jsonify, redirect, render_template, request,
+                   url_for)
 from werkzeug.utils import secure_filename
 
 from ..auth import login_vereist
 from ..categories import zoek_of_maak
 from ..categorizer.engine import Motor, TransactieKenmerken, Voorstel
+from .. import taken
 from ..config import UPLOAD_DIR
 from ..crypto import normalize_iban
-from ..database import get_db, log, now_iso
+from ..database import connect, get_db, log, now_iso
 from ..filters import vergeet_keuzes
 from ..importers.tabel import (BESTANDSTYPES, INDELINGSVELDEN, PROFIELEN, VELDEN,
                                detecteer_mapping, lees_bestand, rij_naar_velden)
-from ..transacties import bewaar
+from ..transacties import bestaande_id, bewaar, vul_aan
 
 bp = Blueprint("importeren", __name__, url_prefix="/importeren")
 
@@ -109,8 +111,7 @@ def voorbeeld(token: str):
 @bp.route("/uitvoeren", methods=["POST"])
 @login_vereist
 def uitvoeren():
-    token = request.form.get("token", "")
-    pad = _bestandspad(token)
+    pad = _bestandspad(request.form.get("token", ""))
     if pad is None:
         flash("Het geüploade bestand is niet meer beschikbaar.", "fout")
         return redirect(url_for("importeren.start"))
@@ -131,118 +132,175 @@ def uitvoeren():
         if request.form.get(f"map_{extra}"):
             mapping[extra] = request.form[f"map_{extra}"]
 
-    decimaal = request.form.get("decimaal", "auto")
-    standaard_rekening = request.form.get("rekening_id", type=int) or rekeningen[0]["id"]
-    auto_toewijzen = request.form.get("auto_toewijzen", "1") == "1"
-    # Staat de indeling in het bestand, dan gaat die voor op de motor.
-    neem_indeling_over = (request.form.get("neem_indeling_over") == "1"
-                          and "hoofdcategorie" in mapping)
+    instellingen = {
+        "mapping": mapping,
+        "decimaal": request.form.get("decimaal", "auto"),
+        "rekening_id": request.form.get("rekening_id", type=int) or rekeningen[0]["id"],
+        "auto_toewijzen": request.form.get("auto_toewijzen", "1") == "1",
+        "neem_indeling_over": (request.form.get("neem_indeling_over") == "1"
+                               and "hoofdcategorie" in mapping),
+        "aanvullen": request.form.get("aanvullen", "1") == "1",
+        "bestandsnaam": request.form.get("bestandsnaam", pad.name),
+        "profiel": request.form.get("profiel", "automatisch"),
+        "per_iban": {r["iban_idx"]: r["id"] for r in rekeningen if r["iban_idx"]},
+        "gebruiker": g.gebruiker,
+    }
 
-    kop, rijen = lees_bestand(pad)
-    motor = Motor(conn, crypto) if auto_toewijzen else None
-    cat_cache: dict = {}
-    uit_bestand = 0
+    token = pad.stem
+    taken.start(token, f"Invoer van {instellingen['bestandsnaam']}",
+                _verwerk, pad, crypto, instellingen)
+    return redirect(url_for("importeren.bezig", token=token))
 
-    # Rekeningen opzoekbaar maken op IBAN, zodat een bestand met meerdere
-    # rekeningen automatisch juist verdeeld wordt.
-    per_iban = {r["iban_idx"]: r["id"] for r in rekeningen if r["iban_idx"]}
 
-    batch = conn.execute(
-        "INSERT INTO import_batches (bestand_enc, profiel, aantal_rijen, gebruiker, tijdstip)"
-        " VALUES (?,?,?,?,?)",
-        (crypto.enc(request.form.get("bestandsnaam", pad.name)),
-         request.form.get("profiel", "automatisch"), len(rijen), g.gebruiker, now_iso()),
-    ).lastrowid
+@bp.route("/bezig/<token>")
+@login_vereist
+def bezig(token: str):
+    taak = taken.haal(token)
+    if taak is None:
+        flash("Die invoer is niet meer bekend.", "fout")
+        return redirect(url_for("importeren.start"))
+    return render_template("importeren_bezig.html", token=token, taak=taak)
 
-    nieuw = dubbel = overgeslagen = 0
-    fouten: list[str] = []
 
-    for nummer, rij in enumerate(rijen, start=2):
-        velden = rij_naar_velden(rij, kop, mapping, decimaal)
-        if velden["boekdatum"] is None or velden["bedrag"] is None:
-            overgeslagen += 1
-            if len(fouten) < 15:
-                fouten.append(f"Rij {nummer}: datum of bedrag ontbreekt of is onleesbaar.")
-            continue
+@bp.route("/voortgang/<token>")
+@login_vereist
+def voortgang(token: str):
+    taak = taken.haal(token)
+    if taak is None:
+        return jsonify({"fout": "onbekend"}), 404
+    return jsonify(taak.naar_json())
 
-        rekening_id = standaard_rekening
-        if velden["eigen_rekening"]:
-            sleutel = crypto.blind(velden["eigen_rekening"], iban=True)
-            rekening_id = per_iban.get(sleutel, standaard_rekening)
 
-        bedrag = Decimal(velden["bedrag"])
-        voorstel = None
-
-        if neem_indeling_over and velden["hoofdcategorie"]:
-            ids = zoek_of_maak(conn, crypto, velden["hoofdcategorie"],
-                               velden["subcategorie"], velden["subsubcategorie"],
-                               cache=cat_cache)
-            if ids[0] is not None:
-                voorstel = Voorstel(
-                    categorie_id=ids[0], subcategorie_id=ids[1], subsub_id=ids[2],
-                    handelaar=velden["winkel"] or None, land=velden["land"] or None,
-                    zekerheid=1.0, methode="bestand", status="bevestigd",
-                    toelichting="Indeling stond in het ingelezen bestand.",
-                )
-                uit_bestand += 1
-
-        if voorstel is None and motor is not None:
-            kenmerken = TransactieKenmerken(
-                beschrijving=velden["beschrijving"],
-                tegenpartij_naam=velden["tegenpartij_naam"],
-                tegenpartij_rekening=velden["tegenpartij_rekening"],
-                mededeling=velden["mededeling"],
-                begunstigde=velden["begunstigde"],
-                bedrag=bedrag,
-                richting="in" if bedrag >= 0 else "uit",
-            )
-            voorstel = motor.beoordeel(kenmerken)
-            motor.onthoud(kenmerken, voorstel)
-
-        tx_id = bewaar(
-            conn, crypto,
-            rekening_id=rekening_id,
-            boekdatum=velden["boekdatum"],
-            valutadatum=velden["valutadatum"],
-            bedrag=bedrag,
-            munt=velden["munt"],
-            tegenpartij_naam=velden["tegenpartij_naam"],
-            tegenpartij_rekening=normalize_iban(velden["tegenpartij_rekening"])
-            or velden["tegenpartij_rekening"],
-            begunstigde=velden["begunstigde"],
-            mededeling=velden["mededeling"],
-            beschrijving=velden["beschrijving"],
-            referentie=velden["referentie"],
-            verrichtingsdatum=velden["verrichtingsdatum"],
-            voorstel=voorstel,
-            batch_id=batch,
-            ruwe_data=json.dumps(velden["ruw"], ensure_ascii=False),
-        )
-        if tx_id is None:
-            dubbel += 1
-        else:
-            nieuw += 1
-
-    conn.execute(
-        "UPDATE import_batches SET aantal_nieuw=?, aantal_dubbel=? WHERE id=?",
-        (nieuw, dubbel, batch),
-    )
-    log(conn, crypto, g.gebruiker, "import",
-        f"nieuw={nieuw} dubbel={dubbel} overgeslagen={overgeslagen} "
-        f"uit_bestand={uit_bestand}")
-    conn.commit()
-    vergeet_keuzes()
-
+def _verwerk(taak, pad: Path, crypto, inst: dict) -> dict:
+    """Leest het bestand rij per rij in. Draait in een aparte draad, dus met een
+    eigen verbinding naar de databank."""
+    conn = connect()
     try:
-        pad.unlink()
-    except OSError:
-        pass
+        taak.fase = "Bestand lezen"
+        kop, rijen = lees_bestand(pad)
+        taak.totaal = len(rijen)
 
-    return render_template(
-        "importeren_klaar.html",
-        nieuw=nieuw, dubbel=dubbel, overgeslagen=overgeslagen, fouten=fouten,
-        totaal=len(rijen), uit_bestand=uit_bestand,
-    )
+        taak.fase = "Regels en geschiedenis laden"
+        motor = Motor(conn, crypto) if inst["auto_toewijzen"] else None
+        cat_cache: dict = {}
+
+        batch = conn.execute(
+            "INSERT INTO import_batches (bestand_enc, profiel, aantal_rijen, gebruiker,"
+            " tijdstip) VALUES (?,?,?,?,?)",
+            (crypto.enc(inst["bestandsnaam"]), inst["profiel"], len(rijen),
+             inst["gebruiker"], now_iso()),
+        ).lastrowid
+
+        nieuw = aangevuld = ongewijzigd = overgeslagen = uit_bestand = 0
+        fouten: list[str] = []
+        aangeraakt: set[int] = set()
+        taak.fase = "Transacties verwerken"
+
+        for nummer, rij in enumerate(rijen, start=2):
+            if (nummer - 2) % 25 == 0:
+                taak.vorder(nummer - 2)
+
+            velden = rij_naar_velden(rij, kop, inst["mapping"], inst["decimaal"])
+            if velden["boekdatum"] is None or velden["bedrag"] is None:
+                overgeslagen += 1
+                if len(fouten) < 15:
+                    fouten.append(f"Rij {nummer}: datum of bedrag ontbreekt of is "
+                                  "onleesbaar.")
+                continue
+
+            rekening_id = inst["rekening_id"]
+            if velden["eigen_rekening"]:
+                sleutel = crypto.blind(velden["eigen_rekening"], iban=True)
+                rekening_id = inst["per_iban"].get(sleutel, rekening_id)
+
+            bedrag = Decimal(velden["bedrag"])
+            tegenpartij_rek = (normalize_iban(velden["tegenpartij_rekening"])
+                               or velden["tegenpartij_rekening"])
+
+            bestaand = bestaande_id(
+                conn, crypto, rekening_id=rekening_id, boekdatum=velden["boekdatum"],
+                bedrag=bedrag, referentie=velden["referentie"],
+                tegenpartij_rekening=tegenpartij_rek, mededeling=velden["mededeling"],
+                tegenpartij_naam=velden["tegenpartij_naam"], gebruikt=aangeraakt,
+            )
+
+            if bestaand is not None:
+                aangeraakt.add(bestaand)
+                if inst["aanvullen"]:
+                    velden["tegenpartij_rekening"] = tegenpartij_rek
+                    if vul_aan(conn, crypto, bestaand, velden):
+                        aangevuld += 1
+                    else:
+                        ongewijzigd += 1
+                else:
+                    ongewijzigd += 1
+                continue
+
+            voorstel = None
+            if inst["neem_indeling_over"] and velden["hoofdcategorie"]:
+                ids = zoek_of_maak(conn, crypto, velden["hoofdcategorie"],
+                                   velden["subcategorie"], velden["subsubcategorie"],
+                                   cache=cat_cache)
+                if ids[0] is not None:
+                    voorstel = Voorstel(
+                        categorie_id=ids[0], subcategorie_id=ids[1], subsub_id=ids[2],
+                        handelaar=velden["winkel"] or None,
+                        land=velden["land"] or None,
+                        zekerheid=1.0, methode="bestand", status="bevestigd",
+                        toelichting="Indeling stond in het ingelezen bestand.",
+                    )
+                    uit_bestand += 1
+
+            if voorstel is None and motor is not None:
+                kenmerken = TransactieKenmerken(
+                    beschrijving=velden["beschrijving"],
+                    tegenpartij_naam=velden["tegenpartij_naam"],
+                    tegenpartij_rekening=velden["tegenpartij_rekening"],
+                    mededeling=velden["mededeling"],
+                    begunstigde=velden["begunstigde"],
+                    bedrag=bedrag,
+                    richting="in" if bedrag >= 0 else "uit",
+                )
+                voorstel = motor.beoordeel(kenmerken)
+                motor.onthoud(kenmerken, voorstel)
+
+            tx_id = bewaar(
+                conn, crypto, rekening_id=rekening_id, boekdatum=velden["boekdatum"],
+                valutadatum=velden["valutadatum"], bedrag=bedrag, munt=velden["munt"],
+                tegenpartij_naam=velden["tegenpartij_naam"],
+                tegenpartij_rekening=tegenpartij_rek,
+                begunstigde=velden["begunstigde"], mededeling=velden["mededeling"],
+                beschrijving=velden["beschrijving"], referentie=velden["referentie"],
+                verrichtingsdatum=velden["verrichtingsdatum"], voorstel=voorstel,
+                batch_id=batch,
+                ruwe_data=json.dumps(velden["ruw"], ensure_ascii=False),
+            )
+            if tx_id is None:
+                ongewijzigd += 1
+            else:
+                nieuw += 1
+                aangeraakt.add(tx_id)
+
+        taak.vorder(len(rijen), "Afronden")
+        conn.execute(
+            "UPDATE import_batches SET aantal_nieuw=?, aantal_dubbel=? WHERE id=?",
+            (nieuw, aangevuld + ongewijzigd, batch))
+        log(conn, crypto, inst["gebruiker"], "import",
+            f"nieuw={nieuw} aangevuld={aangevuld} ongewijzigd={ongewijzigd} "
+            f"overgeslagen={overgeslagen}")
+        conn.commit()
+        vergeet_keuzes()
+
+        try:
+            pad.unlink()
+        except OSError:
+            pass
+
+        return {"nieuw": nieuw, "aangevuld": aangevuld, "ongewijzigd": ongewijzigd,
+                "overgeslagen": overgeslagen, "uit_bestand": uit_bestand,
+                "totaal": len(rijen), "fouten": fouten}
+    finally:
+        conn.close()
 
 
 @bp.route("/geschiedenis")

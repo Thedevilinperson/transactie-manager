@@ -1,0 +1,45 @@
+{% extends "basis.html" %}
+{% block titel %}Bezig met inlezen{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Bezig met inlezen</h1>
+  <p>{{ taak.omschrijving }}</p>
+</div>
+
+<div class="vlak" data-voortgang
+     data-bron="{{ url_for('importeren.voortgang', token=token) }}">
+  <div class="voortgangsfase">Voorbereiden…</div>
+  <div class="voortgangsbalk"><div class="voortgangsvulling" style="width:0%"></div></div>
+  <div class="voortgangsdetail">
+    <span class="teller">0</span>
+    <span class="verstreken"></span>
+  </div>
+  <p class="klein-detail" style="margin-top:14px">Je mag dit venster open laten
+    staan. Sluit je het toch, dan loopt de invoer gewoon door.</p>
+</div>
+
+<div class="vlak verborgen" data-uitslag>
+  <h2>Klaar</h2>
+  <div class="balans">
+    <div class="cijfer in"><b data-veld="nieuw">0</b><span>nieuw toegevoegd</span></div>
+    <div class="cijfer"><b data-veld="aangevuld">0</b><span>aangevuld</span></div>
+    <div class="cijfer"><b data-veld="ongewijzigd">0</b><span>al bekend, niets nieuws</span></div>
+    <div class="cijfer uit"><b data-veld="overgeslagen">0</b><span>onleesbaar</span></div>
+  </div>
+  <p data-uit-bestand class="verborgen" style="margin-top:18px"></p>
+  <div data-fouten class="verborgen" style="margin-top:18px"></div>
+  <div class="knoppen" style="margin-top:18px">
+    <a class="knop" href="{{ url_for('tx.nazicht') }}">Naar het nazicht</a>
+    <a class="knop stil" href="{{ url_for('tx.lijst') }}">Transacties bekijken</a>
+    <a class="knop stil" href="{{ url_for('importeren.start') }}">Nog een bestand</a>
+  </div>
+</div>
+
+<div class="vlak verborgen" data-mislukt>
+  <div class="melding fout" data-boodschap></div>
+  <div class="knoppen">
+    <a class="knop stil" href="{{ url_for('importeren.start') }}">Opnieuw proberen</a>
+  </div>
+</div>
+{% endblock %}

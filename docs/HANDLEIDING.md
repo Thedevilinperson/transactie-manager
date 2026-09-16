@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.6.0
+Versie 0.7.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -215,6 +215,16 @@ per verrichting. Ontbreekt die kolom, dan valt de toepassing terug op een
 vingerafdruk van datum, bedrag, rekening, tegenpartij en mededeling. Je mag dus
 gerust overlappende afschriften inlezen; wat er al staat, komt er niet nog eens
 bij.
+
+**Voortgang.** Grote bestanden worden in de achtergrond verwerkt. Je ziet de
+fase, het aantal verwerkte rijen en de verstreken tijd. Je mag het venster
+sluiten; de invoer loopt door.
+
+**Een vergeten kolom alsnog toevoegen.** Bied hetzelfde bestand gewoon opnieuw
+aan met de ontbrekende kolom erbij en laat *Bestaande transacties aanvullen*
+aangevinkt. Lege velden worden ingevuld en een mededeling die uitgebreid is
+wordt vervangen. Er komen geen dubbels bij, en wat je zelf hebt aangepast blijft
+staan.
 
 **Terugdraaien.** Ging er iets mis, ga dan naar **Bestand inlezen › Eerdere
 invoer** en draai die invoerbeurt terug. Alle transacties uit die beurt worden

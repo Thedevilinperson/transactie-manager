@@ -4,6 +4,34 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.7.0] — 2026-09-16
+
+### Toegevoegd
+- **Hetzelfde bestand opnieuw aanbieden vult bestaande transacties aan.** Ben je
+  bij een eerdere invoer een kolom vergeten, dan hoef je niets te verwijderen:
+  bied het bestand opnieuw aan met die kolom erbij en de lege velden worden
+  alsnog ingevuld. Er komen geen dubbels bij. Aan te zetten met *Bestaande
+  transacties aanvullen* op het controlescherm; standaard staat dat aan.
+- Een mededeling die uitgebreid is wordt vervangen. Stond er "Aankoop | winkel
+  12" en komt er "Aankoop | winkel 12 | kassa 3" binnen, dan is het nieuwe een
+  uitbreiding van het oude en gaat het erin. Is het iets anders, dan blijft
+  staan wat er stond, zodat je eigen aanpassingen niet overschreven worden.
+- Het ontdubbelen kreeg er een derde manier bij: rekening, datum, bedrag en de
+  rekening van de tegenpartij samen. Die is nodig voor bestanden zonder
+  referentiekolom, want daar verandert de vingerafdruk zodra er een kolom
+  bijkomt. Ze wordt alleen gebruikt wanneer er precies één kandidaat overblijft.
+- **Een voortgangsmeter bij het inlezen.** De invoer loopt nu in de achtergrond
+  en het scherm toont de fase, het aantal verwerkte rijen, het percentage en de
+  verstreken tijd. Voordien leek er minutenlang niets te gebeuren.
+- Het resultaat splitst nu in *nieuw toegevoegd*, *aangevuld*, *al bekend, niets
+  nieuws* en *onleesbaar*, in plaats van alles wat niet nieuw was op één hoop te
+  gooien.
+
+### Gewijzigd
+- Sluit je het venster tijdens een invoer, dan loopt die gewoon door; ze hangt
+  niet meer aan je browservenster vast.
+
+
 ## [0.6.0] — 2026-09-16
 
 ### Toegevoegd
