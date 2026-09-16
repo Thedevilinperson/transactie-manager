@@ -175,12 +175,14 @@
                      data-zoekt="{{ p }}uit_categorie" autocomplete="off">
               <select name="{{ p }}uit_categorie" multiple size="9" class="meerkeuze"
                       id="lijst-{{ p }}uit_categorie">
-                {% for k in alle_categorieen if k.niveau > 0 %}
-                  <option value="{{ k.id }}"
+                {% for k in alle_categorieen %}
+                  <option value="{{ k.id }}" class="niveau{{ k.niveau }}"
                           {{ 'selected' if k.id in filters.uit_categorieen }}>
                     {{ k.label }}</option>
                 {% endfor %}
               </select>
+              <p class="klein-detail">Een hoofdcategorie uitsluiten haalt ook
+                alles eronder weg.</p>
             </div>
             <div>
               <label>Winkels</label>

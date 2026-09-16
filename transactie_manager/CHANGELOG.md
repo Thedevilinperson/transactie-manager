@@ -4,6 +4,17 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.7.3] — 2026-09-16
+
+### Gewijzigd
+- **Hoofdcategorieën staan nu ook in de uitsluitlijst.** Voordien kon je alleen
+  sub- en sub-subcategorieën weglaten. Een hele tak wegnemen kan nu met één
+  keuze: sluit je een hoofdcategorie uit, dan valt alles eronder mee weg.
+  Dat geldt voor de jaartabel en voor allebei de grafieken.
+- Hoofdcategorieën staan vet in die lijst en sub-subcategorieën lichter, zodat
+  je ziet of je een hele tak wegneemt of één post.
+
+
 ## [0.7.2] — 2026-09-16
 
 ### Opgelost
