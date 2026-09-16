@@ -241,35 +241,50 @@ def verdeling(conn, crypto, filters: Filters, maximum: int = 12):
 
 
 def kerncijfers(conn, crypto, jaren_tonen: int = 8) -> dict:
-    """Cijfers voor het startscherm, met een raming voor het lopende jaar.
+    """Cijfers voor het startscherm, met een raming voor het laatste jaar.
 
-    Het lopende jaar is nog niet om, dus vergelijken met volle jaren geeft een
-    vertekend beeld. De raming kijkt naar de vijf voorgaande jaren: welk deel
-    van het jaartotaal was er op deze dag van het jaar gemiddeld al uitgegeven?
-    Het bedrag tot nu wordt door dat deel gedeeld. Zo telt het seizoen mee: wie
-    in juli op vakantie gaat, heeft in maart nog lang niet de helft verteerd.
+    Het laatste jaar waarvoor er gegevens zijn, is meestal nog niet volledig
+    ingelezen. Vergelijken met volle jaren geeft dan een vertekend beeld. De
+    raming kijkt naar de vijf voorgaande jaren: welk deel van het jaartotaal was
+    er op deze dag van het jaar gemiddeld al geboekt? Het bedrag tot nu wordt
+    door dat deel gedeeld. Zo telt het seizoen mee: wie in juli op vakantie
+    gaat, heeft in maart nog lang niet de helft verteerd.
+
+    De peildatum is de **laatste transactie**, niet de dag van vandaag. Wie zijn
+    afschriften tot mei heeft ingelezen, heeft geen gegevens over de zomer; doen
+    alsof het jaar al tot september gevorderd is, zou de raming te laag maken.
     """
-    from datetime import date
-
-    vandaag = date.today()
-    grens = (vandaag.month, vandaag.day)
-
     per_jaar = {"in": defaultdict(Decimal), "uit": defaultdict(Decimal)}
     tot_dag = {"in": defaultdict(Decimal), "uit": defaultdict(Decimal)}
+    eerste_dag: dict = {}
     aantal = nazicht = niet_toegewezen = 0
+
+    rij = conn.execute(
+        "SELECT MAX(boekdatum) m FROM transacties WHERE is_afrekening = 0").fetchone()
+    laatste = rij["m"] if rij and rij["m"] else None
+    if laatste is None:
+        return {"aantal": 0, "nazicht": 0, "niet_toegewezen": 0, "jaren": [],
+                "inkomsten": {}, "uitgaven": {}, "laatste_jaar": None,
+                "raming": {}, "peildatum": None}
+
+    lopend = int(laatste[:4])
+    grens = (int(laatste[5:7]), int(laatste[8:10]))
 
     for row in conn.execute(
         "SELECT boekdatum, bedrag_enc, richting, status FROM transacties"
         " WHERE is_afrekening = 0"
     ):
         aantal += 1
-        jaar = int(row["boekdatum"][:4])
-        maand, dag = int(row["boekdatum"][5:7]), int(row["boekdatum"][8:10])
+        datum = row["boekdatum"]
+        jaar = int(datum[:4])
+        maand, dag = int(datum[5:7]), int(datum[8:10])
         bedrag = abs(crypto.dec_amount(row["bedrag_enc"]))
         kant = "in" if row["richting"] == "in" else "uit"
         per_jaar[kant][jaar] += bedrag
         if (maand, dag) <= grens:
             tot_dag[kant][jaar] += bedrag
+        if jaar not in eerste_dag or (maand, dag) < eerste_dag[jaar]:
+            eerste_dag[jaar] = (maand, dag)
         if row["status"] == "nazicht":
             nazicht += 1
         elif row["status"] == "niet_toegewezen":
@@ -278,23 +293,29 @@ def kerncijfers(conn, crypto, jaren_tonen: int = 8) -> dict:
     alle_jaren = sorted(set(per_jaar["in"]) | set(per_jaar["uit"]), reverse=True)
     jaren = alle_jaren[:jaren_tonen]
 
+    # Een jaar dat pas halverwege begint, is geen goede maatstaf: het eerste
+    # jaar van je geschiedenis begint zelden op 1 januari.
+    referentie = [
+        j for j in alle_jaren
+        if j < lopend and eerste_dag.get(j, (12, 31)) <= (1, 31)
+    ][:5]
+
     raming: dict = {}
-    if vandaag.year in per_jaar["in"] or vandaag.year in per_jaar["uit"]:
-        referentie = [j for j in alle_jaren if j < vandaag.year][:5]
-        for kant in ("in", "uit"):
-            delen = [
-                tot_dag[kant][j] / per_jaar[kant][j]
-                for j in referentie if per_jaar[kant].get(j, 0) > 0
-            ]
-            tot_nu = per_jaar[kant].get(vandaag.year, Decimal("0"))
-            if len(delen) >= 2 and tot_nu > 0:
-                deel = sum(delen) / len(delen)
-                if deel > Decimal("0.05"):
-                    raming[kant] = (tot_nu / deel).quantize(Decimal("1"))
-        if raming:
-            raming["jaar"] = vandaag.year
-            raming["referentiejaren"] = len(referentie)
-            raming["op"] = vandaag.isoformat()
+    for kant in ("in", "uit"):
+        delen = [
+            tot_dag[kant][j] / per_jaar[kant][j]
+            for j in referentie if per_jaar[kant].get(j, 0) > 0
+        ]
+        tot_nu = per_jaar[kant].get(lopend, Decimal("0"))
+        if len(delen) >= 2 and tot_nu > 0:
+            deel = sum(delen) / len(delen)
+            # Is het jaar praktisch rond, dan valt er niets te ramen.
+            if Decimal("0.05") < deel < Decimal("0.99"):
+                raming[kant] = (tot_nu / deel).quantize(Decimal("1"))
+    if raming:
+        raming["jaar"] = lopend
+        raming["referentiejaren"] = len(referentie)
+        raming["op"] = laatste
 
     return {
         "aantal": aantal, "nazicht": nazicht, "niet_toegewezen": niet_toegewezen,
@@ -303,5 +324,5 @@ def kerncijfers(conn, crypto, jaren_tonen: int = 8) -> dict:
         "uitgaven": {j: per_jaar["uit"].get(j, Decimal("0")) for j in jaren},
         "laatste_jaar": jaren[0] if jaren else None,
         "raming": raming,
-        "lopend_jaar": vandaag.year,
+        "peildatum": laatste,
     }

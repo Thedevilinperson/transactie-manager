@@ -40,11 +40,12 @@
 
     {% if raming %}
       <div class="raminguitleg">
-        <strong>{{ raming.jaar }} is nog niet om.</strong>
-        De lichtere balken tonen waar het jaar op uitkomt als het verder verloopt
-        zoals de {{ raming.referentiejaren }} jaren ervoor. De raming vertrekt van
-        wat er tot {{ raming.op|datum }} geboekt is, gedeeld door het deel van het
-        jaar dat op deze dag doorgaans al verteerd was.
+        <strong>{{ raming.jaar }} is nog niet volledig ingelezen.</strong>
+        Je laatste transactie dateert van {{ raming.op|datum }}. De lichtere
+        balken tonen waar het jaar op uitkomt als de rest verloopt zoals de
+        {{ raming.referentiejaren }} jaren ervoor: het bedrag tot die datum,
+        gedeeld door het deel van het jaar dat op diezelfde dag doorgaans al
+        geboekt was.
         {% if raming.get('in') %}
           Voor heel {{ raming.jaar }} komt dat op
           <strong class="bedrag-in">{{ raming['in']|euro0 }}</strong> inkomsten{% endif %}
@@ -69,7 +70,7 @@
         {% set lopend = raming and j == raming.jaar %}
         <div class="jaarstaaf {{ 'lopend' if lopend }}">
           <div class="jaar">{{ j }}{% if lopend %}
-            <span class="klein-detail">tot nu</span>{% endif %}</div>
+            <span class="klein-detail">tot {{ raming.op|datum }}</span>{% endif %}</div>
           <div class="balken">
             {% for kant, bedrag in [('in', cijfers.inkomsten[j]),
                                     ('uit', cijfers.uitgaven[j])] %}

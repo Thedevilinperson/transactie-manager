@@ -4,6 +4,23 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.8.1] — 2026-09-16
+
+### Opgelost
+- **De raming ging uit van de dag van vandaag in plaats van je laatste
+  transactie.** Wie zijn afschriften tot half mei had ingelezen, kreeg in
+  september een raming die deed alsof er al driekwart jaar geboekt was. Het
+  bedrag werd dan door een veel te groot deel gedeeld en de raming viel ver te
+  laag uit. De peildatum is nu de datum van de laatste transactie, en die staat
+  ook op het scherm en bij het lopende jaar vermeld.
+- Jaren die pas halverwege beginnen tellen niet meer mee als maatstaf. Het
+  eerste jaar van je geschiedenis begint zelden op 1 januari, en zo'n jaar zou
+  het gemiddelde vertekenen. Er wordt alleen gekeken naar jaren met een
+  transactie in januari.
+- Is het laatste jaar praktisch rond, dan verschijnt er geen raming meer. Een
+  raming die het bedrag met één procent verhoogt, voegt niets toe.
+
+
 ## [0.8.0] — 2026-09-16
 
 ### Opgelost
