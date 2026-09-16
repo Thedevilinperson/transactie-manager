@@ -97,24 +97,39 @@ def _bedragsleutel(bedrag: Decimal) -> str:
 
 
 def vingerafdruk(crypto, rekening_id: int, boekdatum, bedrag: Decimal,
-                 tegenpartij_rekening: str, mededeling: str, tegenpartij_naam: str) -> str:
-    return crypto.fingerprint(
-        str(rekening_id), str(boekdatum), _bedragsleutel(Decimal(str(bedrag))),
-        tegenpartij_rekening, mededeling, tegenpartij_naam,
-    )
+                 tegenpartij_rekening: str, mededeling: str, tegenpartij_naam: str,
+                 volgnummer: int = 1) -> str:
+    """Vingerafdruk over de inhoud van de rij, voor bestanden zonder referentie.
+
+    `volgnummer` telt de hoeveelste keer deze rij in hetzelfde bestand voorkomt.
+    Drie keer hetzelfde bedrag bij dezelfde tegenpartij op dezelfde dag zijn
+    drie aparte betalingen — denk aan drie rondjes aan een drankstand — en niet
+    één betaling die drie keer in het bestand staat. Zonder dat volgnummer
+    kregen ze dezelfde afdruk en bleef er maar één van over.
+
+    De eerste keer houdt de afdruk zijn oude vorm, zodat wat al ingelezen is
+    teruggevonden blijft worden.
+    """
+    delen = [str(rekening_id), str(boekdatum), _bedragsleutel(Decimal(str(bedrag))),
+             tegenpartij_rekening, mededeling, tegenpartij_naam]
+    if volgnummer > 1:
+        delen.append(f"nr {volgnummer}")
+    return crypto.fingerprint(*delen)
 
 
 def _oude_vingerafdruk(crypto, rekening_id: int, boekdatum, bedrag: Decimal,
                        tegenpartij_rekening: str, mededeling: str,
-                       tegenpartij_naam: str) -> str:
+                       tegenpartij_naam: str, volgnummer: int = 1) -> str:
     """De vorm van vóór de tekencorrectie, om bestaande rijen terug te vinden."""
+    if volgnummer > 1:
+        return ""
     return crypto.fingerprint(
         str(rekening_id), str(boekdatum), f"{bedrag:.2f}",
         tegenpartij_rekening, mededeling, tegenpartij_naam,
     )
 
 
-def referentieafdruk(crypto, rekening_id: int, referentie: str, bedrag: Decimal) -> str:
+def referentieafdruk(crypto, rekening_id: int, referentie: str, bedrag: Decimal) -> str:  # noqa: E501
     """Vingerafdruk op de bankreferentie.
 
     Sommige banken geven een boeking en haar tegenboeking dezelfde referentie.
@@ -147,7 +162,7 @@ def bewaar(conn, crypto, *, rekening_id: int, boekdatum: date | str, bedrag: Dec
            ruwe_data: str | None = None, handelaar: str = "", land: str = "",
            beschrijving: str = "", referentie: str = "", verrichtingsdatum=None,
            is_afrekening: bool = False, ouder_tx_id: int | None = None,
-           bron: str = "bank") -> int | None:
+           bron: str = "bank", volgnummer: int = 1) -> int | None:
     """Voegt een transactie toe. Geeft None terug als ze al bestaat."""
     bedrag = Decimal(str(bedrag))
     richting = "in" if bedrag >= 0 else "uit"
@@ -164,15 +179,17 @@ def bewaar(conn, crypto, *, rekening_id: int, boekdatum: date | str, bedrag: Dec
         oud = crypto.fingerprint("ref", str(rekening_id), referentie)
     else:
         afdruk = vingerafdruk(crypto, rekening_id, datum, bedrag,
-                              tegenpartij_rekening, mededeling, tegenpartij_naam)
+                              tegenpartij_rekening, mededeling, tegenpartij_naam,
+                              volgnummer)
         oud = _oude_vingerafdruk(crypto, rekening_id, datum, bedrag,
-                                 tegenpartij_rekening, mededeling, tegenpartij_naam)
+                                 tegenpartij_rekening, mededeling, tegenpartij_naam,
+                                 volgnummer)
 
     if _zoek_op_afdruk(conn, crypto, afdruk) is not None:
         return None
     # Rijen van vóór de tekencorrectie dragen nog de oude afdruk. Het bedrag moet
     # dan wel kloppen, anders zou een tegenboeking alsnog verdwijnen.
-    if oud != afdruk and _zoek_op_afdruk(conn, crypto, oud, bedrag) is not None:
+    if oud and oud != afdruk and _zoek_op_afdruk(conn, crypto, oud, bedrag) is not None:
         return None
 
     voorstel = voorstel or Voorstel()
@@ -221,7 +238,7 @@ def bewaar(conn, crypto, *, rekening_id: int, boekdatum: date | str, bedrag: Dec
 def bestaande_id(conn, crypto, *, rekening_id: int, boekdatum, bedrag: Decimal,
                  referentie: str = "", tegenpartij_rekening: str = "",
                  mededeling: str = "", tegenpartij_naam: str = "",
-                 gebruikt: set | None = None) -> int | None:
+                 gebruikt: set | None = None, volgnummer: int = 1) -> int | None:
     """Zoekt of deze verrichting al in de databank staat.
 
     Drie manieren, van betrouwbaar naar minder betrouwbaar:
@@ -252,13 +269,20 @@ def bestaande_id(conn, crypto, *, rekening_id: int, boekdatum, bedrag: Decimal,
 
     gevonden = _zoek_op_afdruk(conn, crypto, vingerafdruk(
         crypto, rekening_id, datum, bedrag, tegenpartij_rekening, mededeling,
-        tegenpartij_naam))
+        tegenpartij_naam, volgnummer))
     if gevonden is None:
-        gevonden = _zoek_op_afdruk(conn, crypto, _oude_vingerafdruk(
+        oud = _oude_vingerafdruk(
             crypto, rekening_id, datum, bedrag, tegenpartij_rekening, mededeling,
-            tegenpartij_naam), bedrag)
+            tegenpartij_naam, volgnummer)
+        if oud:
+            gevonden = _zoek_op_afdruk(conn, crypto, oud, bedrag)
     if gevonden is not None:
         return gevonden
+
+    if volgnummer > 1:
+        # Bij een herhaalde lijn is er per definitie meer dan één kandidaat;
+        # dan zegt deze terugval niets en mag ze niet toeslaan.
+        return None
 
     kandidaten = [
         r["id"] for r in conn.execute(

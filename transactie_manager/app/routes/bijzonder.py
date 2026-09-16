@@ -209,6 +209,10 @@ def kredietkaart_uitvoeren():
     motor = Motor(conn, crypto)
     kaart = uittreksel.kaart or "Kredietkaart"
     nieuw = dubbel = 0
+    # Drie keer hetzelfde bedrag bij dezelfde zaak op één dag zijn drie
+    # aankopen; het volgnummer houdt ze uit elkaar.
+    import collections
+    herhaling: collections.Counter = collections.Counter()
 
     for item in uittreksel.herkende:
         if str(item.nummer) not in gekozen:
@@ -229,7 +233,8 @@ def kredietkaart_uitvoeren():
             boekdatum=item.datum,
             bedrag=item.bedrag,
             beschrijving="Kredietkaart",
-            referentie=f"{kaart}|{item.datum}|{item.omschrijving[:40]}|{item.bedrag}",
+            referentie=(f"{kaart}|{item.datum}|{item.omschrijving[:40]}|{item.bedrag}"
+                        + _volgnummer(herhaling, kaart, item)),
             tegenpartij_naam=item.omschrijving,
             mededeling=item.origineel_bedrag,
             voorstel=voorstel,
@@ -259,6 +264,13 @@ def kredietkaart_uitvoeren():
 
     flash(f"{nieuw} aankopen toegevoegd, {dubbel} stonden er al.", "goed")
     return redirect(url_for("tx.nazicht"))
+
+
+def _volgnummer(teller, kaart: str, item) -> str:
+    """Maakt de referentie uniek wanneer dezelfde aankoop meermaals voorkomt."""
+    sleutel = (kaart, str(item.datum), item.omschrijving, str(item.bedrag))
+    teller[sleutel] += 1
+    return "" if teller[sleutel] == 1 else f"|{teller[sleutel]}"
 
 
 @bp.route("/kredietkaart/afrekening/<int:tx_id>/losmaken", methods=["POST"])

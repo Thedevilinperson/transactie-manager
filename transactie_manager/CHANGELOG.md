@@ -4,6 +4,30 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.8.4] — 2026-09-16
+
+### Opgelost
+- **Herhaalde identieke betalingen verdwenen bij bestanden zonder
+  referentiekolom.** Drie keer hetzelfde bedrag bij dezelfde tegenpartij op
+  dezelfde dag — drie rondjes aan een drankstand — kregen dezelfde vingerafdruk,
+  waarna er maar één van overbleef. Bij het inlezen wordt nu geteld de
+  hoeveelste keer een rij in hetzelfde bestand voorkomt, en dat volgnummer zit
+  in de vingerafdruk. Bied je hetzelfde bestand opnieuw aan, dan telt het
+  opnieuw op dezelfde manier, dus er komen nog steeds geen dubbels bij.
+- Bestanden mét een referentiekolom, zoals de uitvoer van Argenta, raakten dit
+  niet: die referentie is uniek per verrichting en wordt ongewijzigd gebruikt.
+- De terugval op rekening, datum, bedrag en tegenrekening slaat niet meer toe
+  bij een herhaalde lijn. Bij drie identieke betalingen zegt die vergelijking
+  niets, en ze zou er alsnog twee kunnen wegnemen.
+- Ook bij het inlezen van een kredietkaartuittreksel worden herhaalde identieke
+  aankopen nu als aparte aankopen bewaard.
+
+### Terug te halen
+- Bied de bestanden zonder referentiekolom opnieuw aan. De ontbrekende herhaalde
+  lijnen worden toegevoegd; wat er al staat blijft ongemoeid. Getest op een
+  databank waarin er één van de vier stond: er kwamen er drie bij.
+
+
 ## [0.8.3] — 2026-09-16
 
 ### Opgelost

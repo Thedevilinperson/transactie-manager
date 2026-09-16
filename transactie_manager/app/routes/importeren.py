@@ -3,6 +3,7 @@ nakijken, importeren."""
 
 from __future__ import annotations
 
+import collections
 import json
 import secrets
 from decimal import Decimal
@@ -194,6 +195,9 @@ def _verwerk(taak, pad: Path, crypto, inst: dict) -> dict:
         nieuw = aangevuld = ongewijzigd = overgeslagen = uit_bestand = 0
         fouten: list[str] = []
         aangeraakt: set[int] = set()
+        # Telt hoe vaak dezelfde rij in dit bestand voorkomt. Drie identieke
+        # betalingen op één dag zijn drie aankopen, geen drie keer dezelfde.
+        herhaling: collections.Counter = collections.Counter()
         taak.fase = "Transacties verwerken"
 
         for nummer, rij in enumerate(rijen, start=2):
@@ -217,11 +221,21 @@ def _verwerk(taak, pad: Path, crypto, inst: dict) -> dict:
             tegenpartij_rek = (normalize_iban(velden["tegenpartij_rekening"])
                                or velden["tegenpartij_rekening"])
 
+            # Alleen nodig wanneer er geen referentie is; die is al uniek.
+            volgnummer = 1
+            if not velden["referentie"]:
+                sleutel = (rekening_id, str(velden["boekdatum"]), str(bedrag),
+                           tegenpartij_rek, velden["mededeling"],
+                           velden["tegenpartij_naam"])
+                herhaling[sleutel] += 1
+                volgnummer = herhaling[sleutel]
+
             bestaand = bestaande_id(
                 conn, crypto, rekening_id=rekening_id, boekdatum=velden["boekdatum"],
                 bedrag=bedrag, referentie=velden["referentie"],
                 tegenpartij_rekening=tegenpartij_rek, mededeling=velden["mededeling"],
                 tegenpartij_naam=velden["tegenpartij_naam"], gebruikt=aangeraakt,
+                volgnummer=volgnummer,
             )
 
             if bestaand is not None:
@@ -272,7 +286,7 @@ def _verwerk(taak, pad: Path, crypto, inst: dict) -> dict:
                 begunstigde=velden["begunstigde"], mededeling=velden["mededeling"],
                 beschrijving=velden["beschrijving"], referentie=velden["referentie"],
                 verrichtingsdatum=velden["verrichtingsdatum"], voorstel=voorstel,
-                batch_id=batch,
+                batch_id=batch, volgnummer=volgnummer,
                 ruwe_data=json.dumps(velden["ruw"], ensure_ascii=False),
             )
             if tx_id is None:
