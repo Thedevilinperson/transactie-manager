@@ -4,7 +4,7 @@ Huishoudboekje op basis van bankafschriften. Draait als Home Assistant-add-on of
 lokaal op Windows, Linux en macOS. Toegang met een eigen gebruikersnaam en
 wachtwoord; de gegevens staan versleuteld in de databank.
 
-**Versie 0.8.2** — zie [het wijzigingslogboek](transactie_manager/CHANGELOG.md)
+**Versie 0.8.3** — zie [het wijzigingslogboek](transactie_manager/CHANGELOG.md)
 voor de wijzigingen en
 [docs/HANDLEIDING.md](docs/HANDLEIDING.md) voor de volledige handleiding.
 

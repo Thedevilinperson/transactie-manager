@@ -81,12 +81,63 @@ def rij_naar_object(row, crypto) -> Transactie:
     )
 
 
+def _bedragsleutel(bedrag: Decimal) -> str:
+    """Het bedrag als tekst voor een vingerafdruk, met het teken erin.
+
+    De normalisatie achter `fingerprint` gooit leestekens weg, en daarmee ook
+    het minteken. Een afschrijving van 5 646,24 en de tegenboeking van
+    +5 646,24 kregen zo dezelfde vingerafdruk, waarna de tweede voor een dubbel
+    werd aangezien en verdween. Het teken staat nu als woord in de sleutel.
+
+    Negatieve bedragen houden bewust hun oude vorm. Anders zou de vingerafdruk
+    van elke bestaande uitgave veranderen en zou een eerder ingelezen bestand
+    bij een volgende invoer helemaal opnieuw toegevoegd worden.
+    """
+    return f"{bedrag:.2f}" if bedrag < 0 else f"plus {bedrag:.2f}"
+
+
 def vingerafdruk(crypto, rekening_id: int, boekdatum, bedrag: Decimal,
                  tegenpartij_rekening: str, mededeling: str, tegenpartij_naam: str) -> str:
+    return crypto.fingerprint(
+        str(rekening_id), str(boekdatum), _bedragsleutel(Decimal(str(bedrag))),
+        tegenpartij_rekening, mededeling, tegenpartij_naam,
+    )
+
+
+def _oude_vingerafdruk(crypto, rekening_id: int, boekdatum, bedrag: Decimal,
+                       tegenpartij_rekening: str, mededeling: str,
+                       tegenpartij_naam: str) -> str:
+    """De vorm van vóór de tekencorrectie, om bestaande rijen terug te vinden."""
     return crypto.fingerprint(
         str(rekening_id), str(boekdatum), f"{bedrag:.2f}",
         tegenpartij_rekening, mededeling, tegenpartij_naam,
     )
+
+
+def referentieafdruk(crypto, rekening_id: int, referentie: str, bedrag: Decimal) -> str:
+    """Vingerafdruk op de bankreferentie.
+
+    Sommige banken geven een boeking en haar tegenboeking dezelfde referentie.
+    Daarom telt het teken van het bedrag mee. Ook hier houden negatieve bedragen
+    hun oude vorm.
+    """
+    if Decimal(str(bedrag)) < 0:
+        return crypto.fingerprint("ref", str(rekening_id), referentie)
+    return crypto.fingerprint("ref", str(rekening_id), referentie, "plus")
+
+
+def _zoek_op_afdruk(conn, crypto, afdruk: str, bedrag: Decimal | None = None):
+    """Zoekt een rij op vingerafdruk. Met `bedrag` wordt ook nagegaan of het
+    bedrag overeenkomt; dat is nodig bij de oude, tekenloze afdrukken, die voor
+    een boeking en haar tegenboeking gelijk waren."""
+    rij = conn.execute(
+        "SELECT id, bedrag_enc FROM transacties WHERE vingerafdruk = ?", (afdruk,)
+    ).fetchone()
+    if rij is None:
+        return None
+    if bedrag is not None and crypto.dec_amount(rij["bedrag_enc"]) != Decimal(str(bedrag)):
+        return None
+    return rij["id"]
 
 
 def bewaar(conn, crypto, *, rekening_id: int, boekdatum: date | str, bedrag: Decimal,
@@ -109,11 +160,19 @@ def bewaar(conn, crypto, *, rekening_id: int, boekdatum: date | str, bedrag: Dec
     # De bankreferentie is uniek per verrichting; die krijgt voorrang bij het
     # ontdubbelen. Ontbreekt ze, dan vallen we terug op de inhoud van de rij.
     if referentie:
-        afdruk = crypto.fingerprint("ref", str(rekening_id), referentie)
+        afdruk = referentieafdruk(crypto, rekening_id, referentie, bedrag)
+        oud = crypto.fingerprint("ref", str(rekening_id), referentie)
     else:
         afdruk = vingerafdruk(crypto, rekening_id, datum, bedrag,
                               tegenpartij_rekening, mededeling, tegenpartij_naam)
-    if conn.execute("SELECT 1 FROM transacties WHERE vingerafdruk = ?", (afdruk,)).fetchone():
+        oud = _oude_vingerafdruk(crypto, rekening_id, datum, bedrag,
+                                 tegenpartij_rekening, mededeling, tegenpartij_naam)
+
+    if _zoek_op_afdruk(conn, crypto, afdruk) is not None:
+        return None
+    # Rijen van vóór de tekencorrectie dragen nog de oude afdruk. Het bedrag moet
+    # dan wel kloppen, anders zou een tegenboeking alsnog verdwijnen.
+    if oud != afdruk and _zoek_op_afdruk(conn, crypto, oud, bedrag) is not None:
         return None
 
     voorstel = voorstel or Voorstel()
@@ -182,18 +241,24 @@ def bestaande_id(conn, crypto, *, rekening_id: int, boekdatum, bedrag: Decimal,
     gebruikt = gebruikt if gebruikt is not None else set()
 
     if referentie:
-        rij = conn.execute(
-            "SELECT id FROM transacties WHERE vingerafdruk = ?",
-            (crypto.fingerprint("ref", str(rekening_id), referentie),)).fetchone()
-        if rij:
-            return rij["id"]
+        gevonden = _zoek_op_afdruk(
+            conn, crypto, referentieafdruk(crypto, rekening_id, referentie, bedrag))
+        if gevonden is None:
+            gevonden = _zoek_op_afdruk(
+                conn, crypto, crypto.fingerprint("ref", str(rekening_id), referentie),
+                bedrag)
+        if gevonden is not None:
+            return gevonden
 
-    rij = conn.execute(
-        "SELECT id FROM transacties WHERE vingerafdruk = ?",
-        (vingerafdruk(crypto, rekening_id, datum, bedrag, tegenpartij_rekening,
-                      mededeling, tegenpartij_naam),)).fetchone()
-    if rij:
-        return rij["id"]
+    gevonden = _zoek_op_afdruk(conn, crypto, vingerafdruk(
+        crypto, rekening_id, datum, bedrag, tegenpartij_rekening, mededeling,
+        tegenpartij_naam))
+    if gevonden is None:
+        gevonden = _zoek_op_afdruk(conn, crypto, _oude_vingerafdruk(
+            crypto, rekening_id, datum, bedrag, tegenpartij_rekening, mededeling,
+            tegenpartij_naam), bedrag)
+    if gevonden is not None:
+        return gevonden
 
     kandidaten = [
         r["id"] for r in conn.execute(

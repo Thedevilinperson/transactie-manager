@@ -4,6 +4,28 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.8.3] — 2026-09-16
+
+### Opgelost
+- **Tegenboekingen verdwenen bij het inlezen.** De vingerafdruk waarmee dubbels
+  herkend worden, gaat door een normalisatie die leestekens weggooit — en
+  daarmee ook het minteken. Een afschrijving van 5 646,24 en de tegenboeking van
+  +5 646,24 kregen zo dezelfde afdruk, waarna de tweede voor een dubbel werd
+  aangezien en niet werd bewaard. Het teken van het bedrag zit nu in de
+  vingerafdruk.
+- Hetzelfde gold voor de afdruk op de bankreferentie. Sommige banken geven een
+  boeking en haar tegenboeking dezelfde referentie; ook daar telt het bedrag nu
+  mee.
+- Rijen die al onder de oude afdruk in de databank staan, worden nog steeds
+  teruggevonden, met een controle op het bedrag erbij. Een eerder ingelezen
+  bestand wordt dus niet opnieuw toegevoegd, en een tegenboeking die vroeger
+  ontbrak komt er bij een nieuwe invoer alsnog bij.
+
+### Terug te halen
+- Bied de afschriften waarin tegenboekingen zaten opnieuw aan. De ontbrekende
+  lijnen worden toegevoegd; wat er al staat blijft ongemoeid.
+
+
 ## [0.8.2] — 2026-09-16
 
 ### Opgelost
