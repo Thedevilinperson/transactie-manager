@@ -146,10 +146,12 @@ def kredietkaart():
 
     hangend = conn.execute(
         "SELECT COUNT(*) n FROM transacties WHERE is_afrekening=1").fetchone()["n"]
+    jaren = kk.afrekeningsjaren(conn, crypto)
+    jaar = request.args.get("jaar", type=int)
     return render_template(
         "kredietkaart.html",
-        afrekeningen=kk.zoek_afrekeningen(conn, crypto),
-        verwerkt=hangend,
+        afrekeningen=kk.zoek_afrekeningen(conn, crypto, jaar),
+        jaren=jaren, gekozen_jaar=jaar, verwerkt=hangend,
     )
 
 

@@ -34,6 +34,22 @@
 
 <div class="vlak">
   <h2>Afrekeningen op je afschriften</h2>
+  {% if jaren %}
+    <form method="get" class="filterlijn" data-autofilter style="margin-bottom:14px">
+      <div class="fveld">
+        <label for="jaar">Jaar</label>
+        <select id="jaar" name="jaar">
+          <option value="">Alle jaren</option>
+          {% for j in jaren %}
+            <option value="{{ j }}" {{ 'selected' if gekozen_jaar == j }}>{{ j }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <span class="klein-detail" style="align-self:flex-end;padding-bottom:6px">
+        {{ afrekeningen|length }} afrekening{{ '' if afrekeningen|length == 1 else 'en' }}
+        gevonden</span>
+    </form>
+  {% endif %}
   {% if afrekeningen %}
     <div class="tabel-omhulsel">
       <table>

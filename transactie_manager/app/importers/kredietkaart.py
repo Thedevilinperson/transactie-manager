@@ -56,6 +56,7 @@ class Uittreksel:
     kaarthouder: str = ""
     periode: str = ""
     totaal: Decimal | None = None
+    totaal_regel: str = ""
     vervaldag: date | None = None
     regels: list[PdfRegel] = field(default_factory=list)
     alle_regels: list[str] = field(default_factory=list)
@@ -202,13 +203,64 @@ def _kop(regels: list[str]) -> dict:
         gegevens["jaar"] = int(jaar.group(1))
 
     # Het totaal staat soms bovenaan, soms onderaan het uittreksel.
-    totaal = re.search(
-        r"(?:totaal te betalen|te betalen|nieuw saldo|totaal|total|montant)"
-        r"\D{0,40}?" + BEDRAG,
-        "\n".join(regels), re.IGNORECASE)
-    if totaal:
-        gegevens["totaal"] = _parse_bedrag(totaal.group("bedrag"), None)
+    gegevens.update(_totaal(regels))
     return gegevens
+
+
+# Het saldo van vorige maand staat op elke afrekening naast dat van deze maand.
+# Alles wat naar de vorige periode verwijst, mag dus nooit als totaal gelden.
+VORIGE_PERIODE = re.compile(
+    r"\b(vorig|vorige|voorgaand|previous|ancien|overdracht|overgedragen|"
+    r"reeds betaald|betaling ontvangen|betalingen ontvangen|terugbetaling)\b",
+    re.IGNORECASE)
+
+# Van sterk naar zwak: het label dat het duidelijkst "dit is wat je nu betaalt"
+# zegt, wint.
+TOTAALLABELS = [
+    (r"totaal te betalen", 100),
+    (r"nieuw saldo", 95),
+    (r"saldo nieuw", 95),
+    (r"nieuw te betalen", 95),
+    (r"te betalen bedrag", 90),
+    (r"montant (?:total )?(?:à|a) payer", 90),
+    (r"\bte betalen\b", 80),
+    (r"totaal van de verrichtingen", 60),
+    (r"\btotaal\b", 50),
+    (r"\btotal\b", 50),
+]
+
+
+def _totaal(regels: list[str]) -> dict:
+    """Zoekt het bedrag dat deze maand betaald moet worden.
+
+    Op een kaartafrekening staan meerdere totalen door elkaar: het saldo van
+    vorige maand, wat je intussen betaald hebt, en het nieuwe te betalen bedrag.
+    Het eerste bedrag dat op een totaal lijkt, is dus vaak het verkeerde. We
+    bekijken alle regels, gooien weg wat naar de vorige periode verwijst, en
+    houden het sterkste label over.
+    """
+    bedrag_zoeker = re.compile(BEDRAG + TEKEN)
+    beste = None
+
+    for regel in regels:
+        tekst = regel.strip()
+        if not tekst or VORIGE_PERIODE.search(tekst):
+            continue
+        treffer = bedrag_zoeker.search(tekst)
+        if treffer is None:
+            continue
+        for patroon, gewicht in TOTAALLABELS:
+            if re.search(patroon, tekst, re.IGNORECASE):
+                if beste is None or gewicht > beste[0]:
+                    bedrag = _parse_bedrag(treffer.group("bedrag"),
+                                           treffer.groupdict().get("teken"))
+                    if bedrag is not None:
+                        beste = (gewicht, abs(bedrag), tekst)
+                break
+
+    if beste is None:
+        return {"totaal": None, "totaal_regel": ""}
+    return {"totaal": beste[1], "totaal_regel": beste[2][:120]}
 
 
 def ontleed(regels: list[str], patroon: str = "automatisch") -> Uittreksel:
@@ -216,7 +268,7 @@ def ontleed(regels: list[str], patroon: str = "automatisch") -> Uittreksel:
     kop = _kop(regels)
     uittreksel = Uittreksel(
         kaart=kop["kaart"], periode=kop["periode"], totaal=kop["totaal"],
-        alle_regels=regels,
+        totaal_regel=kop.get("totaal_regel", ""), alle_regels=regels,
     )
 
     namen = [patroon] if patroon in PATRONEN else list(PATRONEN)
@@ -228,7 +280,7 @@ def ontleed(regels: list[str], patroon: str = "automatisch") -> Uittreksel:
         score = 0
         for nummer, tekst in enumerate(regels, start=1):
             item = PdfRegel(nummer=nummer, tekst=tekst)
-            if not OVERSLAAN.match(tekst.strip()):
+            if not OVERSLAAN.match(tekst.strip()) and not VORIGE_PERIODE.search(tekst):
                 treffer = samengesteld.match(tekst.strip())
                 if treffer:
                     bedrag = _parse_bedrag(treffer.group("bedrag"),
@@ -295,29 +347,50 @@ def is_afrekeningsregel(beschrijving: str, tegenpartij: str) -> bool:
     return bool(AFREKENING.search(tekst))
 
 
-def zoek_afrekeningen(conn, crypto, van: date | None = None, tot: date | None = None,
-                      limiet: int = 60) -> list[dict]:
-    """Kandidaat-afrekeningen om een PDF aan te hangen."""
-    from ..transacties import rij_naar_object
+def afrekeningsjaren(conn, crypto) -> list[int]:
+    """De jaren waarin er kaartafrekeningen staan."""
+    return sorted({int(a["boekdatum"][:4]) for a in zoek_afrekeningen(conn, crypto)},
+                  reverse=True)
 
-    sql = ("SELECT * FROM transacties WHERE richting='uit' AND ouder_tx_id IS NULL"
-           " ORDER BY boekdatum DESC LIMIT 600")
-    kandidaten = []
-    for row in conn.execute(sql):
-        tx = rij_naar_object(row, crypto)
-        if not is_afrekeningsregel(tx.beschrijving, tx.tegenpartij_naam):
+
+def zoek_afrekeningen(conn, crypto, jaar: int | None = None,
+                      limiet: int = 400) -> list[dict]:
+    """Kandidaat-afrekeningen om een PDF aan te hangen.
+
+    Of een regel een afrekening is, blijkt uit de beschrijving en de naam van de
+    tegenpartij, en die staan versleuteld. Daar valt niet met SQL op te
+    voorselecteren, dus alle uitgaven worden overlopen. Er worden bewust maar
+    twee velden ontsleuteld in plaats van de hele transactie; op tienduizenden
+    rijen scheelt dat een veelvoud.
+    """
+    sql = ("SELECT id, boekdatum, bedrag_enc, beschrijving_enc,"
+           " tegenpartij_naam_enc, is_afrekening FROM transacties"
+           " WHERE richting = 'uit' AND ouder_tx_id IS NULL")
+    params: list = []
+    if jaar:
+        sql += " AND substr(boekdatum, 1, 4) = ?"
+        params.append(str(jaar))
+    sql += " ORDER BY boekdatum DESC"
+
+    kinderen = {
+        rij["ouder_tx_id"]: rij["n"] for rij in conn.execute(
+            "SELECT ouder_tx_id, COUNT(*) n FROM transacties"
+            " WHERE ouder_tx_id IS NOT NULL GROUP BY ouder_tx_id")
+    }
+
+    kandidaten: list[dict] = []
+    for row in conn.execute(sql, params):
+        beschrijving = crypto.dec(row["beschrijving_enc"]) or ""
+        tegenpartij = crypto.dec(row["tegenpartij_naam_enc"]) or ""
+        if not is_afrekeningsregel(beschrijving, tegenpartij):
             continue
-        if van and tx.boekdatum < van.isoformat():
-            continue
-        if tot and tx.boekdatum > tot.isoformat():
-            continue
-        aantal = conn.execute(
-            "SELECT COUNT(*) n FROM transacties WHERE ouder_tx_id = ?", (tx.id,)
-        ).fetchone()["n"]
         kandidaten.append({
-            "id": tx.id, "boekdatum": tx.boekdatum, "bedrag": tx.bedrag,
-            "omschrijving": f"{tx.beschrijving} — {tx.tegenpartij_naam}".strip(" —"),
-            "aantal_kinderen": aantal, "is_afrekening": tx.is_afrekening,
+            "id": row["id"],
+            "boekdatum": row["boekdatum"],
+            "bedrag": crypto.dec_amount(row["bedrag_enc"]),
+            "omschrijving": f"{beschrijving} — {tegenpartij}".strip(" —"),
+            "aantal_kinderen": kinderen.get(row["id"], 0),
+            "is_afrekening": bool(row["is_afrekening"]),
         })
         if len(kandidaten) >= limiet:
             break

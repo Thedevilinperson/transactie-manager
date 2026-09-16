@@ -18,7 +18,12 @@
         <span>totaal op het uittreksel</span></div>
     {% endif %}
   </div>
-  {% if uittreksel.totaal and (uittreksel.som - uittreksel.totaal)|abs > 0.01 %}
+  {% if uittreksel.totaal_regel %}
+    <p class="klein-detail" style="margin-top:14px">Dat totaal komt van de regel:
+      <code>{{ uittreksel.totaal_regel }}</code>. Regels die naar de vorige
+      periode verwijzen worden overgeslagen.</p>
+  {% endif %}
+  {% if uittreksel.totaal and (uittreksel.som|abs - uittreksel.totaal)|abs > 0.01 %}
     <div class="melding fout" style="margin-top:16px">
       De som van de herkende aankopen wijkt af van het totaal op het uittreksel.
       Kijk hieronder na welke regels ontbreken, of kies een andere opmaak.

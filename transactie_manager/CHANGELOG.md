@@ -4,6 +4,32 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.8.2] — 2026-09-16
+
+### Opgelost
+- **Het saldo van vorige maand werd als totaal genomen.** Op een kaartafrekening
+  staan meerdere totalen door elkaar: het vorige saldo, wat er intussen betaald
+  is, en het nieuwe te betalen bedrag. De toepassing nam het eerste bedrag dat
+  op een totaal leek, en dat was vaak het verkeerde. Alle regels worden nu
+  bekeken, alles wat naar de vorige periode verwijst valt weg, en van wat
+  overblijft wint het duidelijkste label: "totaal te betalen" gaat voor op
+  "nieuw saldo", en dat weer op een kaal "totaal". Herkend in het Nederlands en
+  het Frans.
+- Regels over de vorige periode worden ook niet meer als aankoop ingelezen.
+- Op het controlescherm staat nu welke regel het totaal opleverde, zodat je zelf
+  kan nakijken of de juiste gekozen is.
+- **Alleen afrekeningen van het laatste jaar werden gevonden.** Er werd maar in
+  de zeshonderd recentste transacties gezocht, en bij een volle geschiedenis
+  zijn dat er enkel uit het lopende jaar. Alle uitgaven worden nu overlopen. Om
+  dat snel te houden worden er per transactie maar twee velden ontsleuteld in
+  plaats van de hele rij: op twintigduizend transacties duurt dat een tiende
+  seconde.
+
+### Toegevoegd
+- Een jaarkeuze boven de lijst met afrekeningen, met het aantal gevonden
+  afrekeningen ernaast.
+
+
 ## [0.8.1] — 2026-09-16
 
 ### Opgelost
