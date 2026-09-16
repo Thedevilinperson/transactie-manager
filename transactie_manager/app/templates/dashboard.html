@@ -3,6 +3,7 @@
 
 {% block inhoud %}
 {% set jaar = cijfers.laatste_jaar %}
+{% set raming = cijfers.raming %}
 
 <div class="kop">
   <h1>Overzicht</h1>
@@ -27,40 +28,65 @@
   <div class="vlak">
     <div class="balans">
       <div class="cijfer in">
-        <b>{{ inkomsten|euro }}</b>
-        <span>inkomsten in {{ jaar }}</span>
+        <b>{{ inkomsten|euro0 }}</b><span>inkomsten in {{ jaar }}</span>
       </div>
       <div class="cijfer uit">
-        <b>{{ uitgaven|euro }}</b>
-        <span>uitgaven in {{ jaar }}</span>
+        <b>{{ uitgaven|euro0 }}</b><span>uitgaven in {{ jaar }}</span>
       </div>
       <div class="cijfer">
-        <b>{{ (inkomsten - uitgaven)|euro }}</b>
-        <span>saldo in {{ jaar }}</span>
+        <b>{{ (inkomsten - uitgaven)|euro0 }}</b><span>saldo in {{ jaar }}</span>
       </div>
     </div>
+
+    {% if raming %}
+      <div class="raminguitleg">
+        <strong>{{ raming.jaar }} is nog niet om.</strong>
+        De lichtere balken tonen waar het jaar op uitkomt als het verder verloopt
+        zoals de {{ raming.referentiejaren }} jaren ervoor. De raming vertrekt van
+        wat er tot {{ raming.op|datum }} geboekt is, gedeeld door het deel van het
+        jaar dat op deze dag doorgaans al verteerd was.
+        {% if raming.get('in') %}
+          Voor heel {{ raming.jaar }} komt dat op
+          <strong class="bedrag-in">{{ raming['in']|euro0 }}</strong> inkomsten{% endif %}
+        {%- if raming.get('in') and raming.get('uit') %} en{% endif %}
+        {%- if raming.get('uit') %}
+          <strong class="bedrag-uit">{{ raming['uit']|euro0 }}</strong> uitgaven{% endif %}.
+      </div>
+    {% endif %}
 
     {% set piek = namespace(waarde=1) %}
     {% for j in cijfers.jaren %}
       {% if cijfers.inkomsten[j] > piek.waarde %}{% set piek.waarde = cijfers.inkomsten[j] %}{% endif %}
       {% if cijfers.uitgaven[j] > piek.waarde %}{% set piek.waarde = cijfers.uitgaven[j] %}{% endif %}
     {% endfor %}
+    {% if raming %}
+      {% if raming.get('in', 0) > piek.waarde %}{% set piek.waarde = raming['in'] %}{% endif %}
+      {% if raming.get('uit', 0) > piek.waarde %}{% set piek.waarde = raming['uit'] %}{% endif %}
+    {% endif %}
 
     <div class="jaarstaven">
       {% for j in cijfers.jaren %}
-        <div class="jaarstaaf">
-          <div class="jaar">{{ j }}</div>
+        {% set lopend = raming and j == raming.jaar %}
+        <div class="jaarstaaf {{ 'lopend' if lopend }}">
+          <div class="jaar">{{ j }}{% if lopend %}
+            <span class="klein-detail">tot nu</span>{% endif %}</div>
           <div class="balken">
-            <div class="balkregel">
-              <div class="balk in"
-                   style="width: {{ (cijfers.inkomsten[j] / piek.waarde * 100)|round(1) }}%"></div>
-              <small>{{ cijfers.inkomsten[j]|euro }} in</small>
-            </div>
-            <div class="balkregel">
-              <div class="balk uit"
-                   style="width: {{ (cijfers.uitgaven[j] / piek.waarde * 100)|round(1) }}%"></div>
-              <small>{{ cijfers.uitgaven[j]|euro }} uit</small>
-            </div>
+            {% for kant, bedrag in [('in', cijfers.inkomsten[j]),
+                                    ('uit', cijfers.uitgaven[j])] %}
+              {% set schatting = raming.get(kant) if lopend else none %}
+              <div class="balkregel">
+                <div class="balkspoor">
+                  {% if schatting and schatting > bedrag %}
+                    <div class="balk {{ kant }} raming"
+                         style="width: {{ (schatting / piek.waarde * 100)|round(1) }}%"></div>
+                  {% endif %}
+                  <div class="balk {{ kant }}"
+                       style="width: {{ (bedrag / piek.waarde * 100)|round(1) }}%"></div>
+                </div>
+                <small>{{ bedrag|euro0 }} {{ kant }}{% if schatting %}
+                  · raming {{ schatting|euro0 }}{% endif %}</small>
+              </div>
+            {% endfor %}
           </div>
         </div>
       {% endfor %}
@@ -70,10 +96,8 @@
   {% if cijfers.nazicht or cijfers.niet_toegewezen %}
     <div class="vlak">
       <h2>Werk op de plank</h2>
-      <p>
-        {{ cijfers.nazicht }} transacties wachten op bevestiging en
-        {{ cijfers.niet_toegewezen }} kregen nog geen categorie.
-      </p>
+      <p>{{ cijfers.nazicht }} transacties wachten op bevestiging en
+        {{ cijfers.niet_toegewezen }} kregen nog geen categorie.</p>
       <div class="knoppen" style="margin-top:12px">
         <a class="knop" href="{{ url_for('tx.nazicht') }}">Naar het nazicht</a>
       </div>
@@ -85,25 +109,18 @@
     <div class="tabel-omhulsel">
       <table>
         <thead>
-          <tr>
-            <th>Datum</th>
-            <th>Tegenpartij</th>
-            <th>Mededeling</th>
-            <th class="getal">Bedrag</th>
-          </tr>
+          <tr><th>Datum</th><th>Tegenpartij</th><th>Mededeling</th>
+            <th class="getal">Bedrag</th></tr>
         </thead>
         <tbody>
           {% for tx in recent %}
             <tr class="status-{{ tx.status }}">
               <td>{{ tx.boekdatum|datum }}</td>
-              <td>
-                <a href="{{ url_for('tx.bewerken', tx_id=tx.id) }}">
-                  {{ tx.handelaar or tx.tegenpartij_naam or "Onbekend" }}</a>
-              </td>
+              <td><a href="{{ url_for('tx.bewerken', tx_id=tx.id) }}">
+                {{ tx.tegenpartij_naam or tx.handelaar or "Onbekend" }}</a></td>
               <td>{{ tx.mededeling[:70] }}</td>
               <td class="getal {{ 'bedrag-in' if tx.richting == 'in' else 'bedrag-uit' }}">
-                {{ tx.bedrag|euro }}
-              </td>
+                {{ tx.bedrag|euro }}</td>
             </tr>
           {% endfor %}
         </tbody>

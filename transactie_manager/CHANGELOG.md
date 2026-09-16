@@ -4,6 +4,35 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.8.0] — 2026-09-16
+
+### Opgelost
+- **Inkomsten werden bij uitgaven opgeteld in plaats van ervan afgetrokken.**
+  De bedragen werden overal als grootte behandeld, zonder teken. Koos je bij
+  *Soort* voor allebei, dan gaf de jaartabel 48 000 waar 24 000 hoorde te staan.
+  Er wordt nu met het teken gerekend: inkomsten tellen op, uitgaven af. Bekijk
+  je één richting, dan staan de bedragen zoals voordien gewoon positief; bekijk
+  je allebei, dan is het totaal een echt saldo.
+- Dezelfde correctie geldt voor de staafgrafiek. In de taart blijven negatieve
+  netto bedragen weg, want een taart van gemengde tekens zegt niets.
+
+### Gewijzigd
+- **Het meest recente jaar staat bovenaan** op het startscherm, in plaats van
+  onderaan.
+- Het startscherm rekent nu ook in hele euro's, net als de jaartabel.
+
+### Toegevoegd
+- **Een raming voor het lopende jaar.** Dat jaar is nog niet om, dus naast volle
+  jaren oogt het altijd te laag. De raming kijkt naar de vijf voorgaande jaren:
+  welk deel van het jaartotaal was er op deze dag van het jaar gemiddeld al
+  geboekt? Het bedrag tot nu wordt door dat deel gedeeld. Zo telt het seizoen
+  mee — wie in juli op vakantie gaat, heeft in maart nog lang niet de helft
+  verteerd.
+- De raming staat als lichtere balk in dezelfde kleur achter de werkelijke
+  balk, met het bedrag ernaast, en met een uitleg boven de grafiek. Ze
+  verschijnt alleen wanneer er minstens twee volle jaren zijn om op te steunen.
+
+
 ## [0.7.3] — 2026-09-16
 
 ### Gewijzigd

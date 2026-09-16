@@ -48,7 +48,10 @@ def _rijen(conn, crypto, filters: Filters, platte, *, velden_nodig: bool):
             winkel = (crypto.dec(row["handelaar_enc"]) or "").strip()
             if not filters.past_tekst(land=land, winkel=winkel):
                 continue
-        yield row, abs(crypto.dec_amount(row["bedrag_enc"])), land, winkel
+        # Met teken: inkomsten positief, uitgaven negatief. Wie één richting
+        # bekijkt krijgt het bedrag bij de weergave weer positief te zien; wie
+        # allebei bekijkt krijgt een saldo dat klopt.
+        yield row, crypto.dec_amount(row["bedrag_enc"]), land, winkel
 
 
 def jaartabel(conn, crypto, filters: Filters):
@@ -71,6 +74,14 @@ def jaartabel(conn, crypto, filters: Filters):
         jaren.add(jaar)
         bedragen[(row["categorie_id"], row["subcategorie_id"],
                   row["subsub_id"])][jaar] += bedrag
+
+    # Bij één richting tonen we de grootte: een uitgavenoverzicht vol minnen
+    # leest niet. Bij allebei blijft het teken staan, want dan is het een saldo.
+    teken = -1 if filters.richting == "uit" else 1
+    if teken == -1:
+        for sleutel in bedragen:
+            for jaar in bedragen[sleutel]:
+                bedragen[sleutel][jaar] *= -1
 
     jaren_gesorteerd = sorted(jaren, reverse=True)
     wortels = bouw_boom(platte)
@@ -176,6 +187,11 @@ def reeksen(conn, crypto, filters: Filters, maximum: int = 12):
         perioden.add(periode)
         per_label[_label(row, platte, filters.groepering, land, winkel)][periode] += bedrag
 
+    if filters.richting == "uit":
+        for naam in per_label:
+            for periode in per_label[naam]:
+                per_label[naam][periode] *= -1
+
     labels = sorted(perioden)
     op_totaal = sorted(per_label.items(), key=lambda p: -sum(p[1].values(), Decimal("0")))
 
@@ -210,6 +226,11 @@ def verdeling(conn, crypto, filters: Filters, maximum: int = 12):
                                             velden_nodig=velden_nodig):
         per_label[_label(row, platte, filters.groepering, land, winkel)] += bedrag
 
+    if filters.richting == "uit":
+        per_label = {n: -b for n, b in per_label.items()}
+    # Een taart van gemengde tekens zegt niets; negatieve delen blijven weg.
+    per_label = {n: b for n, b in per_label.items() if b > 0}
+
     op_totaal = sorted(per_label.items(), key=lambda p: -p[1])
     stukken = [{"naam": n, "waarde": float(b)} for n, b in op_totaal[:maximum]]
     rest = op_totaal[maximum:]
@@ -219,31 +240,68 @@ def verdeling(conn, crypto, filters: Filters, maximum: int = 12):
     return stukken, float(sum(per_label.values(), Decimal("0")))
 
 
-def kerncijfers(conn, crypto) -> dict:
-    """Cijfers voor het startscherm."""
-    rows = conn.execute(
+def kerncijfers(conn, crypto, jaren_tonen: int = 8) -> dict:
+    """Cijfers voor het startscherm, met een raming voor het lopende jaar.
+
+    Het lopende jaar is nog niet om, dus vergelijken met volle jaren geeft een
+    vertekend beeld. De raming kijkt naar de vijf voorgaande jaren: welk deel
+    van het jaartotaal was er op deze dag van het jaar gemiddeld al uitgegeven?
+    Het bedrag tot nu wordt door dat deel gedeeld. Zo telt het seizoen mee: wie
+    in juli op vakantie gaat, heeft in maart nog lang niet de helft verteerd.
+    """
+    from datetime import date
+
+    vandaag = date.today()
+    grens = (vandaag.month, vandaag.day)
+
+    per_jaar = {"in": defaultdict(Decimal), "uit": defaultdict(Decimal)}
+    tot_dag = {"in": defaultdict(Decimal), "uit": defaultdict(Decimal)}
+    aantal = nazicht = niet_toegewezen = 0
+
+    for row in conn.execute(
         "SELECT boekdatum, bedrag_enc, richting, status FROM transacties"
-        " WHERE is_afrekening = 0").fetchall()
-    per_jaar_in = defaultdict(Decimal)
-    per_jaar_uit = defaultdict(Decimal)
-    nazicht = niet_toegewezen = 0
-    for row in rows:
+        " WHERE is_afrekening = 0"
+    ):
+        aantal += 1
         jaar = int(row["boekdatum"][:4])
+        maand, dag = int(row["boekdatum"][5:7]), int(row["boekdatum"][8:10])
         bedrag = abs(crypto.dec_amount(row["bedrag_enc"]))
-        if row["richting"] == "in":
-            per_jaar_in[jaar] += bedrag
-        else:
-            per_jaar_uit[jaar] += bedrag
+        kant = "in" if row["richting"] == "in" else "uit"
+        per_jaar[kant][jaar] += bedrag
+        if (maand, dag) <= grens:
+            tot_dag[kant][jaar] += bedrag
         if row["status"] == "nazicht":
             nazicht += 1
         elif row["status"] == "niet_toegewezen":
             niet_toegewezen += 1
 
-    jaren = sorted(set(per_jaar_in) | set(per_jaar_uit))
+    alle_jaren = sorted(set(per_jaar["in"]) | set(per_jaar["uit"]), reverse=True)
+    jaren = alle_jaren[:jaren_tonen]
+
+    raming: dict = {}
+    if vandaag.year in per_jaar["in"] or vandaag.year in per_jaar["uit"]:
+        referentie = [j for j in alle_jaren if j < vandaag.year][:5]
+        for kant in ("in", "uit"):
+            delen = [
+                tot_dag[kant][j] / per_jaar[kant][j]
+                for j in referentie if per_jaar[kant].get(j, 0) > 0
+            ]
+            tot_nu = per_jaar[kant].get(vandaag.year, Decimal("0"))
+            if len(delen) >= 2 and tot_nu > 0:
+                deel = sum(delen) / len(delen)
+                if deel > Decimal("0.05"):
+                    raming[kant] = (tot_nu / deel).quantize(Decimal("1"))
+        if raming:
+            raming["jaar"] = vandaag.year
+            raming["referentiejaren"] = len(referentie)
+            raming["op"] = vandaag.isoformat()
+
     return {
-        "aantal": len(rows), "nazicht": nazicht, "niet_toegewezen": niet_toegewezen,
-        "jaren": jaren[-8:],
-        "inkomsten": {j: per_jaar_in.get(j, Decimal("0")) for j in jaren},
-        "uitgaven": {j: per_jaar_uit.get(j, Decimal("0")) for j in jaren},
-        "laatste_jaar": jaren[-1] if jaren else None,
+        "aantal": aantal, "nazicht": nazicht, "niet_toegewezen": niet_toegewezen,
+        "jaren": jaren,
+        "inkomsten": {j: per_jaar["in"].get(j, Decimal("0")) for j in jaren},
+        "uitgaven": {j: per_jaar["uit"].get(j, Decimal("0")) for j in jaren},
+        "laatste_jaar": jaren[0] if jaren else None,
+        "raming": raming,
+        "lopend_jaar": vandaag.year,
     }

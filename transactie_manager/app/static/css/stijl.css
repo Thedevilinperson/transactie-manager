@@ -6,7 +6,7 @@
 /* Het versienummer staat hier zodat de toepassing kan nagaan of de browser wel
    het juiste stijlblad gebruikt. Bijwerken met scripts/versie.py. */
 :root {
-  --stijl-versie: "0.7.3";
+  --stijl-versie: "0.8.0";
   --inkt: #17202e;
   --inkt-zacht: #5a6675;
   --papier: #f1f3f6;
@@ -494,3 +494,19 @@ tfoot td { font-weight: 600; border-top: 2px solid var(--lijn-sterk); border-bot
    een hele tak wegneemt en niet één post. */
 .meerkeuze option.niveau0 { font-weight: 600; }
 .meerkeuze option.niveau2 { color: var(--inkt-zacht); }
+
+/* --------------------------------------------------- raming lopend jaar */
+/* De raming staat achter de werkelijke balk in dezelfde kleur, maar lichter,
+   zodat je in één oogopslag ziet wat al geboekt is en wat verwacht wordt. */
+
+.raminguitleg {
+  margin-top: 20px; padding: 11px 14px; font-size: 13.5px;
+  background: var(--actie-licht); border: 1px solid #bfd0ee;
+  border-radius: 4px; color: var(--inkt);
+}
+
+.jaarstaaf .balkspoor { position: relative; flex: 1; min-width: 0; height: 11px; }
+.jaarstaaf .balkspoor .balk { position: absolute; top: 0; left: 0; }
+.jaarstaaf .balk.raming { opacity: .3; }
+.jaarstaaf.lopend .jaar { font-weight: 600; color: var(--inkt); }
+.jaarstaaf .jaar .klein-detail { font-size: 11px; }
