@@ -7,7 +7,7 @@
   <title>{% block titel %}{{ app_naam }}{% endblock %} · {{ app_naam }}</title>
   <link rel="stylesheet" href="{{ statisch('css/stijl.css') }}">
 </head>
-<body data-basis="{{ url_for('dashboard.index') }}">
+<body data-basis="{{ url_for('dashboard.index') }}" data-versie="{{ versie }}">
 <div class="raamwerk">
   <aside class="rail">
     <div class="merk">

@@ -4,6 +4,28 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.7.2] — 2026-09-16
+
+### Opgelost
+- **Het stijlblad bleef ook na 0.7.1 op een oude versie hangen.** Het
+  versienummer stond als parameter achter het adres, en dat volstaat niet: een
+  proxy of een service worker die op het pad bewaart, negeert zo'n parameter en
+  geeft gewoon het oude bestand terug. Het nummer zit nu in het pad zelf
+  (`/statisch/0.7.2/css/stijl.css`), dus elke versie is een ander adres.
+- Schermen worden niet meer bewaard door tussenliggende proxy's. Anders kan er
+  een bladzijde van een vorige versie teruggegeven worden die verwijst naar
+  bestanden die niet meer bestaan.
+
+### Toegevoegd
+- **De toepassing merkt het nu zelf wanneer de browser een oude opmaak
+  gebruikt.** Er staat een versiemerk in het stijlblad; komt dat niet overeen met
+  de draaiende versie, dan verschijnt er bovenaan een melding met wat je moet
+  doen. Voordien zag je alleen een half werkend scherm zonder aanwijzing waarom.
+- `scripts/versie.py` zet het versienummer in één keer op alle zes de plaatsen
+  waar het staat, inclusief het merk in het stijlblad. Dat handmatig bijhouden
+  gaat vroeg of laat mis.
+
+
 ## [0.7.1] — 2026-09-16
 
 ### Opgelost

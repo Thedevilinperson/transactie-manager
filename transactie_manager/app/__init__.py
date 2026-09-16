@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 from decimal import Decimal
 
-from flask import Flask, g, redirect, request, url_for
+from flask import Flask, g, redirect, request, send_from_directory, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .config import APP_NAME, MAX_UPLOAD_MB, SESSION_MINUTES, VERSION, flask_secret_key
@@ -123,17 +123,41 @@ def create_app() -> Flask:
     app.jinja_env.filters["procent"] = procent
     app.jinja_env.globals["huidig_pad"] = huidig_pad
 
-    def statisch(bestand: str) -> str:
-        """Verwijzing naar een vast bestand, met het versienummer erachter.
+    @app.route("/statisch/<versie>/<path:bestand>")
+    def statisch_bestand(versie: str, bestand: str):
+        """Stijlblad en script, met het versienummer in het pad.
 
-        Zonder dat nummer blijft een browser het stijlblad en het script van de
-        vorige versie gebruiken, ook na een herbouw van de add-on. Dat leidt tot
-        schermen die half werken: de opmaak van gisteren op de bladzijde van
-        vandaag.
+        Het versienummer zit bewust in het pad en niet in een parameter erachter.
+        Een tussenliggende proxy of een service worker die op het pad bewaart,
+        negeert zo'n parameter en blijft dan het bestand van de vorige versie
+        teruggeven. Dat levert schermen op die half werken: de bladzijde van
+        vandaag met de opmaak van gisteren. Met het nummer in het pad is elke
+        versie een ander adres en kan dat niet gebeuren.
         """
-        return url_for("static", filename=bestand, v=VERSION)
+        antwoord = send_from_directory(app.static_folder, bestand)
+        if versie == VERSION:
+            antwoord.headers["Cache-Control"] = "public, max-age=2592000, immutable"
+        else:
+            antwoord.headers["Cache-Control"] = "no-store"
+        return antwoord
+
+    def statisch(bestand: str) -> str:
+        return url_for("statisch_bestand", versie=VERSION, bestand=bestand)
 
     app.jinja_env.globals["statisch"] = statisch
+
+    @app.after_request
+    def _geen_cache_op_schermen(antwoord):
+        """Schermen zelf mogen nergens bewaard worden.
+
+        Anders kan een proxy een bladzijde van een vorige versie teruggeven, die
+        dan naar bestanden verwijst die intussen niet meer bestaan.
+        """
+        if request.endpoint not in ("static", "statisch_bestand"):
+            antwoord.headers.setdefault(
+                "Cache-Control", "no-store, no-cache, must-revalidate")
+            antwoord.headers.setdefault("Pragma", "no-cache")
+        return antwoord
 
     from .routes import aanmelden, bijzonder, dashboard, importeren, instellingen
     from .routes import koppelvlak
@@ -154,7 +178,7 @@ def create_app() -> Flask:
     @app.before_request
     def _eerste_start():
         from flask import request
-        if request.endpoint in (None, "static", "auth.installatie"):
+        if request.endpoint in (None, "static", "statisch_bestand", "auth.installatie"):
             return None
         if not heeft_gebruikers():
             return redirect(url_for("auth.installatie"))

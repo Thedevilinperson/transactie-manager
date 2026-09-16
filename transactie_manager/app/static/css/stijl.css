@@ -3,7 +3,10 @@
    belangrijker dan versiering. Kleur draagt betekenis: groen voor inkomsten,
    rood voor uitgaven, oker voor wat nazicht vraagt. */
 
+/* Het versienummer staat hier zodat de toepassing kan nagaan of de browser wel
+   het juiste stijlblad gebruikt. Bijwerken met scripts/versie.py. */
 :root {
+  --stijl-versie: "0.7.2";
   --inkt: #17202e;
   --inkt-zacht: #5a6675;
   --papier: #f1f3f6;

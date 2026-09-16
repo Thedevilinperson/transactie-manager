@@ -530,6 +530,28 @@
     vraag();
   }
 
+  /* ---------------------------------------------- oude opmaak herkennen */
+  /* Als er iets tussen zit dat bestanden bewaart, kan de browser het stijlblad
+     van een vorige versie gebruiken terwijl de bladzijde wel nieuw is. Dat
+     levert een half werkend scherm op zonder dat je ziet waarom. */
+
+  function controleerStijlblad() {
+    var verwacht = document.body.dataset.versie;
+    if (!verwacht) return;
+    var geladen = window.getComputedStyle(document.documentElement)
+      .getPropertyValue("--stijl-versie").trim().replace(/^"|"$/g, "");
+    if (!geladen || geladen === verwacht) return;
+
+    var balk = document.createElement("div");
+    balk.className = "melding fout";
+    balk.innerHTML = "Je browser gebruikt de opmaak van versie <strong>" +
+      geladen + "</strong> terwijl deze toepassing op <strong>" + verwacht +
+      "</strong> draait. Herlaad met Ctrl+F5, of leeg de opslag van je browser " +
+      "voor deze site.";
+    var inhoud = document.querySelector(".inhoud");
+    if (inhoud) inhoud.insertBefore(balk, inhoud.firstChild);
+  }
+
   /* ------------------------------------------------------------------ start */
 
   document.addEventListener("DOMContentLoaded", function () {
@@ -547,6 +569,7 @@
       koppelAanvinkknoppen(formulier);
     });
     koppelPanelen();
+    controleerStijlblad();
     document.querySelectorAll(".zoekinlijst").forEach(koppelLijstzoeker);
     document.querySelectorAll("[data-voortgang]").forEach(koppelVoortgang);
     koppelAiKnoppen();
