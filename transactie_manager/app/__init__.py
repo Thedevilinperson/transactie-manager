@@ -107,6 +107,8 @@ def create_app() -> Flask:
         PERMANENT_SESSION_LIFETIME=timedelta(minutes=SESSION_MINUTES),
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
+        # De adressen dragen het versienummer, dus mag er lang gecachet worden.
+        SEND_FILE_MAX_AGE_DEFAULT=timedelta(days=7),
         JSON_SORT_KEYS=False,
     )
 
@@ -120,6 +122,18 @@ def create_app() -> Flask:
     app.jinja_env.filters["datum"] = datum_kort
     app.jinja_env.filters["procent"] = procent
     app.jinja_env.globals["huidig_pad"] = huidig_pad
+
+    def statisch(bestand: str) -> str:
+        """Verwijzing naar een vast bestand, met het versienummer erachter.
+
+        Zonder dat nummer blijft een browser het stijlblad en het script van de
+        vorige versie gebruiken, ook na een herbouw van de add-on. Dat leidt tot
+        schermen die half werken: de opmaak van gisteren op de bladzijde van
+        vandaag.
+        """
+        return url_for("static", filename=bestand, v=VERSION)
+
+    app.jinja_env.globals["statisch"] = statisch
 
     from .routes import aanmelden, bijzonder, dashboard, importeren, instellingen
     from .routes import koppelvlak

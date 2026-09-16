@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <title>{% block titel %}{{ app_naam }}{% endblock %} · {{ app_naam }}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/stijl.css') }}">
+  <link rel="stylesheet" href="{{ statisch('css/stijl.css') }}">
 </head>
 <body data-basis="{{ url_for('dashboard.index') }}">
 <div class="raamwerk">
@@ -79,7 +79,7 @@
   </main>
 </div>
 
-<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ statisch('js/app.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

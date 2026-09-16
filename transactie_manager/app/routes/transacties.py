@@ -20,6 +20,10 @@ from ..transacties import bewaar, haal, tel, werk_bij, zoek
 bp = Blueprint("tx", __name__, url_prefix="/transacties")
 
 
+def _alle_keuzes(conn, crypto):
+    return keuzelijst(boom(conn, crypto))
+
+
 def _rekeningen(conn, crypto):
     return [
         {"id": r["id"], "naam": crypto.dec(r["naam_enc"]),
@@ -68,7 +72,8 @@ def lijst():
         keuzes=keuzes(conn, crypto),
         methoden=METHODEN, statussen=STATUSSEN,
         pad_tekst=lambda *ids: pad_tekst(platte, *ids),
-        hoofdcategorieen=[c for c in keuzelijst(boom(conn, crypto)) if c["niveau"] == 0],
+        hoofdcategorieen=[c for c in _alle_keuzes(conn, crypto) if c["niveau"] == 0],
+        alle_categorieen=_alle_keuzes(conn, crypto),
         totaal_aantal=tel(conn),
     )
 

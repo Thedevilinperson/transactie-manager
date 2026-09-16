@@ -320,40 +320,83 @@ tfoot td { font-weight: 600; border-top: 2px solid var(--lijn-sterk); border-bot
 }
 
 /* ---------------------------------------------------------------- filters */
-/* De filterbalk verstuurt zichzelf bij elke wijziging; onderdelen die veel
-   plaats innemen zitten in een <details> zodat ze standaard dichtgeklapt zijn. */
+/* Alles staat op één horizontale lijn. Wat veel plaats vraagt zit achter een
+   knopje dat een paneeltje openklapt, zodat de balk niet uitdijt. */
 
 .filterblok {
   background: var(--vlak);
   border: 1px solid var(--lijn);
   border-radius: 4px;
-  padding: 14px 18px 16px;
-  margin-bottom: 18px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
 }
-.filterkop {
-  display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
-}
-.filterkop strong { font-size: 14px; }
-.filterkop .knop { margin-left: auto; }
 
-.filterrij {
-  display: grid; gap: 12px; align-items: start;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+.filterlijn {
+  display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: flex-end;
 }
-.filterrij .veld { margin-bottom: 0; }
 
-.filterdeel { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--lijn); }
-.filterdeel > summary {
-  cursor: pointer; font-size: 13px; color: var(--inkt-zacht);
-  display: flex; align-items: center; gap: 8px; list-style-position: outside;
+.fveld { display: flex; flex-direction: column; min-width: 0; }
+.fveld label { font-size: 11.5px; margin-bottom: 2px; white-space: nowrap; }
+.fveld select, .fveld input {
+  width: auto; min-width: 118px; padding: 5px 7px; font-size: 13.5px;
 }
-.filterdeel > summary:hover { color: var(--inkt); }
-.filterdeel > summary + * { margin-top: 10px; }
-.filterlabel { display: block; font-size: 13px; color: var(--inkt-zacht); margin-bottom: 6px; }
+.fveld.breed { flex: 1 1 220px; }
+.fveld.breed input { width: 100%; min-width: 0; }
+
+/* Een knopje dat een paneeltje openklapt. */
+.keuzeknop { position: relative; }
+.keuzeknop > summary {
+  list-style: none; cursor: pointer; user-select: none;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 11px; border: 1px solid var(--lijn-sterk); border-radius: 3px;
+  background: #fff; font-size: 13.5px; white-space: nowrap;
+}
+.keuzeknop > summary::-webkit-details-marker { display: none; }
+.keuzeknop > summary::after { content: "▾"; font-size: 9px; color: var(--inkt-zacht); }
+.keuzeknop > summary:hover { border-color: var(--actie); }
+.keuzeknop[open] > summary { border-color: var(--actie); background: var(--actie-licht); }
+.keuzeknop .teller {
+  background: var(--actie); color: #fff; border-radius: 9px;
+  padding: 0 6px; font-size: 11px; font-variant-numeric: tabular-nums;
+}
+
+.paneel {
+  position: absolute; z-index: 30; top: calc(100% + 5px); left: 0;
+  min-width: 260px; max-width: 92vw; max-height: 380px; overflow: auto;
+  background: var(--vlak); border: 1px solid var(--lijn-sterk);
+  border-radius: 4px; padding: 12px 14px;
+  box-shadow: 0 6px 18px rgba(23, 32, 46, .13);
+}
+.paneel.breed { min-width: 460px; }
+.paneel label { margin-top: 8px; }
+.paneel > label:first-child { margin-top: 0; }
+.paneel .klein-detail { margin-top: 8px; }
+.paneelkolommen { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+/* Aan de rechterkant van het scherm klapt het paneel naar links open. */
+.keuzeknop.naarlinks .paneel { left: auto; right: 0; }
+
+.aanvinkknop {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  padding: 5px 11px; border: 1px solid var(--lijn-sterk); border-radius: 3px;
+  background: #fff; font-size: 13.5px; white-space: nowrap; color: var(--inkt);
+  margin: 0;
+}
+.aanvinkknop:hover { border-color: var(--actie); }
+.aanvinkknop.aan { border-color: var(--actie); background: var(--actie-licht); }
+.aanvinkknop input { width: auto; margin: 0; }
+
+.aanvinkregel {
+  display: flex; align-items: center; gap: 7px; padding: 3px 0;
+  font-size: 13.5px; color: var(--inkt); margin: 0; cursor: pointer;
+}
+.aanvinkregel input { width: auto; margin: 0; }
+
+.wisknop { margin-left: auto; }
 
 .jaarkeuze { display: flex; flex-wrap: wrap; gap: 5px; }
 .chip {
-  display: inline-flex; align-items: center; gap: 0;
+  display: inline-flex; align-items: center;
   padding: 3px 9px; border: 1px solid var(--lijn-sterk); border-radius: 12px;
   font-size: 13px; font-variant-numeric: tabular-nums; cursor: pointer;
   background: #fff; color: var(--inkt); margin: 0; user-select: none;
@@ -363,7 +406,6 @@ tfoot td { font-weight: 600; border-top: 2px solid var(--lijn-sterk); border-bot
 .chip.aan { background: var(--actie); border-color: var(--actie); color: #fff; }
 
 .meerkeuze { width: 100%; padding: 4px; }
-.meerkeuze option { padding: 2px 4px; }
 .zoekinlijst { margin-bottom: 6px; }
 
 /* ------------------------------------------------------ sorteerbare koppen */

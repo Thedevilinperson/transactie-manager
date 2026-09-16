@@ -421,6 +421,41 @@
     }).join("");
   }
 
+  /* ------------------------------------------------------- paneeltjes sluiten */
+  /* Eén paneel tegelijk open, en klikken buiten het paneel sluit het. Zonder
+     dit blijven alle knopjes openstaan en dekt het ene het andere af. */
+
+  function koppelPanelen() {
+    document.addEventListener("click", function (gebeurtenis) {
+      var binnen = gebeurtenis.target.closest(".keuzeknop");
+      document.querySelectorAll(".keuzeknop[open]").forEach(function (knop) {
+        if (knop !== binnen) knop.open = false;
+      });
+      // Bij een knop rechts op het scherm klapt het paneel naar links open.
+      if (binnen && binnen.open) {
+        var plaats = binnen.getBoundingClientRect();
+        binnen.classList.toggle("naarlinks",
+          plaats.left + 480 > document.documentElement.clientWidth);
+      }
+    });
+
+    document.addEventListener("keydown", function (gebeurtenis) {
+      if (gebeurtenis.key !== "Escape") return;
+      document.querySelectorAll(".keuzeknop[open]").forEach(function (knop) {
+        knop.open = false;
+      });
+    });
+  }
+
+  /* De knop "Alleen bevestigd" kleurt mee. */
+  function koppelAanvinkknoppen(wortel) {
+    wortel.querySelectorAll(".aanvinkknop input").forEach(function (vakje) {
+      vakje.addEventListener("change", function () {
+        vakje.closest(".aanvinkknop").classList.toggle("aan", vakje.checked);
+      });
+    });
+  }
+
   /* ------------------------------------------------------------- voortgang */
   /* Werk dat in de achtergrond loopt: om de seconde de stand opvragen en de
      balk bijwerken, zodat je ziet dat er iets gebeurt. */
@@ -509,7 +544,9 @@
     document.querySelectorAll("[data-autofilter]").forEach(function (formulier) {
       koppelAutofilter(formulier);
       koppelChips(formulier);
+      koppelAanvinkknoppen(formulier);
     });
+    koppelPanelen();
     document.querySelectorAll(".zoekinlijst").forEach(koppelLijstzoeker);
     document.querySelectorAll("[data-voortgang]").forEach(koppelVoortgang);
     koppelAiKnoppen();

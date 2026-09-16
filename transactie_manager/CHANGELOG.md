@@ -4,6 +4,30 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.7.1] — 2026-09-16
+
+### Opgelost
+- **Het stijlblad en het script bleven op de oude versie hangen.** Na een
+  herbouw serveerde de browser de bestanden van de vorige versie verder. Daardoor
+  viel de filterbalk terug op losse velden onder elkaar en tekenden de grafieken
+  helemaal niet meer: de bladzijde van vandaag met de opmaak en het script van
+  gisteren. Beide adressen dragen nu het versienummer, zodat een nieuwe versie
+  altijd opgehaald wordt.
+
+### Gewijzigd
+- **De filterbalk staat op één horizontale lijn.** Zoeken, rekening, soort en
+  status staan als smalle velden naast elkaar; jaren, bron, categorie, land,
+  winkel en uitsluiten zitten achter een knopje dat een paneeltje openklapt. Op
+  het knopje staat hoeveel er gekozen is.
+- Eén paneel staat tegelijk open; klikken buiten het paneel of op Escape sluit
+  het. Bij een knop aan de rechterkant klapt het paneel naar links open zodat het
+  in beeld blijft.
+- De transactielijst en de twee grafieken gebruiken nu dezelfde filterbalk, dus
+  een filter ziet er overal hetzelfde uit en werkt overal hetzelfde.
+- De jaartabel kreeg het uitsluiten van categorieën en winkels erbij; dat zat
+  alleen bij de grafieken.
+
+
 ## [0.7.0] — 2026-09-16
 
 ### Toegevoegd

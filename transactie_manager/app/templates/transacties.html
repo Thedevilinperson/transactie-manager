@@ -27,101 +27,10 @@
   </div>
 </div>
 
-<form method="get" action="{{ url_for('tx.lijst') }}" class="filterblok"
-      data-autofilter>
-  <div class="filterrij">
-    <div class="veld">
-      <label for="q">Zoeken</label>
-      <input type="search" id="q" name="q" value="{{ filters.zoekterm }}"
-             placeholder="naam, mededeling, rekening, categorie" data-traag>
-    </div>
-    <div class="veld">
-      <label for="rekening_id">Rekening</label>
-      <select id="rekening_id" name="rekening_id">
-        <option value="">Alle</option>
-        {% for r in rekeningen %}
-          <option value="{{ r.id }}" {{ 'selected' if filters.rekening_id == r.id }}>
-            {{ r.naam }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="veld">
-      <label for="richting">Soort</label>
-      <select id="richting" name="richting">
-        <option value="">Alle</option>
-        <option value="uit" {{ 'selected' if filters.richting == 'uit' }}>Uitgaven</option>
-        <option value="in" {{ 'selected' if filters.richting == 'in' }}>Inkomsten</option>
-      </select>
-    </div>
-    <div class="veld">
-      <label for="status">Status</label>
-      <select id="status" name="status">
-        <option value="">Alle</option>
-        {% for waarde, label in statussen %}
-          <option value="{{ waarde }}" {{ 'selected' if filters.status == waarde }}>
-            {{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="veld">
-      <label for="methode">Bron van de indeling</label>
-      <select id="methode" name="methode" multiple size="6" class="meerkeuze">
-        {% for waarde, label in methoden %}
-          <option value="{{ waarde }}" {{ 'selected' if waarde in filters.methoden }}>
-            {{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-  </div>
-
-  <div class="filterdeel">
-    <span class="filterlabel">Jaren</span>
-    <div class="jaarkeuze">
-      {% for jaar in keuzes.jaren %}
-        <label class="chip {{ 'aan' if jaar in filters.jaren }}">
-          <input type="checkbox" name="jaar" value="{{ jaar }}"
-                 {{ 'checked' if jaar in filters.jaren }}>{{ jaar }}</label>
-      {% endfor %}
-    </div>
-  </div>
-
-  <details class="filterdeel" {{ 'open' if filters.hoofd_id }}>
-    <summary>Categorie
-      {% if filters.hoofd_id %}<span class="merkje regel">ingesteld</span>{% endif %}
-    </summary>
-    <div class="filterrij" data-categoriekiezer data-plat>
-      <div class="veld">
-        <label for="hoofd_id">Hoofdcategorie</label>
-        <select id="hoofd_id" name="hoofd_id" data-cat-niveau="0">
-          <option value="">Alle</option>
-          {% for k in hoofdcategorieen %}
-            <option value="{{ k.id }}" data-soort="{{ k.soort }}"
-                    {{ 'selected' if filters.hoofd_id == k.id }}>{{ k.naam }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="veld">
-        <label for="sub_id">Subcategorie</label>
-        <select id="sub_id" name="sub_id" data-cat-niveau="1"
-                data-gekozen="{{ filters.sub_id or '' }}" data-leeg="Alle">
-          <option value="">Alle</option>
-        </select>
-      </div>
-      <div class="veld">
-        <label for="subsub_id">Sub-subcategorie</label>
-        <select id="subsub_id" name="subsub_id" data-cat-niveau="2"
-                data-gekozen="{{ filters.subsub_id or '' }}" data-leeg="Alle">
-          <option value="">Alle</option>
-        </select>
-      </div>
-    </div>
-  </details>
-
-  <div class="filterkop" style="border-top:1px solid var(--lijn);padding-top:10px">
-    <a class="knop stil klein" href="{{ url_for('tx.lijst') }}">Alles wissen</a>
-    <noscript><button type="submit">Toepassen</button></noscript>
-  </div>
-</form>
+{{ filterbalk(filters, keuzes, rekeningen, hoofdcategorieen,
+              url_for('tx.lijst'), toon_zoeken=true, toon_status=true,
+              toon_bron=true, alle_categorieen=alle_categorieen,
+              methoden=methoden, statussen=statussen) }}
 
 <div class="vlak">
   {% if rijen %}

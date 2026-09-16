@@ -13,7 +13,8 @@
 </div>
 
 {{ filterbalk(filters, keuzes, rekeningen, hoofdcategorieen,
-              url_for('rapport.tabel'), alle_categorieen=alle_categorieen) }}
+              url_for('rapport.tabel'), alle_categorieen=alle_categorieen,
+              toon_uitsluiten=true) }}
 
 <div class="vlak">
   {% if rijen and jaren %}

@@ -11,8 +11,7 @@
 <h2 class="afdelingskop">Evolutie doorheen de tijd</h2>
 {{ filterbalk(filters, keuzes, rekeningen, hoofdcategorieen,
               url_for('rapport.grafiek'), toon_groepering=true,
-              toon_uitsluiten=true, alle_categorieen=alle_categorieen,
-              titel='Filters voor de staafgrafiek') }}
+              toon_uitsluiten=true, alle_categorieen=alle_categorieen) }}
 
 <div class="vlak">
   {% if labels and series %}
@@ -28,8 +27,7 @@
 <h2 class="afdelingskop">Verdeling</h2>
 {{ filterbalk(taart, keuzes, rekeningen, hoofdcategorieen,
               url_for('rapport.grafiek'), p='t_', toon_groepering=true,
-              toon_uitsluiten=true, alle_categorieen=alle_categorieen,
-              titel='Filters voor de taart') }}
+              toon_uitsluiten=true, alle_categorieen=alle_categorieen) }}
 
 <div class="vlak">
   {% if stukken %}
