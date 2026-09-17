@@ -104,7 +104,7 @@ wachtwoord in plaats van een app-wachtwoord.
 `http://homeassistant.local:11434` of het IP-adres. Niet `localhost`: dat wijst
 binnen de add-on naar de add-on zelf.
 
-**Het bouwen stopt op het basisimage.** Zet in `build.yaml` een recentere
-combinatie van Python en Alpine.
+**Het bouwen stopt op het basisimage.** Zet in de `FROM`-regel bovenaan de
+`Dockerfile` een recentere combinatie van Python en Alpine.
 
 De volledige handleiding staat in `docs/HANDLEIDING.md` in de repository.

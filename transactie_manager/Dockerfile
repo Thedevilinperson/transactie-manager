@@ -1,7 +1,7 @@
-# Home Assistant vult BUILD_FROM in vanuit build.yaml. De waarde hieronder is
-# enkel de terugval wanneer je het beeld met de hand bouwt.
-ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base-python:3.13-alpine3.22
-FROM ${BUILD_FROM}
+# Het basisimage staat hier rechtstreeks, niet meer in build.yaml. Home Assistant
+# publiceert deze images als multi-platform manifest, dus één regel volstaat voor
+# alle architecturen; Docker kiest de juiste variant bij het bouwen.
+FROM ghcr.io/home-assistant/base-python:3.13-alpine3.22
 
 ENV LANG=C.UTF-8 \
     PYTHONUNBUFFERED=1 \
@@ -14,9 +14,8 @@ WORKDIR /opt/transactie-manager
 
 COPY requirements.txt ./
 
-# Voor amd64 en aarch64 bestaan er kant-en-klare musl-wheels; dan is de
-# omweg via bouwgereedschap niet nodig. Op armv7 moet cryptography wel
-# gecompileerd worden, en daarvoor zijn Rust en de headers vereist.
+# Eerst kant-en-klare pakketten proberen. Bestaan die voor deze architectuur,
+# dan is bouwgereedschap niet nodig en scheelt dat een flink stuk bouwtijd.
 RUN set -eux; \
     pip install --no-cache-dir --upgrade pip; \
     if ! pip install --no-cache-dir --only-binary=:all: -r requirements.txt; then \
@@ -31,6 +30,12 @@ COPY app ./app
 COPY wsgi.py start.py ./
 COPY run.sh /run.sh
 RUN chmod a+x /run.sh
+
+LABEL \
+    org.opencontainers.image.title="Transactie Manager" \
+    org.opencontainers.image.description="Huishoudboekje op basis van bankafschriften" \
+    org.opencontainers.image.source="https://github.com/GEBRUIKERSNAAM/transactie-manager" \
+    org.opencontainers.image.licenses="MIT"
 
 EXPOSE 8099
 CMD ["/run.sh"]

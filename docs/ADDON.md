@@ -13,7 +13,6 @@ transactie-manager/
 ├── repository.yaml          ← hierdoor herkent Home Assistant de repository
 └── transactie_manager/      ← de add-on zelf
     ├── config.yaml
-    ├── build.yaml
     ├── Dockerfile
     ├── run.sh
     ├── CHANGELOG.md         ← het wijzigingslogboek in Home Assistant
@@ -45,7 +44,6 @@ Server-add-on. Het resultaat is:
 ```
 /addons/transactie_manager/
 ├── config.yaml
-├── build.yaml
 ├── Dockerfile
 ├── run.sh
 ├── CHANGELOG.md
@@ -101,7 +99,17 @@ de add-on een poort bij *Netwerk*.
 
 ## Basisimages
 
-`build.yaml` bepaalt op welk basisimage gebouwd wordt. Home Assistant
-onderhoudt alleen versies die nog ondersteund worden; loopt het bouwen ooit
-vast op een basisimage dat niet meer bestaat, zet dan in `build.yaml` een
-recentere combinatie van Python en Alpine.
+Het basisimage staat bovenaan de `Dockerfile`, in de `FROM`-regel. Home
+Assistant publiceert die images als multi-platform manifest, dus één regel geldt
+voor alle architecturen. De oude `build.yaml` met een image per architectuur is
+door Home Assistant afgevoerd en zit hier niet meer in.
+
+Home Assistant onderhoudt alleen basisimages die nog ondersteund worden. Loopt
+het bouwen ooit vast omdat het image niet meer bestaat, zet dan in de
+`FROM`-regel een recentere combinatie van Python en Alpine.
+
+## Architecturen
+
+De add-on wordt gebouwd voor `aarch64` en `amd64`. De 32-bits varianten `armv7`
+en `armhf` zijn bij Home Assistant afgevoerd; een Raspberry Pi 3 of 4 draait
+tegenwoordig een 64-bits systeem en valt onder `aarch64`.

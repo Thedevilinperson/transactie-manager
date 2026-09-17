@@ -4,6 +4,23 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.9.3] — 2026-09-17
+
+### Gewijzigd
+- **`build.yaml` is weg; het basisimage staat nu in de Dockerfile.** Home
+  Assistant heeft dat bestand afgevoerd en meldde dat in het logboek. Omdat de
+  basisimages tegenwoordig als multi-platform manifest gepubliceerd worden,
+  volstaat één `FROM`-regel voor alle architecturen; Docker kiest zelf de juiste
+  variant. De labels uit `build.yaml` staan nu als `LABEL` in de Dockerfile.
+- **`armv7` is uit de lijst met architecturen gehaald.** Home Assistant heeft de
+  32-bits varianten afgevoerd en waarschuwde daarvoor. Een Raspberry Pi 3 of 4
+  draait tegenwoordig een 64-bits systeem en valt onder `aarch64`. De add-on
+  wordt nog gebouwd voor `aarch64` en `amd64`.
+
+Allebei de waarschuwingen uit het logboek van de Supervisor zijn daarmee weg.
+Aan de toepassing zelf verandert niets.
+
+
 ## [0.9.2] — 2026-09-17
 
 ### Gewijzigd

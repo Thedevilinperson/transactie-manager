@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.9.2
+Versie 0.9.3
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -633,8 +633,8 @@ Duurt het bouwen erg lang op een Raspberry Pi, dan is dat normaal:
 `cryptography` moet daar gecompileerd worden.
 
 **Het bouwen stopt op het basisimage.** Home Assistant onderhoudt alleen
-basisimages die nog ondersteund worden. Zet in `transactie_manager/build.yaml`
-een recentere combinatie van Python en Alpine.
+basisimages die nog ondersteund worden. Zet in de `FROM`-regel bovenaan
+`transactie_manager/Dockerfile` een recentere combinatie van Python en Alpine.
 
 **Ik zie plots een tweede zijbalk van Home Assistant binnen de add-on.** Dat
 hoort niet meer voor te vallen vanaf versie 0.4.2. Kom je het toch tegen,

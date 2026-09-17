@@ -4,7 +4,7 @@ Huishoudboekje op basis van bankafschriften. Draait als Home Assistant-add-on of
 lokaal op Windows, Linux en macOS. Toegang met een eigen gebruikersnaam en
 wachtwoord; de gegevens staan versleuteld in de databank.
 
-**Versie 0.9.2** — zie [het wijzigingslogboek](transactie_manager/CHANGELOG.md)
+**Versie 0.9.3** — zie [het wijzigingslogboek](transactie_manager/CHANGELOG.md)
 voor de wijzigingen en
 [docs/HANDLEIDING.md](docs/HANDLEIDING.md) voor de volledige handleiding.
 
@@ -93,7 +93,6 @@ transactie-manager/
 ├── repository.yaml           hierdoor herkent Home Assistant de repository
 ├── transactie_manager/       de add-on, en tegelijk de toepassing zelf
 │   ├── config.yaml           naam, ingress, instellingen
-│   ├── build.yaml            basisimage per architectuur
 │   ├── Dockerfile
 │   ├── run.sh                startscript binnen de add-on
 │   ├── CHANGELOG.md          het wijzigingslogboek, gelezen door Home Assistant
