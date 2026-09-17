@@ -32,9 +32,7 @@ class Regelrij:
 
 def _rijen(conn, crypto, filters: Filters, platte, *, velden_nodig: bool):
     """Haalt de transacties op en levert per rij het nodige, al ontsleuteld."""
-    # Bewust zonder richtingsfilter: zie de uitleg bij Filters.sql. Het saldo
-    # per categorie telt, niet de rijen die toevallig één kant op gaan.
-    waar, params = filters.sql(met_richting=False)
+    waar, params = filters.sql()
     kolommen = ("boekdatum, bedrag_enc, categorie_id, subcategorie_id, subsub_id"
                 + (", land_enc, handelaar_enc" if velden_nodig else ""))
     toegelaten = (nakomelingen(platte, filters.categorie_id)
@@ -77,13 +75,9 @@ def jaartabel(conn, crypto, filters: Filters):
         bedragen[(row["categorie_id"], row["subcategorie_id"],
                   row["subsub_id"])][jaar] += bedrag
 
-    # Bij één richting tonen we de grootte: een uitgavenoverzicht vol minnen
-    # leest niet. Bij allebei blijft het teken staan, want dan is het een saldo.
-    if filters.richting == "uit":
-        for sleutel in bedragen:
-            for jaar in bedragen[sleutel]:
-                bedragen[sleutel][jaar] *= -1
-
+    # Het teken blijft staan zoals het geboekt is: uitgaven negatief, inkomsten
+    # positief. Overal hetzelfde, of je nu één richting of allebei bekijkt, zodat
+    # een kolom nooit plus en min door elkaar toont.
     jaren_gesorteerd = sorted(jaren, reverse=True)
     wortels = bouw_boom(platte, alfabetisch=True)
 
@@ -102,11 +96,6 @@ def jaartabel(conn, crypto, filters: Filters):
         rij.totaal = sum(rij.per_jaar.values(), Decimal("0"))
         if rij.totaal == 0 and not rij.kinderen:
             return None
-        # Bij een gekozen richting blijft weg wat per saldo de andere kant
-        # opgaat: een categorie die netto geld opleverde hoort niet tussen de
-        # uitgaven.
-        if filters.richting in ("in", "uit") and rij.totaal < 0 and not rij.kinderen:
-            return None
         if beperking is not None and cat.id not in beperking and not rij.kinderen:
             return None
         return rij
@@ -116,11 +105,8 @@ def jaartabel(conn, crypto, filters: Filters):
         if beperking is not None and wortel.id not in beperking:
             continue
         rij = bouw(wortel, (wortel.id,))
-        if rij is None:
-            continue
-        if filters.richting in ("in", "uit") and rij.totaal <= 0:
-            continue
-        rijen.append(rij)
+        if rij is not None:
+            rijen.append(rij)
 
     zonder = defaultdict(Decimal)
     for sleutel, per_jaar in bedragen.items():
@@ -194,16 +180,10 @@ def reeksen(conn, crypto, filters: Filters, maximum: int = 12):
         perioden.add(periode)
         per_label[_label(row, platte, filters.groepering, land, winkel)][periode] += bedrag
 
-    if filters.richting == "uit":
-        for naam in per_label:
-            for periode in per_label[naam]:
-                per_label[naam][periode] *= -1
-    if filters.richting in ("in", "uit"):
-        per_label = {n: w for n, w in per_label.items()
-                     if sum(w.values(), Decimal("0")) > 0}
-
     labels = sorted(perioden)
-    op_totaal = sorted(per_label.items(), key=lambda p: -sum(p[1].values(), Decimal("0")))
+    # Op grootte sorteren, niet op teken: anders staat een grote uitgave achteraan.
+    op_totaal = sorted(per_label.items(),
+                       key=lambda p: -abs(sum(p[1].values(), Decimal("0"))))
 
     uitvoer = []
     for naam, waarden in op_totaal[:maximum]:
@@ -236,18 +216,23 @@ def verdeling(conn, crypto, filters: Filters, maximum: int = 12):
                                             velden_nodig=velden_nodig):
         per_label[_label(row, platte, filters.groepering, land, winkel)] += bedrag
 
-    if filters.richting == "uit":
-        per_label = {n: -b for n, b in per_label.items()}
-    # Een taart van gemengde tekens zegt niets; negatieve delen blijven weg.
-    per_label = {n: b for n, b in per_label.items() if b > 0}
+    # Een taart toont verhoudingen, dus de grootte van elk deel. Delen die de
+    # andere kant opgaan dan de rest zouden de verhouding onleesbaar maken en
+    # blijven weg; hoeveel dat er zijn wordt hieronder gemeld.
+    teken = -1 if filters.richting == "uit" else 1
+    if filters.richting not in ("in", "uit"):
+        teken = 1 if sum(per_label.values(), Decimal("0")) >= 0 else -1
+    passend = {n: abs(b) for n, b in per_label.items()
+               if b != 0 and (b > 0) == (teken > 0)}
+    weggelaten = len(per_label) - len(passend)
 
-    op_totaal = sorted(per_label.items(), key=lambda p: -p[1])
+    op_totaal = sorted(passend.items(), key=lambda p: -p[1])
     stukken = [{"naam": n, "waarde": float(b)} for n, b in op_totaal[:maximum]]
     rest = op_totaal[maximum:]
     if rest:
         stukken.append({"naam": f"Overige ({len(rest)})",
                         "waarde": float(sum((b for _n, b in rest), Decimal("0")))})
-    return stukken, float(sum(per_label.values(), Decimal("0")))
+    return stukken, float(sum(passend.values(), Decimal("0"))), weggelaten
 
 
 def kerncijfers(conn, crypto, jaren_tonen: int = 8) -> dict:

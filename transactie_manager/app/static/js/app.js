@@ -328,28 +328,45 @@
     var series = gegevens.series || [];
     if (!labels.length || !series.length) return;
 
-    var breedte = 920, hoogte = 420;
-    var marge = { boven: 16, rechts: 18, onder: 46, links: 78 };
+    var breedte = 920, hoogte = 440;
+    var marge = { boven: 16, rechts: 18, onder: 46, links: 86 };
     var vlakB = breedte - marge.links - marge.rechts;
     var vlakH = hoogte - marge.boven - marge.onder;
 
-    var totalen = labels.map(function (_l, i) {
-      return series.reduce(function (som, reeks) { return som + (reeks.waarden[i] || 0); }, 0);
+    // Uitgaven zijn negatief geboekt en horen dus onder de nullijn. Boven en
+    // onder worden apart opgestapeld, zodat een periode met allebei klopt.
+    var boven = [], onder = [], netto = [];
+    labels.forEach(function (_l, i) {
+      var op = 0, neer = 0;
+      series.forEach(function (reeks) {
+        var w = reeks.waarden[i] || 0;
+        if (w >= 0) op += w; else neer += w;
+      });
+      boven.push(op); onder.push(neer); netto.push(op + neer);
     });
-    var max = Math.max.apply(null, totalen) || 1;
-    var stap = Math.pow(10, Math.floor(Math.log10(max)));
-    var bovengrens = Math.ceil(max / stap) * stap;
+
+    var hoogste = Math.max.apply(null, boven.concat([0]));
+    var laagste = Math.min.apply(null, onder.concat([0]));
+    var bereik = hoogste - laagste || 1;
+    var stap = Math.pow(10, Math.floor(Math.log10(bereik)));
+    var bovengrens = Math.ceil(hoogste / stap) * stap;
+    var ondergrens = Math.floor(laagste / stap) * stap;
+    if (bovengrens === ondergrens) bovengrens = ondergrens + stap;
+
+    function y(waarde) {
+      return marge.boven + vlakH -
+        (vlakH * (waarde - ondergrens)) / (bovengrens - ondergrens);
+    }
 
     var vakbreedte = vlakB / labels.length;
     var staaf = Math.min(vakbreedte * 0.68, 64);
-
-    function y(waarde) { return marge.boven + vlakH - (vlakH * waarde) / bovengrens; }
+    var nullijn = y(0);
 
     var svg = ['<svg viewBox="0 0 ' + breedte + " " + hoogte +
       '" class="grafiek" role="img" aria-label="Gestapelde staafgrafiek">'];
 
-    for (var t = 0; t <= 4; t++) {
-      var waarde = (bovengrens / 4) * t;
+    for (var t = 0; t <= 5; t++) {
+      var waarde = ondergrens + ((bovengrens - ondergrens) / 5) * t;
       var yy = y(waarde);
       svg.push('<line x1="' + marge.links + '" y1="' + yy + '" x2="' +
         (breedte - marge.rechts) + '" y2="' + yy + '" stroke="#dbe1e9"/>');
@@ -357,16 +374,21 @@
         '" text-anchor="end" font-size="11" fill="#5a6675">' +
         Math.round(waarde).toLocaleString("nl-BE") + "</text>");
     }
+    svg.push('<line x1="' + marge.links + '" y1="' + nullijn + '" x2="' +
+      (breedte - marge.rechts) + '" y2="' + nullijn + '" stroke="#5a6675"/>');
 
     labels.forEach(function (label, i) {
       var x = marge.links + vakbreedte * i + (vakbreedte - staaf) / 2;
-      var onder = marge.boven + vlakH;
+      var opTop = y(boven[i]);
+      var neerTop = nullijn;
       series.forEach(function (reeks, index) {
         var waarde = reeks.waarden[i] || 0;
-        if (waarde <= 0) return;
-        var hoog = (vlakH * waarde) / bovengrens;
-        onder -= hoog;
-        svg.push('<rect x="' + x + '" y="' + onder + '" width="' + staaf +
+        if (waarde === 0) return;
+        var hoog = Math.abs(y(0) - y(Math.abs(waarde)));
+        var top;
+        if (waarde > 0) { top = opTop; opTop += hoog; }
+        else { top = neerTop; neerTop += hoog; }
+        svg.push('<rect x="' + x + '" y="' + top + '" width="' + staaf +
           '" height="' + hoog + '" fill="' + PALET[index % PALET.length] + '">' +
           "<title>" + reeks.naam + " " + label + ": " +
           Math.round(waarde).toLocaleString("nl-BE") + " EUR</title></rect>");
@@ -375,7 +397,7 @@
         '" text-anchor="middle" font-size="11" fill="#5a6675">' + label + "</text>");
       svg.push('<text x="' + (x + staaf / 2) + '" y="' + (hoogte - 12) +
         '" text-anchor="middle" font-size="10" fill="#8b95a3">' +
-        Math.round(totalen[i]).toLocaleString("nl-BE") + "</text>");
+        Math.round(netto[i]).toLocaleString("nl-BE") + "</text>");
     });
 
     svg.push("</svg>");

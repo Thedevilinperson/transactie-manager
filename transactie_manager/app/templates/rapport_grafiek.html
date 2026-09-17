@@ -19,6 +19,9 @@
     <div data-stapelgrafiek
          data-reeksen='{{ {"labels": labels, "series": series}|tojson }}'></div>
     <div class="legende"></div>
+    <p class="klein-detail" style="margin-top:10px">Uitgaven staan onder de
+      nullijn, inkomsten erboven. Onder elke staaf staat het saldo van die
+      periode.</p>
   {% else %}
     <div class="leeg"><strong>Geen cijfers voor deze selectie</strong>
       Pas de filters hierboven aan.</div>
@@ -32,6 +35,14 @@
               anker='verdeling') }}
 
 <div class="vlak">
+  {% if taart_weggelaten %}
+    <div class="melding fout">
+      {{ taart_weggelaten }} onderdelen gaan de andere kant op dan de rest en
+      staan niet in de taart. Een taart toont verhoudingen; plus en min door
+      elkaar laat zich niet als verhouding tekenen. Kies bij <em>Soort</em>
+      uitdrukkelijk uitgaven of inkomsten om ze allemaal te zien.
+    </div>
+  {% endif %}
   {% if stukken %}
     <div data-taartgrafiek
          data-stukken='{{ {"stukken": stukken, "totaal": taart_totaal}|tojson }}'></div>

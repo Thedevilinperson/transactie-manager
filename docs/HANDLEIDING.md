@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.9.3
+Versie 0.9.4
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -481,6 +481,11 @@ of vraag het AI-model om een voorstel.
 **Jaartabel** in het menu. De rijen zijn je categorieën, de kolommen zijn de
 jaren. Klik op het driehoekje om een categorie open te klappen tot het derde
 niveau.
+
+Uitgaven staan als negatief bedrag, inkomsten als positief. Kies je bij *Soort*
+voor uitgaven, dan zie je alleen de uitgaande boekingen; wil je het saldo van een
+categorie, kies dan *Alle*. Een categorie als Loon waar zowel loon binnenkomt als
+onkosten uitgaan, toont bij *Alle* dus het verschil.
 
 Filteren kan op soort, op hoofdcategorie, op rekening en op periode. Met
 **Nazicht weglaten** reken je alleen met wat je bevestigd hebt.

@@ -1,5 +1,5 @@
 name: Transactie Manager
-version: "0.9.3"
+version: "0.9.4"
 slug: transactie_manager
 description: >-
   Huishoudboekje op basis van bankafschriften, met versleutelde opslag,

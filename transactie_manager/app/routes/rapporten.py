@@ -81,11 +81,12 @@ def grafiek():
     taart_args = {k[2:]: v for k, v in request.args.lists() if k.startswith("t_")}
     if taart_args:
         taart = _met_voorvoegsel(taart_args)
-    stukken, taart_totaal = verdeling(conn, crypto, taart)
+    stukken, taart_totaal, taart_weggelaten = verdeling(conn, crypto, taart)
 
     return render_template(
         "rapport_grafiek.html",
         labels=labels, series=series, stukken=stukken, taart_totaal=taart_totaal,
+        taart_weggelaten=taart_weggelaten,
         taart=taart, **_context(conn, crypto, staaf),
     )
 

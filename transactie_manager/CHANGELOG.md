@@ -4,6 +4,28 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.9.4] — 2026-09-17
+
+### Gewijzigd
+- **Uitgaven staan nu als negatief getal, inkomsten als positief**, overal en
+  altijd. Voordien werd het teken omgedraaid zodra je één richting koos,
+  waardoor een kolom plus en min door elkaar toonde en het jaartotaal niet meer
+  te volgen was.
+- **De keuze bij *Soort* filtert weer de rijen.** In 0.9.1 werd er per categorie
+  gesaldeerd, met als gevolg dat een categorie waar per saldo geld binnenkwam
+  volledig uit het uitgavenoverzicht verdween. Bij *Loon* met onkosten die later
+  terugbetaald worden, zag je dan niets staan terwijl er wel degelijk uitgaven
+  op geboekt zijn. Die onkosten staan er nu gewoon, als negatief bedrag.
+- Wil je het saldo van een categorie zien, kies dan *Alle* bij Soort. Loon met
+  €3.000 binnen en €180 onkosten geeft dan €2.820; bij *Uitgaven* staat er
+  -€180 en bij *Inkomsten* €3.000.
+- **De staafgrafiek tekent nu rond een nullijn.** Uitgaven gaan eronder,
+  inkomsten erboven, en onder elke staaf staat het saldo van die periode.
+- De taart toont de grootte van elk deel. Gaan er onderdelen de andere kant op
+  dan de rest, dan blijven die weg en staat erboven hoeveel dat er zijn: plus en
+  min door elkaar laat zich niet als verhouding tekenen.
+
+
 ## [0.9.3] — 2026-09-17
 
 ### Gewijzigd
