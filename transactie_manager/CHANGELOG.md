@@ -4,6 +4,42 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.9.5] — 2026-09-17
+
+### Opgelost
+- **Boekingen met dezelfde bankreferentie maar een ander bedrag verdwenen bij
+  het inlezen.** De vingerafdruk op de referentie bevatte enkel het teken van
+  het bedrag, niet het bedrag zelf. Twee afschrijvingen onder één referentie —
+  bijvoorbeeld een deelbetaling van 370,20 en een saldo van 140,60 op dezelfde
+  kaartafrekening — kregen daardoor exact dezelfde afdruk, waarna de tweede voor
+  een dubbel werd aangezien. De aanname erachter, dat een bankreferentie uniek
+  is per verrichting, gaat bij Argenta niet altijd op. Het volledige bedrag zit
+  nu in de afdruk.
+- **Erger dan overslaan alleen: met *Bestaande transacties aanvullen* aangevinkt
+  kon de tweede boeking lege velden van de eerste invullen met haar eigen
+  gegevens.** Een verrichting die er niet bijkwam, vervuilde zo stilletjes een
+  andere. Dat kan nu niet meer.
+- De melding op het nazichtscherm klopte evenmin: ze wees naar een rij met een
+  ander bedrag. Een rij geldt nu pas als dubbel binnen het bestand wanneer
+  referentie én bedrag allebei overeenkomen, en de melding zegt dat er ook bij.
+
+### Terug te halen
+- Bied de afschriften waarin dit speelde opnieuw aan. De ontbrekende lijnen
+  worden toegevoegd; wat er al staat blijft ongemoeid. Rijen die al onder de
+  oudere afdrukken in de databank staan, worden nog steeds teruggevonden — met
+  een controle op het bedrag erbij — dus er komt niets dubbel bij en een
+  migratie van de databank is niet nodig.
+- Wil je weten of het jou raakte: op het scherm *Bekijk wat er niet is
+  toegevoegd* staan de betrokken rijen onder de reden *komt twee keer voor in
+  dit bestand*. Staan daar rijen met verschillende bedragen naast elkaar, dan
+  waren die ten onrechte overgeslagen.
+
+### Blijft zo
+- Dezelfde referentie mét hetzelfde bedrag twee keer in één bestand telt nog
+  altijd als één verrichting. Hoort dat in jouw geval wel twee keer te staan,
+  voeg de rij dan toe via *Toch toevoegen* op het nazichtscherm.
+
+
 ## [0.9.4] — 2026-09-17
 
 ### Gewijzigd

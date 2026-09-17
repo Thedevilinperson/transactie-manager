@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.9.4
+Versie 0.9.5
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -210,11 +210,17 @@ tegenpartij vormt ze de sleutel waarop de referentielijst werkt.
 Klik daarna op de knop met het aantal rijen. Je krijgt te zien hoeveel
 transacties nieuw zijn, hoeveel er al stonden en hoeveel er onleesbaar waren.
 
-**Dubbels.** Ontdubbelen gebeurt op de referentie van de bank, want die is uniek
-per verrichting. Ontbreekt die kolom, dan valt de toepassing terug op een
-vingerafdruk van datum, bedrag, rekening, tegenpartij en mededeling. Je mag dus
-gerust overlappende afschriften inlezen; wat er al staat, komt er niet nog eens
-bij.
+**Dubbels.** Ontdubbelen gebeurt op de referentie van de bank sámen met het
+bedrag. Een referentie op zichzelf volstaat niet: Argenta hangt aan één
+kaartafrekening soms twee boekingen met dezelfde referentie maar een
+verschillend bedrag, en die zijn allebei echt. Ontbreekt de referentiekolom, dan
+valt de toepassing terug op een vingerafdruk van datum, bedrag, rekening,
+tegenpartij en mededeling. Je mag dus gerust overlappende afschriften inlezen;
+wat er al staat, komt er niet nog eens bij.
+
+Staat dezelfde referentie mét hetzelfde bedrag twee keer in één bestand, dan
+wordt dat als één verrichting gezien. Hoort ze er in jouw geval wel twee keer te
+staan, voeg de tweede dan toe via *Toch toevoegen* op het scherm hieronder.
 
 **Voortgang.** Grote bestanden worden in de achtergrond verwerkt. Je ziet de
 fase, het aantal verwerkte rijen en de verstreken tijd. Je mag het venster
@@ -228,8 +234,8 @@ staan.
 
 **Wat er niet is toegevoegd.** Na een invoer staat er een knop *Bekijk wat er
 niet is toegevoegd*. Daar zie je per rij waarom ze geen nieuwe transactie werd:
-ze stond al in de databank, ze komt twee keer voor in het bestand, of de datum
-of het bedrag was onleesbaar. Klopt een beoordeling niet, dan voeg je de rij
+ze stond al in de databank, ze komt met dezelfde referentie én hetzelfde bedrag
+twee keer in het bestand voor, of de datum of het bedrag was onleesbaar. Klopt een beoordeling niet, dan voeg je de rij
 daar alsnog toe; de dubbelcontrole wordt dan overgeslagen. Hetzelfde scherm is
 later terug te vinden via *Eerdere invoer*.
 

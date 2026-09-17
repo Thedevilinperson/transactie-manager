@@ -132,13 +132,31 @@ def _oude_vingerafdruk(crypto, rekening_id: int, boekdatum, bedrag: Decimal,
 def referentieafdruk(crypto, rekening_id: int, referentie: str, bedrag: Decimal) -> str:  # noqa: E501
     """Vingerafdruk op de bankreferentie.
 
-    Sommige banken geven een boeking en haar tegenboeking dezelfde referentie.
-    Daarom telt het teken van het bedrag mee. Ook hier houden negatieve bedragen
-    hun oude vorm.
+    Een bankreferentie is niet altijd uniek per verrichting. Argenta hangt aan
+    één kaartafrekening soms meerdere boekingen met dezelfde referentie: een
+    deelbetaling en het saldo, of een boeking en haar tegenboeking. Stond enkel
+    het teken van het bedrag in de afdruk, dan kregen twee uitgaven onder
+    dezelfde referentie dezelfde afdruk en verdween de tweede. Het volledige
+    bedrag telt daarom mee.
     """
+    return crypto.fingerprint("ref", str(rekening_id), referentie,
+                              _bedragsleutel(Decimal(str(bedrag))))
+
+
+def _oude_referentieafdrukken(crypto, rekening_id: int, referentie: str,
+                              bedrag: Decimal) -> list[str]:
+    """De vormen van vóór de bedragcorrectie, om bestaande rijen terug te vinden.
+
+    Twee stuks: die van 0.8.3, met enkel het teken erin, en die van daarvoor,
+    zonder teken. Ze mogen alleen gebruikt worden sámen met een controle op het
+    bedrag, want ze zijn juist niet fijn genoeg om twee bedragen onder dezelfde
+    referentie uit elkaar te houden.
+    """
+    zonder_teken = crypto.fingerprint("ref", str(rekening_id), referentie)
     if Decimal(str(bedrag)) < 0:
-        return crypto.fingerprint("ref", str(rekening_id), referentie)
-    return crypto.fingerprint("ref", str(rekening_id), referentie, "plus")
+        return [zonder_teken]
+    return [crypto.fingerprint("ref", str(rekening_id), referentie, "plus"),
+            zonder_teken]
 
 
 def _zoek_op_afdruk(conn, crypto, afdruk: str, bedrag: Decimal | None = None):
@@ -179,24 +197,26 @@ def bewaar(conn, crypto, *, rekening_id: int, boekdatum: date | str, bedrag: Dec
         # De gebruiker heeft uitdrukkelijk gezegd dat dit géén dubbel is.
         import secrets
         afdruk = crypto.fingerprint("forceer", secrets.token_hex(16))
-        oud = ""
+        oude: list[str] = []
     elif referentie:
         afdruk = referentieafdruk(crypto, rekening_id, referentie, bedrag)
-        oud = crypto.fingerprint("ref", str(rekening_id), referentie)
+        oude = _oude_referentieafdrukken(crypto, rekening_id, referentie, bedrag)
     else:
         afdruk = vingerafdruk(crypto, rekening_id, datum, bedrag,
                               tegenpartij_rekening, mededeling, tegenpartij_naam,
                               volgnummer)
-        oud = _oude_vingerafdruk(crypto, rekening_id, datum, bedrag,
-                                 tegenpartij_rekening, mededeling, tegenpartij_naam,
-                                 volgnummer)
+        oude = [o for o in [_oude_vingerafdruk(
+            crypto, rekening_id, datum, bedrag, tegenpartij_rekening, mededeling,
+            tegenpartij_naam, volgnummer)] if o]
 
     if _zoek_op_afdruk(conn, crypto, afdruk) is not None:
         return None
-    # Rijen van vóór de tekencorrectie dragen nog de oude afdruk. Het bedrag moet
-    # dan wel kloppen, anders zou een tegenboeking alsnog verdwijnen.
-    if oud and oud != afdruk and _zoek_op_afdruk(conn, crypto, oud, bedrag) is not None:
-        return None
+    # Rijen van vóór de tekencorrectie dragen nog een oudere afdruk. Het bedrag
+    # moet dan wel kloppen, anders zou een tegenboeking alsnog verdwijnen — of,
+    # bij twee boekingen onder dezelfde referentie, de tweede daarvan.
+    for oud in oude:
+        if oud != afdruk and _zoek_op_afdruk(conn, crypto, oud, bedrag) is not None:
+            return None
 
     voorstel = voorstel or Voorstel()
     handelaar = handelaar or (voorstel.handelaar or "")
@@ -249,7 +269,8 @@ def bestaande_id(conn, crypto, *, rekening_id: int, boekdatum, bedrag: Decimal,
 
     Drie manieren, van betrouwbaar naar minder betrouwbaar:
 
-    1. de referentie van de bank, die uniek is per verrichting;
+    1. de referentie van de bank samen met het bedrag, want een referentie op
+       zichzelf is niet altijd uniek per verrichting;
     2. een vingerafdruk over de hele rij;
     3. rekening, datum, bedrag en rekening van de tegenpartij samen.
 
@@ -267,9 +288,11 @@ def bestaande_id(conn, crypto, *, rekening_id: int, boekdatum, bedrag: Decimal,
         gevonden = _zoek_op_afdruk(
             conn, crypto, referentieafdruk(crypto, rekening_id, referentie, bedrag))
         if gevonden is None:
-            gevonden = _zoek_op_afdruk(
-                conn, crypto, crypto.fingerprint("ref", str(rekening_id), referentie),
-                bedrag)
+            for oud in _oude_referentieafdrukken(crypto, rekening_id, referentie,
+                                                 bedrag):
+                gevonden = _zoek_op_afdruk(conn, crypto, oud, bedrag)
+                if gevonden is not None:
+                    break
         if gevonden is not None:
             return gevonden
 

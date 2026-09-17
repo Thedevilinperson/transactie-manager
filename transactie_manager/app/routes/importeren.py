@@ -251,7 +251,8 @@ def _verwerk(taak, pad: Path, crypto, inst: dict) -> dict:
             tegenpartij_rek = (normalize_iban(velden["tegenpartij_rekening"])
                                or velden["tegenpartij_rekening"])
 
-            # Alleen nodig wanneer er geen referentie is; die is al uniek.
+            # Alleen nodig wanneer er geen referentie is. Met een referentie
+            # erbij houden referentie en bedrag samen de rijen uit elkaar.
             volgnummer = 1
             if not velden["referentie"]:
                 sleutel = (rekening_id, str(velden["boekdatum"]), str(bedrag),
@@ -268,11 +269,15 @@ def _verwerk(taak, pad: Path, crypto, inst: dict) -> dict:
                 volgnummer=volgnummer,
             )
 
-            # Dezelfde bankreferentie twee keer in één bestand is geen dubbel
-            # van de databank maar een dubbel binnen het bestand zelf.
-            in_bestand = velden["referentie"] and velden["referentie"] in gezien_referenties
-            if velden["referentie"]:
-                gezien_referenties.setdefault(velden["referentie"], nummer)
+            # Dezelfde bankreferentie én hetzelfde bedrag twee keer in één
+            # bestand is geen dubbel van de databank maar een dubbel binnen het
+            # bestand zelf. Verschilt het bedrag, dan zijn het twee aparte
+            # boekingen onder één referentie en hoort er niets weg te vallen.
+            ref_sleutel = ((velden["referentie"], str(bedrag))
+                           if velden["referentie"] else None)
+            in_bestand = ref_sleutel is not None and ref_sleutel in gezien_referenties
+            if ref_sleutel is not None:
+                gezien_referenties.setdefault(ref_sleutel, nummer)
 
             if bestaand is not None:
                 aangeraakt.add(bestaand)
@@ -289,8 +294,8 @@ def _verwerk(taak, pad: Path, crypto, inst: dict) -> dict:
                     ongewijzigd += 1
                     if in_bestand:
                         noteer(nummer, "dubbel_bestand",
-                               "Dezelfde bankreferentie staat ook op rij "
-                               f"{gezien_referenties[velden['referentie']]}.",
+                               "Dezelfde bankreferentie met hetzelfde bedrag "
+                               f"staat ook op rij {gezien_referenties[ref_sleutel]}.",
                                ruw, bestaand)
                     else:
                         noteer(nummer, "dubbel_databank",
