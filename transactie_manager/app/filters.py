@@ -83,12 +83,22 @@ class Filters:
         )
 
     # -- SQL-gedeelte -------------------------------------------------------
-    def sql(self, *, alleen_ingedeeld: bool = False) -> tuple[str, list]:
+    def sql(self, *, alleen_ingedeeld: bool = False,
+            met_richting: bool = True) -> tuple[str, list]:
+        """Bouwt het WHERE-gedeelte.
+
+        `met_richting` bepaalt of de richting als filter op de rijen geldt. In
+        een lijst van transacties hoort dat zo: vraag je om uitgaven, dan wil je
+        geen inkomsten zien. In een overzicht per categorie hoort dat net niet:
+        daar moet een terugbetaling of een tegenboeking van de uitgave áfgaan.
+        Zou je die rijen wegfilteren, dan blijft de uitgave voor het volle bedrag
+        staan terwijl ze teruggedraaid is.
+        """
         stukken = ["is_afrekening = 0"]
         params: list = []
         if alleen_ingedeeld:
             stukken.append("categorie_id IS NOT NULL")
-        if self.richting in ("in", "uit"):
+        if met_richting and self.richting in ("in", "uit"):
             stukken.append("richting = ?")
             params.append(self.richting)
         if self.rekening_id:

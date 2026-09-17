@@ -4,6 +4,29 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.9.1] — 2026-09-17
+
+### Opgelost
+- **Terugbetalingen en tegenboekingen gingen niet van de uitgave af.** In de
+  jaartabel en de grafieken werkte de keuze *Uitgaven* als een filter op de
+  rijen: alles wat de andere kant opging verdween. Een kaartafrekening van
+  5 646,24 bleef dan voor het volle bedrag als uitgave staan terwijl de
+  tegenboeking van +5 646,24 werd weggelaten. Hetzelfde gold voor een
+  terugbetaling binnen een uitgavencategorie.
+- In de overzichten telt nu het saldo per categorie. Vraag je om uitgaven, dan
+  wordt er over alle rijen van die categorie opgeteld, met teken, en pas daarna
+  omgekeerd voor de weergave. Honderd euro boodschappen met dertig euro terug
+  geeft zeventig. Een afrekening die volledig teruggedraaid is, komt op nul uit
+  en verdwijnt uit het overzicht.
+- Categorieën die per saldo de andere kant opgaan blijven weg bij een gekozen
+  richting. Een categorie die netto geld opleverde hoort niet tussen de uitgaven.
+- Een categorie werd ook niet meer weggelaten op grond van haar soort. Stond er
+  een inkomst in een uitgavencategorie, dan verdween die eerder uit beeld zonder
+  dat je het merkte.
+- In de transactielijst blijft de richting gewoon een filter op de rijen: vraag
+  je daar om uitgaven, dan wil je geen inkomsten in de lijst zien.
+
+
 ## [0.9.0] — 2026-09-17
 
 ### Toegevoegd

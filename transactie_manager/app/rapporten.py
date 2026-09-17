@@ -32,7 +32,9 @@ class Regelrij:
 
 def _rijen(conn, crypto, filters: Filters, platte, *, velden_nodig: bool):
     """Haalt de transacties op en levert per rij het nodige, al ontsleuteld."""
-    waar, params = filters.sql()
+    # Bewust zonder richtingsfilter: zie de uitleg bij Filters.sql. Het saldo
+    # per categorie telt, niet de rijen die toevallig één kant op gaan.
+    waar, params = filters.sql(met_richting=False)
     kolommen = ("boekdatum, bedrag_enc, categorie_id, subcategorie_id, subsub_id"
                 + (", land_enc, handelaar_enc" if velden_nodig else ""))
     toegelaten = (nakomelingen(platte, filters.categorie_id)
@@ -77,16 +79,13 @@ def jaartabel(conn, crypto, filters: Filters):
 
     # Bij één richting tonen we de grootte: een uitgavenoverzicht vol minnen
     # leest niet. Bij allebei blijft het teken staan, want dan is het een saldo.
-    teken = -1 if filters.richting == "uit" else 1
-    if teken == -1:
+    if filters.richting == "uit":
         for sleutel in bedragen:
             for jaar in bedragen[sleutel]:
                 bedragen[sleutel][jaar] *= -1
 
     jaren_gesorteerd = sorted(jaren, reverse=True)
     wortels = bouw_boom(platte)
-    if filters.richting in ("in", "uit"):
-        wortels = [c for c in wortels if c.soort in (filters.richting, "beide")]
 
     def bouw(cat: Categorie, pad: tuple):
         eigen = pad + (None,) * (3 - len(pad))
@@ -103,6 +102,11 @@ def jaartabel(conn, crypto, filters: Filters):
         rij.totaal = sum(rij.per_jaar.values(), Decimal("0"))
         if rij.totaal == 0 and not rij.kinderen:
             return None
+        # Bij een gekozen richting blijft weg wat per saldo de andere kant
+        # opgaat: een categorie die netto geld opleverde hoort niet tussen de
+        # uitgaven.
+        if filters.richting in ("in", "uit") and rij.totaal < 0 and not rij.kinderen:
+            return None
         if beperking is not None and cat.id not in beperking and not rij.kinderen:
             return None
         return rij
@@ -112,8 +116,11 @@ def jaartabel(conn, crypto, filters: Filters):
         if beperking is not None and wortel.id not in beperking:
             continue
         rij = bouw(wortel, (wortel.id,))
-        if rij is not None:
-            rijen.append(rij)
+        if rij is None:
+            continue
+        if filters.richting in ("in", "uit") and rij.totaal <= 0:
+            continue
+        rijen.append(rij)
 
     zonder = defaultdict(Decimal)
     for sleutel, per_jaar in bedragen.items():
@@ -191,6 +198,9 @@ def reeksen(conn, crypto, filters: Filters, maximum: int = 12):
         for naam in per_label:
             for periode in per_label[naam]:
                 per_label[naam][periode] *= -1
+    if filters.richting in ("in", "uit"):
+        per_label = {n: w for n, w in per_label.items()
+                     if sum(w.values(), Decimal("0")) > 0}
 
     labels = sorted(perioden)
     op_totaal = sorted(per_label.items(), key=lambda p: -sum(p[1].values(), Decimal("0")))
