@@ -2,13 +2,13 @@
    knopje dat een paneeltje opent, zodat de balk op één lijn blijft. Elke
    wijziging past de selectie meteen toe. #}
 
-{% macro paneel(titel, aantal, inhoud_id) %}{% endmacro %}
-
 {% macro filterbalk(filters, keuzes, rekeningen, hoofdcategorieen, doel,
                     p='', toon_zoeken=false, toon_status=false, toon_bron=false,
                     toon_groepering=false, toon_uitsluiten=false,
-                    alle_categorieen=none, methoden=none, statussen=none) %}
-<form method="get" action="{{ doel }}" class="filterblok" data-autofilter>
+                    alle_categorieen=none, methoden=none, statussen=none,
+                    anker='') %}
+<form method="get" action="{{ doel }}" class="filterblok" data-autofilter
+      {% if anker %}data-anker="{{ anker }}"{% endif %}>
   <div class="filterlijn">
 
     {% if toon_zoeken %}
@@ -167,7 +167,7 @@
       <details class="keuzeknop">
         <summary>Uitsluiten{% if uit_aantal %}
           <span class="teller">{{ uit_aantal }}</span>{% endif %}</summary>
-        <div class="paneel breed">
+        <div class="paneel breed drie">
           <div class="paneelkolommen">
             <div>
               <label>Categorieën</label>
@@ -197,6 +197,19 @@
                 {% endfor %}
               </select>
             </div>
+            <div>
+              <label>Landen</label>
+              <input type="search" class="zoekinlijst" placeholder="Land zoeken"
+                     data-zoekt="{{ p }}uit_land" autocomplete="off">
+              <select name="{{ p }}uit_land" multiple size="9" class="meerkeuze"
+                      id="lijst-{{ p }}uit_land">
+                {% for naam, aantal in keuzes.landen %}
+                  <option value="{{ naam }}"
+                          {{ 'selected' if naam in filters.uit_landen }}>
+                    {{ naam }} ({{ aantal }})</option>
+                {% endfor %}
+              </select>
+            </div>
           </div>
         </div>
       </details>
@@ -206,8 +219,62 @@
       <input type="checkbox" name="{{ p }}alleen_bevestigd" value="1"
              {{ 'checked' if filters.alleen_bevestigd }}>Alleen bevestigd</label>
 
-    <a class="knop stil klein wisknop" href="{{ doel }}">Wissen</a>
+    <a class="knop stil klein wisknop" href="{{ doel }}">Alles wissen</a>
     <noscript><button type="submit" class="klein">Toepassen</button></noscript>
   </div>
+
+  {{ gekozen(filters, rekeningen, alle_categorieen, p, anker) }}
 </form>
+{% endmacro %}
+
+
+{# De keuzes die nu aanstaan, elk met een kruisje om net die ene weg te halen. #}
+{% macro merk(label, sleutel, waarde, anker) %}
+  <a class="filtermerk"
+     href="{{ url_for(request.endpoint, **zonder_filter(sleutel, waarde)) }}{{ '#' + anker if anker }}">
+    {{ label }}<span class="kruis">×</span></a>
+{% endmacro %}
+
+{% macro gekozen(filters, rekeningen, alle_categorieen, p='', anker='') %}
+  {% set namen = {} %}
+  {% for k in alle_categorieen or [] %}{% set _ = namen.update({k.id: k.naam}) %}{% endfor %}
+  {% set rek = {} %}
+  {% for r in rekeningen %}{% set _ = rek.update({r.id: r.naam}) %}{% endfor %}
+
+  {% set actief = filters.jaren or filters.landen or filters.winkels
+                  or filters.methoden or filters.uit_winkels or filters.uit_landen
+                  or filters.uit_categorieen or filters.hoofd_id or filters.rekening_id
+                  or filters.status or filters.alleen_bevestigd or filters.zoekterm %}
+  {% if actief %}
+    <div class="gekozenfilters">
+      <span class="filterlabel">Actief:</span>
+      {% if filters.zoekterm %}
+        {{ merk('zoeken: ' ~ filters.zoekterm, p ~ 'q', none, anker) }}{% endif %}
+      {% if filters.rekening_id %}
+        {{ merk(rek.get(filters.rekening_id, 'rekening'), p ~ 'rekening_id', none, anker) }}
+      {% endif %}
+      {% if filters.status %}
+        {{ merk('status: ' ~ filters.status, p ~ 'status', none, anker) }}{% endif %}
+      {% for m in filters.methoden %}
+        {{ merk('bron: ' ~ m, p ~ 'methode', m, anker) }}{% endfor %}
+      {% for j in filters.jaren %}{{ merk(j, p ~ 'jaar', j, anker) }}{% endfor %}
+      {% if filters.subsub_id %}
+        {{ merk(namen.get(filters.subsub_id, 'categorie'), p ~ 'subsub_id', none, anker) }}
+      {% elif filters.sub_id %}
+        {{ merk(namen.get(filters.sub_id, 'categorie'), p ~ 'sub_id', none, anker) }}
+      {% elif filters.hoofd_id %}
+        {{ merk(namen.get(filters.hoofd_id, 'categorie'), p ~ 'hoofd_id', none, anker) }}
+      {% endif %}
+      {% for l in filters.landen %}{{ merk(l, p ~ 'land', l, anker) }}{% endfor %}
+      {% for w in filters.winkels %}{{ merk(w, p ~ 'winkel', w, anker) }}{% endfor %}
+      {% for c in filters.uit_categorieen %}
+        {{ merk('zonder ' ~ namen.get(c, c), p ~ 'uit_categorie', c, anker) }}{% endfor %}
+      {% for w in filters.uit_winkels %}
+        {{ merk('zonder ' ~ w, p ~ 'uit_winkel', w, anker) }}{% endfor %}
+      {% for l in filters.uit_landen %}
+        {{ merk('zonder ' ~ l, p ~ 'uit_land', l, anker) }}{% endfor %}
+      {% if filters.alleen_bevestigd %}
+        {{ merk('alleen bevestigd', p ~ 'alleen_bevestigd', none, anker) }}{% endif %}
+    </div>
+  {% endif %}
 {% endmacro %}

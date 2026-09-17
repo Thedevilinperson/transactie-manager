@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.9.1
+Versie 0.9.2
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.

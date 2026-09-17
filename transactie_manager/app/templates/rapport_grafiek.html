@@ -8,10 +8,11 @@
   <p>Twee voorstellingen, elk met een eigen filter.</p>
 </div>
 
-<h2 class="afdelingskop">Evolutie doorheen de tijd</h2>
+<h2 class="afdelingskop" id="evolutie">Evolutie doorheen de tijd</h2>
 {{ filterbalk(filters, keuzes, rekeningen, hoofdcategorieen,
               url_for('rapport.grafiek'), toon_groepering=true,
-              toon_uitsluiten=true, alle_categorieen=alle_categorieen) }}
+              toon_uitsluiten=true, alle_categorieen=alle_categorieen,
+              anker='evolutie') }}
 
 <div class="vlak">
   {% if labels and series %}
@@ -24,10 +25,11 @@
   {% endif %}
 </div>
 
-<h2 class="afdelingskop">Verdeling</h2>
+<h2 class="afdelingskop" id="verdeling">Verdeling</h2>
 {{ filterbalk(taart, keuzes, rekeningen, hoofdcategorieen,
               url_for('rapport.grafiek'), p='t_', toon_groepering=true,
-              toon_uitsluiten=true, alle_categorieen=alle_categorieen) }}
+              toon_uitsluiten=true, alle_categorieen=alle_categorieen,
+              anker='verdeling') }}
 
 <div class="vlak">
   {% if stukken %}

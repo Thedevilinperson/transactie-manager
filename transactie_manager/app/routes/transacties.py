@@ -21,7 +21,7 @@ bp = Blueprint("tx", __name__, url_prefix="/transacties")
 
 
 def _alle_keuzes(conn, crypto):
-    return keuzelijst(boom(conn, crypto))
+    return keuzelijst(boom(conn, crypto, alfabetisch=True))
 
 
 def _rekeningen(conn, crypto):

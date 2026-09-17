@@ -85,7 +85,7 @@ def jaartabel(conn, crypto, filters: Filters):
                 bedragen[sleutel][jaar] *= -1
 
     jaren_gesorteerd = sorted(jaren, reverse=True)
-    wortels = bouw_boom(platte)
+    wortels = bouw_boom(platte, alfabetisch=True)
 
     def bouw(cat: Categorie, pad: tuple):
         eigen = pad + (None,) * (3 - len(pad))

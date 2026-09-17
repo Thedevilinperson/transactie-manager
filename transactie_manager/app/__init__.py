@@ -65,12 +65,17 @@ def huidig_pad() -> str:
     return (request.script_root or "") + request.full_path
 
 
+def _scheid(tekst: str) -> str:
+    """Van de Engelse opmaak 1,234.56 naar de onze: 1.234,56."""
+    return tekst.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+
+
 def euro(waarde) -> str:
+    """Bedrag met muntteken, punt als duizendtalscheiding: €1.200,50."""
     if waarde in (None, ""):
         return "—"
     getal = Decimal(str(waarde))
-    tekst = f"{abs(getal):,.2f}".replace(",", "\u00a0").replace(".", ",")
-    return ("-" if getal < 0 else "") + tekst
+    return ("-" if getal < 0 else "") + "€" + _scheid(f"{abs(getal):,.2f}")
 
 
 def euro_rond(waarde) -> str:
@@ -80,8 +85,7 @@ def euro_rond(waarde) -> str:
     getal = Decimal(str(waarde)).quantize(Decimal("1"))
     if getal == 0:
         return "—"
-    tekst = f"{abs(getal):,}".replace(",", "\u00a0")
-    return ("-" if getal < 0 else "") + tekst
+    return ("-" if getal < 0 else "") + "€" + _scheid(f"{abs(getal):,}")
 
 
 def datum_kort(waarde) -> str:
@@ -122,6 +126,27 @@ def create_app() -> Flask:
     app.jinja_env.filters["datum"] = datum_kort
     app.jinja_env.filters["procent"] = procent
     app.jinja_env.globals["huidig_pad"] = huidig_pad
+
+    def zonder_filter(sleutel: str, waarde=None) -> dict:
+        """De huidige adresparameters, met één filterwaarde eruit gehaald.
+
+        Daarmee kan elke actieve keuze apart weggeklikt worden, in plaats van
+        alles in één keer te moeten wissen.
+        """
+        args = request.args.to_dict(flat=False)
+        if sleutel in args:
+            if waarde is None:
+                args.pop(sleutel)
+            else:
+                rest = [v for v in args[sleutel] if v != str(waarde)]
+                if rest:
+                    args[sleutel] = rest
+                else:
+                    args.pop(sleutel)
+        args.pop("pagina", None)
+        return args
+
+    app.jinja_env.globals["zonder_filter"] = zonder_filter
 
     @app.route("/statisch/<versie>/<path:bestand>")
     def statisch_bestand(versie: str, bestand: str):

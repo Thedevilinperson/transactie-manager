@@ -6,7 +6,7 @@
 /* Het versienummer staat hier zodat de toepassing kan nagaan of de browser wel
    het juiste stijlblad gebruikt. Bijwerken met scripts/versie.py. */
 :root {
-  --stijl-versie: "0.9.1";
+  --stijl-versie: "0.9.2";
   --inkt: #17202e;
   --inkt-zacht: #5a6675;
   --papier: #f1f3f6;
@@ -510,3 +510,27 @@ tfoot td { font-weight: 600; border-top: 2px solid var(--lijn-sterk); border-bot
 .jaarstaaf .balk.raming { opacity: .3; }
 .jaarstaaf.lopend .jaar { font-weight: 600; color: var(--inkt); }
 .jaarstaaf .jaar .klein-detail { font-size: 11px; }
+
+/* -------------------------------------------------- actieve filterkeuzes */
+/* Elke keuze staat apart, met een kruisje om net die ene weg te halen. */
+
+.gekozenfilters {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--lijn);
+}
+.gekozenfilters .filterlabel { margin: 0 2px 0 0; }
+
+.filtermerk {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 2px 6px 2px 9px; border-radius: 12px; font-size: 12.5px;
+  background: var(--actie-licht); border: 1px solid #bfd0ee;
+  color: #17408c; text-decoration: none; max-width: 260px;
+}
+.filtermerk:hover { background: #d8e3f7; text-decoration: none; }
+.filtermerk .kruis {
+  font-size: 14px; line-height: 1; color: #5a7fbe; padding: 0 1px;
+}
+.filtermerk:hover .kruis { color: var(--uit); }
+
+.paneel.breed.drie { min-width: 700px; }
+.paneel.breed.drie .paneelkolommen { grid-template-columns: repeat(3, 1fr); }

@@ -30,7 +30,7 @@ def categorieen():
         if soort in ("in", "uit"):
             kinderen = [c for c in kinderen if c.soort in (soort, "beide")]
 
-    kinderen.sort(key=lambda c: (c.volgorde, c.naam.lower()))
+    kinderen.sort(key=lambda c: c.naam.lower())
     return jsonify([{"id": c.id, "naam": c.naam} for c in kinderen])
 
 

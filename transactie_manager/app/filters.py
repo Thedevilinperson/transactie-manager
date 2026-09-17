@@ -21,6 +21,10 @@ from .crypto import normalize
 # Waarden die in de databank "niet ingevuld" betekenen.
 LEEG = "—"
 
+# Waarden die in de gegevens "niets ingevuld" betekenen en dus geen echte
+# winkel of land zijn.
+ZONDER_WAARDE = {"-", "--", "?", "n/a", "nvt", "geen", "."}
+
 METHODEN = [
     ("regel", "Vaste regel"),
     ("fuzzy", "Gelijkenis"),
@@ -54,6 +58,7 @@ class Filters:
     alleen_bevestigd: bool = False
     # Uitsluiten, alleen gebruikt bij de grafieken.
     uit_winkels: list[str] = field(default_factory=list)
+    uit_landen: list[str] = field(default_factory=list)
     uit_categorieen: list[int] = field(default_factory=list)
     groepering: str = "hoofd"      # hoofd | sub | subsub | land | winkel
     periode: str = "jaar"          # jaar | maand
@@ -77,6 +82,7 @@ class Filters:
             zoekterm=arg.get("q", "").strip(),
             alleen_bevestigd=arg.get("alleen_bevestigd") == "1",
             uit_winkels=[w for w in arg.getlist("uit_winkel") if w],
+            uit_landen=[w for w in arg.getlist("uit_land") if w],
             uit_categorieen=[int(c) for c in arg.getlist("uit_categorie") if c.isdigit()],
             groepering=arg.get("groepering", "hoofd"),
             periode=arg.get("periode", "jaar"),
@@ -121,7 +127,8 @@ class Filters:
     # -- gedeelte dat ontsleuteling vraagt ----------------------------------
     @property
     def vraagt_tekst(self) -> bool:
-        return bool(self.landen or self.winkels or self.uit_winkels or self.zoekterm)
+        return bool(self.landen or self.winkels or self.uit_winkels
+                    or self.uit_landen or self.zoekterm)
 
     def past_tekst(self, *, land: str = "", winkel: str = "") -> bool:
         if self.landen and (land or LEEG) not in self.landen:
@@ -129,6 +136,8 @@ class Filters:
         if self.winkels and (winkel or LEEG) not in self.winkels:
             return False
         if self.uit_winkels and (winkel or LEEG) in self.uit_winkels:
+            return False
+        if self.uit_landen and (land or LEEG) in self.uit_landen:
             return False
         return True
 
@@ -178,16 +187,18 @@ def keuzes(conn, crypto) -> dict:
     ):
         jaren.add(int(row["boekdatum"][:4]))
         land = (crypto.dec(row["land_enc"]) or "").strip()
-        if land:
+        if land and land not in ZONDER_WAARDE:
             landen[land] = landen.get(land, 0) + 1
         winkel = (crypto.dec(row["handelaar_enc"]) or "").strip()
-        if winkel:
+        if winkel and winkel not in ZONDER_WAARDE:
             winkels[winkel] = winkels.get(winkel, 0) + 1
 
+    # Alfabetisch: in een lijst van honderden winkels zoek je op naam, niet op
+    # hoe vaak iets voorkomt.
     waarden = {
         "jaren": sorted(jaren, reverse=True),
-        "landen": sorted(landen.items(), key=lambda p: (-p[1], p[0].lower())),
-        "winkels": sorted(winkels.items(), key=lambda p: (-p[1], p[0].lower())),
+        "landen": sorted(landen.items(), key=lambda p: p[0].lower()),
+        "winkels": sorted(winkels.items(), key=lambda p: p[0].lower()),
     }
     _cache["stempel"] = stempel
     _cache["waarden"] = waarden
@@ -199,7 +210,8 @@ def vergeet_keuzes() -> None:
 
 
 def rekeningen(conn, crypto) -> list[dict]:
-    return [
-        {"id": r["id"], "naam": crypto.dec(r["naam_enc"])}
-        for r in conn.execute("SELECT * FROM rekeningen ORDER BY volgorde, id")
+    lijst = [
+        {"id": r["id"], "naam": crypto.dec(r["naam_enc"]) or ""}
+        for r in conn.execute("SELECT * FROM rekeningen")
     ]
+    return sorted(lijst, key=lambda r: r["naam"].lower())

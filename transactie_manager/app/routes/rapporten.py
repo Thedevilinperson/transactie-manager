@@ -18,7 +18,7 @@ bp = Blueprint("rapport", __name__, url_prefix="/overzicht")
 
 def _context(conn, crypto, filters: Filters) -> dict:
     """Alles wat de filterbalk nodig heeft."""
-    alle = keuzelijst(boom(conn, crypto))
+    alle = keuzelijst(boom(conn, crypto, alfabetisch=True))
     return {
         "filters": filters,
         "keuzes": keuzes(conn, crypto),

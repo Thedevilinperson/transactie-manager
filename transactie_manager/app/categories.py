@@ -47,8 +47,13 @@ def laad_alles(conn, crypto, alleen_actief: bool = False) -> dict[int, Categorie
     return result
 
 
-def bouw_boom(platte: dict[int, Categorie]) -> list[Categorie]:
-    """Koppelt kinderen aan hun ouder en geeft de wortels terug."""
+def bouw_boom(platte: dict[int, Categorie], alfabetisch: bool = False) -> list[Categorie]:
+    """Koppelt kinderen aan hun ouder en geeft de wortels terug.
+
+    `alfabetisch` negeert de handmatige volgorde. In een filterlijst zoek je op
+    naam en wil je alfabetisch; op het scherm waar je de boom beheert telt de
+    volgorde die je zelf hebt ingesteld.
+    """
     for cat in platte.values():
         cat.kinderen = []
     wortels: list[Categorie] = []
@@ -57,16 +62,22 @@ def bouw_boom(platte: dict[int, Categorie]) -> list[Categorie]:
             platte[cat.ouder_id].kinderen.append(cat)
         elif cat.niveau == 0:
             wortels.append(cat)
-    sleutel = lambda c: (c.volgorde, c.naam.lower())  # noqa: E731
+    if alfabetisch:
+        def sleutel(c):
+            return (c.naam.lower(),)
+    else:
+        def sleutel(c):
+            return (c.volgorde, c.naam.lower())
     wortels.sort(key=sleutel)
     for cat in platte.values():
         cat.kinderen.sort(key=sleutel)
     return wortels
 
 
-def boom(conn, crypto, soort: str | None = None, alleen_actief: bool = False) -> list[Categorie]:
+def boom(conn, crypto, soort: str | None = None, alleen_actief: bool = False,
+         alfabetisch: bool = False) -> list[Categorie]:
     platte = laad_alles(conn, crypto, alleen_actief)
-    wortels = bouw_boom(platte)
+    wortels = bouw_boom(platte, alfabetisch)
     if soort in ("in", "uit"):
         wortels = [c for c in wortels if c.soort in (soort, "beide")]
     return wortels

@@ -256,7 +256,20 @@
       // De bladzijde begint weer vooraan wanneer de selectie verandert.
       var pagina = formulier.querySelector("[name='pagina']");
       if (pagina) pagina.value = "1";
-      formulier.submit();
+
+      // Zelf het adres opbouwen in plaats van submit(), zodat het anker mee
+      // kan. Staat de filterbalk halverwege de bladzijde, dan blijf je daar
+      // staan in plaats van naar boven te springen.
+      var anker = formulier.dataset.anker;
+      if (!anker || !window.URL || !window.URLSearchParams) {
+        formulier.submit();
+        return;
+      }
+      var adres = new URL(formulier.getAttribute("action") || window.location.pathname,
+                          window.location.href);
+      adres.search = new URLSearchParams(new FormData(formulier)).toString();
+      adres.hash = anker;
+      window.location.assign(adres.toString());
     }
 
     formulier.addEventListener("change", function (gebeurtenis) {

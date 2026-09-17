@@ -4,6 +4,33 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.9.2] — 2026-09-17
+
+### Gewijzigd
+- **Bedragen staan nu als €1.200,50**, met het muntteken vooraan en een punt als
+  duizendtalscheiding. In de jaartabel, waar op hele euro's afgerond wordt, geeft
+  dat €1.200.
+- **De keuzelijsten in de filters staan alfabetisch**: hoofd-, sub- en
+  sub-subcategorieën, winkels, landen en rekeningen. Winkels stonden op aantal
+  gesorteerd, wat onbruikbaar is zodra het er honderden zijn. De boom op het
+  scherm *Categorieën* houdt wel de volgorde die je daar zelf instelt, want daar
+  staan de knoppen om te schikken.
+- Waarden die "niets ingevuld" betekenen, zoals een winkel die letterlijk `-`
+  heet, staan niet langer in de keuzelijsten.
+- *Wissen* heet nu *Alles wissen*, om het verschil met de losse kruisjes
+  duidelijk te maken.
+
+### Toegevoegd
+- **Land kan nu ook uitgesloten worden**, naast categorie en winkel.
+- **Elke actieve keuze staat onderaan de filterbalk met een kruisje** om net die
+  ene weg te halen. Voordien kon je alleen alles tegelijk wissen.
+
+### Opgelost
+- **De grafiekbladzijde sprong naar boven** zodra je een filter van de onderste
+  grafiek aanpaste. Elke filterbalk draagt nu een anker mee, zodat je blijft
+  staan waar je bezig was.
+
+
 ## [0.9.1] — 2026-09-17
 
 ### Opgelost
