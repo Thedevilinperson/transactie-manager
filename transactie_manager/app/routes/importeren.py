@@ -27,6 +27,16 @@ from ..transacties import bestaande_id, bewaar, vul_aan
 
 bp = Blueprint("importeren", __name__, url_prefix="/importeren")
 
+# Waarom een rij niet als nieuwe transactie in de databank belandde.
+REDENEN = {
+    "aangevuld": "Stond er al; velden aangevuld",
+    "dubbel_databank": "Stond al in de databank",
+    "dubbel_bestand": "Komt twee keer voor in dit bestand",
+    "onleesbaar": "Datum of bedrag ontbreekt of is onleesbaar",
+    "toegevoegd": "Alsnog toegevoegd",
+}
+MAX_BEWAARDE_REGELS = 3000
+
 MAX_VOORBEELD = 12
 
 
@@ -193,7 +203,23 @@ def _verwerk(taak, pad: Path, crypto, inst: dict) -> dict:
         ).lastrowid
 
         nieuw = aangevuld = ongewijzigd = overgeslagen = uit_bestand = 0
+        bewaarde_regels = 0
         fouten: list[str] = []
+        gezien_referenties: dict = {}
+
+        def noteer(rijnummer: int, reden: str, detail: str, rij_waarden,
+                   tx_id: int | None = None):
+            """Legt vast waarom een rij niet als nieuwe transactie is bewaard."""
+            nonlocal bewaarde_regels
+            if bewaarde_regels >= MAX_BEWAARDE_REGELS:
+                return
+            bewaarde_regels += 1
+            conn.execute(
+                "INSERT INTO import_regels (batch_id, rijnummer, reden, detail_enc,"
+                " rij_enc, bestaande_tx_id) VALUES (?,?,?,?,?,?)",
+                (batch, rijnummer, reden, crypto.enc(detail),
+                 crypto.enc(json.dumps(rij_waarden, ensure_ascii=False)), tx_id),
+            )
         aangeraakt: set[int] = set()
         # Telt hoe vaak dezelfde rij in dit bestand voorkomt. Drie identieke
         # betalingen op één dag zijn drie aankopen, geen drie keer dezelfde.
@@ -205,10 +231,14 @@ def _verwerk(taak, pad: Path, crypto, inst: dict) -> dict:
                 taak.vorder(nummer - 2)
 
             velden = rij_naar_velden(rij, kop, inst["mapping"], inst["decimaal"])
+            ruw = velden.get("ruw", {})
             if velden["boekdatum"] is None or velden["bedrag"] is None:
                 overgeslagen += 1
+                ontbreekt = ("datum" if velden["boekdatum"] is None else "bedrag")
+                noteer(nummer, "onleesbaar",
+                       f"De {ontbreekt} kon niet gelezen worden.", ruw)
                 if len(fouten) < 15:
-                    fouten.append(f"Rij {nummer}: datum of bedrag ontbreekt of is "
+                    fouten.append(f"Rij {nummer}: {ontbreekt} ontbreekt of is "
                                   "onleesbaar.")
                 continue
 
@@ -238,16 +268,34 @@ def _verwerk(taak, pad: Path, crypto, inst: dict) -> dict:
                 volgnummer=volgnummer,
             )
 
+            # Dezelfde bankreferentie twee keer in één bestand is geen dubbel
+            # van de databank maar een dubbel binnen het bestand zelf.
+            in_bestand = velden["referentie"] and velden["referentie"] in gezien_referenties
+            if velden["referentie"]:
+                gezien_referenties.setdefault(velden["referentie"], nummer)
+
             if bestaand is not None:
                 aangeraakt.add(bestaand)
                 if inst["aanvullen"]:
                     velden["tegenpartij_rekening"] = tegenpartij_rek
-                    if vul_aan(conn, crypto, bestaand, velden):
-                        aangevuld += 1
-                    else:
-                        ongewijzigd += 1
+                    gewijzigd = vul_aan(conn, crypto, bestaand, velden)
+                else:
+                    gewijzigd = []
+                if gewijzigd:
+                    aangevuld += 1
+                    noteer(nummer, "aangevuld",
+                           "Aangevulde velden: " + ", ".join(gewijzigd), ruw, bestaand)
                 else:
                     ongewijzigd += 1
+                    if in_bestand:
+                        noteer(nummer, "dubbel_bestand",
+                               "Dezelfde bankreferentie staat ook op rij "
+                               f"{gezien_referenties[velden['referentie']]}.",
+                               ruw, bestaand)
+                    else:
+                        noteer(nummer, "dubbel_databank",
+                               "Deze verrichting stond al in de databank.",
+                               ruw, bestaand)
                 continue
 
             voorstel = None
@@ -291,6 +339,9 @@ def _verwerk(taak, pad: Path, crypto, inst: dict) -> dict:
             )
             if tx_id is None:
                 ongewijzigd += 1
+                noteer(nummer, "dubbel_databank",
+                       "Een verrichting met dezelfde vingerafdruk stond al in de "
+                       "databank.", ruw)
             else:
                 nieuw += 1
                 aangeraakt.add(tx_id)
@@ -312,9 +363,145 @@ def _verwerk(taak, pad: Path, crypto, inst: dict) -> dict:
 
         return {"nieuw": nieuw, "aangevuld": aangevuld, "ongewijzigd": ongewijzigd,
                 "overgeslagen": overgeslagen, "uit_bestand": uit_bestand,
-                "totaal": len(rijen), "fouten": fouten}
+                "totaal": len(rijen), "fouten": fouten, "batch": batch,
+                "verklaard": nieuw + aangevuld + ongewijzigd + overgeslagen,
+                "bewaarde_regels": bewaarde_regels,
+                "afgekapt": bewaarde_regels >= MAX_BEWAARDE_REGELS}
     finally:
         conn.close()
+
+
+@bp.route("/batch/<int:batch_id>/regels")
+@login_vereist
+def batchregels(batch_id: int):
+    """De rijen die niet als nieuwe transactie zijn ingelezen, met de reden."""
+    conn = get_db()
+    crypto = g.crypto
+    reden = request.args.get("reden", "")
+    toon_afgehandeld = request.args.get("afgehandeld") == "1"
+
+    sql = "SELECT * FROM import_regels WHERE batch_id = ?"
+    params: list = [batch_id]
+    if reden:
+        sql += " AND reden = ?"
+        params.append(reden)
+    if not toon_afgehandeld:
+        sql += " AND afgehandeld = 0"
+    sql += " ORDER BY rijnummer LIMIT 500"
+
+    rijen = []
+    for r in conn.execute(sql, params):
+        try:
+            waarden = json.loads(crypto.dec(r["rij_enc"]) or "{}")
+        except (ValueError, TypeError):
+            waarden = {}
+        rijen.append({
+            "id": r["id"], "rijnummer": r["rijnummer"], "reden": r["reden"],
+            "detail": crypto.dec(r["detail_enc"]) or "",
+            "waarden": {k: v for k, v in waarden.items() if v},
+            "bestaande_tx_id": r["bestaande_tx_id"],
+            "afgehandeld": bool(r["afgehandeld"]),
+        })
+
+    tellingen = {
+        r["reden"]: r["n"] for r in conn.execute(
+            "SELECT reden, COUNT(*) n FROM import_regels WHERE batch_id = ?"
+            " GROUP BY reden", (batch_id,))
+    }
+    batch = conn.execute("SELECT * FROM import_batches WHERE id = ?",
+                         (batch_id,)).fetchone()
+    return render_template(
+        "importeren_regels.html", batch_id=batch_id, rijen=rijen,
+        tellingen=tellingen, redenen=REDENEN, gekozen_reden=reden,
+        toon_afgehandeld=toon_afgehandeld,
+        bestandsnaam=crypto.dec(batch["bestand_enc"]) if batch else "—",
+        aantal_rijen=batch["aantal_rijen"] if batch else 0,
+    )
+
+
+@bp.route("/regel/<int:regel_id>/toevoegen", methods=["POST"])
+@login_vereist
+def regel_toevoegen(regel_id: int):
+    """Voegt een overgeslagen rij alsnog toe, op uitdrukkelijke vraag."""
+    conn = get_db()
+    crypto = g.crypto
+    regel = conn.execute("SELECT * FROM import_regels WHERE id = ?",
+                         (regel_id,)).fetchone()
+    if regel is None:
+        flash("Die rij is niet meer bekend.", "fout")
+        return redirect(url_for("importeren.geschiedenis"))
+
+    waarden = json.loads(crypto.dec(regel["rij_enc"]) or "{}")
+    batch = conn.execute("SELECT * FROM import_batches WHERE id = ?",
+                         (regel["batch_id"],)).fetchone()
+    profiel = batch["profiel"] if batch else "automatisch"
+    kop = list(waarden)
+    mapping = detecteer_mapping(kop, profiel)
+    velden = rij_naar_velden([waarden[k] for k in kop], kop, mapping)
+
+    if velden["boekdatum"] is None or velden["bedrag"] is None:
+        flash("Deze rij mist nog altijd een leesbare datum of een bedrag. "
+              "Voeg ze met de hand toe via Nieuwe transactie.", "fout")
+        return redirect(url_for("importeren.batchregels", batch_id=regel["batch_id"]))
+
+    rekening = conn.execute(
+        "SELECT id FROM rekeningen WHERE actief = 1 ORDER BY volgorde, id LIMIT 1"
+    ).fetchone()
+    bedrag = Decimal(velden["bedrag"])
+    kenmerken = TransactieKenmerken(
+        beschrijving=velden["beschrijving"], tegenpartij_naam=velden["tegenpartij_naam"],
+        tegenpartij_rekening=velden["tegenpartij_rekening"],
+        mededeling=velden["mededeling"], begunstigde=velden["begunstigde"],
+        bedrag=bedrag, richting="in" if bedrag >= 0 else "uit",
+    )
+    tx_id = bewaar(
+        conn, crypto, rekening_id=rekening["id"], boekdatum=velden["boekdatum"],
+        valutadatum=velden["valutadatum"], bedrag=bedrag, munt=velden["munt"],
+        tegenpartij_naam=velden["tegenpartij_naam"],
+        tegenpartij_rekening=normalize_iban(velden["tegenpartij_rekening"])
+        or velden["tegenpartij_rekening"],
+        begunstigde=velden["begunstigde"], mededeling=velden["mededeling"],
+        beschrijving=velden["beschrijving"], referentie=velden["referentie"],
+        verrichtingsdatum=velden["verrichtingsdatum"],
+        voorstel=Motor(conn, crypto).beoordeel(kenmerken),
+        batch_id=regel["batch_id"],
+        ruwe_data=json.dumps(waarden, ensure_ascii=False), forceer=True,
+    )
+    conn.execute("UPDATE import_regels SET afgehandeld = 1, reden = 'toegevoegd',"
+                 " bestaande_tx_id = ? WHERE id = ?", (tx_id, regel_id))
+    log(conn, crypto, g.gebruiker, "overgeslagen_rij_toegevoegd", f"regel={regel_id}")
+    conn.commit()
+    vergeet_keuzes()
+    flash("De rij is alsnog toegevoegd.", "goed")
+    return redirect(url_for("importeren.batchregels", batch_id=regel["batch_id"]))
+
+
+@bp.route("/regel/<int:regel_id>/afhandelen", methods=["POST"])
+@login_vereist
+def regel_afhandelen(regel_id: int):
+    conn = get_db()
+    regel = conn.execute("SELECT batch_id FROM import_regels WHERE id = ?",
+                         (regel_id,)).fetchone()
+    conn.execute("UPDATE import_regels SET afgehandeld = 1 WHERE id = ?", (regel_id,))
+    conn.commit()
+    return redirect(url_for("importeren.batchregels",
+                            batch_id=regel["batch_id"] if regel else 0))
+
+
+@bp.route("/batch/<int:batch_id>/alles-afhandelen", methods=["POST"])
+@login_vereist
+def batch_afhandelen(batch_id: int):
+    conn = get_db()
+    reden = request.form.get("reden", "")
+    sql = "UPDATE import_regels SET afgehandeld = 1 WHERE batch_id = ?"
+    params: list = [batch_id]
+    if reden:
+        sql += " AND reden = ?"
+        params.append(reden)
+    aantal = conn.execute(sql, params).rowcount
+    conn.commit()
+    flash(f"{aantal} rijen als nagekeken gemarkeerd.", "goed")
+    return redirect(url_for("importeren.batchregels", batch_id=batch_id))
 
 
 @bp.route("/geschiedenis")

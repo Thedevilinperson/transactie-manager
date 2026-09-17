@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.8.4
+Versie 0.9.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -225,6 +225,13 @@ aan met de ontbrekende kolom erbij en laat *Bestaande transacties aanvullen*
 aangevinkt. Lege velden worden ingevuld en een mededeling die uitgebreid is
 wordt vervangen. Er komen geen dubbels bij, en wat je zelf hebt aangepast blijft
 staan.
+
+**Wat er niet is toegevoegd.** Na een invoer staat er een knop *Bekijk wat er
+niet is toegevoegd*. Daar zie je per rij waarom ze geen nieuwe transactie werd:
+ze stond al in de databank, ze komt twee keer voor in het bestand, of de datum
+of het bedrag was onleesbaar. Klopt een beoordeling niet, dan voeg je de rij
+daar alsnog toe; de dubbelcontrole wordt dan overgeslagen. Hetzelfde scherm is
+later terug te vinden via *Eerdere invoer*.
 
 **Terugdraaien.** Ging er iets mis, ga dan naar **Bestand inlezen › Eerdere
 invoer** en draai die invoerbeurt terug. Alle transacties uit die beurt worden

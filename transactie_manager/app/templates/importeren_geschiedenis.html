@@ -29,11 +29,16 @@
               <td class="getal">{{ r.dubbel }}</td>
               <td>{{ r.gebruiker }}</td>
               <td>
-                <form method="post"
-                      action="{{ url_for('importeren.terugdraaien', batch_id=r.id) }}"
-                      data-bevestig="Alle transacties uit deze invoer verwijderen?">
-                  <button type="submit" class="gevaar klein">Terugdraaien</button>
-                </form>
+                <div class="knoppen">
+                  <a class="knop stil klein"
+                     href="{{ url_for('importeren.batchregels', batch_id=r.id) }}">
+                    Niet toegevoegd</a>
+                  <form method="post"
+                        action="{{ url_for('importeren.terugdraaien', batch_id=r.id) }}"
+                        data-bevestig="Alle transacties uit deze invoer verwijderen?">
+                    <button type="submit" class="gevaar klein">Terugdraaien</button>
+                  </form>
+                </div>
               </td>
             </tr>
           {% endfor %}

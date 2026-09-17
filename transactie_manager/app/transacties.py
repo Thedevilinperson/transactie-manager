@@ -162,7 +162,8 @@ def bewaar(conn, crypto, *, rekening_id: int, boekdatum: date | str, bedrag: Dec
            ruwe_data: str | None = None, handelaar: str = "", land: str = "",
            beschrijving: str = "", referentie: str = "", verrichtingsdatum=None,
            is_afrekening: bool = False, ouder_tx_id: int | None = None,
-           bron: str = "bank", volgnummer: int = 1) -> int | None:
+           bron: str = "bank", volgnummer: int = 1,
+           forceer: bool = False) -> int | None:
     """Voegt een transactie toe. Geeft None terug als ze al bestaat."""
     bedrag = Decimal(str(bedrag))
     richting = "in" if bedrag >= 0 else "uit"
@@ -174,7 +175,12 @@ def bewaar(conn, crypto, *, rekening_id: int, boekdatum: date | str, bedrag: Dec
 
     # De bankreferentie is uniek per verrichting; die krijgt voorrang bij het
     # ontdubbelen. Ontbreekt ze, dan vallen we terug op de inhoud van de rij.
-    if referentie:
+    if forceer:
+        # De gebruiker heeft uitdrukkelijk gezegd dat dit géén dubbel is.
+        import secrets
+        afdruk = crypto.fingerprint("forceer", secrets.token_hex(16))
+        oud = ""
+    elif referentie:
         afdruk = referentieafdruk(crypto, rekening_id, referentie, bedrag)
         oud = crypto.fingerprint("ref", str(rekening_id), referentie)
     else:

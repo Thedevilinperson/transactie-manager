@@ -4,6 +4,33 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.9.0] — 2026-09-17
+
+### Toegevoegd
+- **Elke rij die niet als nieuwe transactie binnenkomt, wordt nu met reden
+  vastgelegd.** Voordien zag je alleen het aantal onleesbare rijen; waar de rest
+  gebleven was, viel niet na te gaan. De redenen zijn: stond al in de databank,
+  komt twee keer voor in dit bestand, datum of bedrag onleesbaar, of bestond al
+  en is aangevuld.
+- **Een scherm om die rijen na te kijken.** Per rij zie je de reden, de inhoud
+  zoals ze in het bestand stond, en waar van toepassing een knop naar de
+  bestaande transactie. Te openen vanaf het resultaat van een invoer en vanaf
+  *Bestand inlezen › Eerdere invoer*.
+- **Je kan een overgeslagen rij alsnog toevoegen.** De dubbelcontrole wordt dan
+  overgeslagen, want jij weet beter dan de toepassing of het om dezelfde
+  verrichting gaat. Rijen afvinken als nagekeken kan per stuk of in één keer.
+- Het resultaat van een invoer toont nu of de telling sluit: hoeveel van de
+  rijen er verklaard zijn. Blijft er iets over, dan zegt het scherm dat dat niet
+  hoort.
+
+### Gewijzigd
+- Bij een onleesbare rij staat er nu bij of het de datum of het bedrag was.
+
+### Bekend
+- Er worden maximaal drieduizend rijen per invoer bewaard om na te kijken. Bij
+  meer wordt dat gemeld.
+
+
 ## [0.8.4] — 2026-09-16
 
 ### Opgelost

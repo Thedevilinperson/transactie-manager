@@ -484,6 +484,21 @@
       uitslag.querySelectorAll("[data-veld]").forEach(function (el) {
         el.textContent = (r[el.dataset.veld] || 0).toLocaleString("nl-BE");
       });
+      var telling = uitslag.querySelector("[data-telling]");
+      if (telling) {
+        var som = (r.nieuw || 0) + (r.aangevuld || 0) + (r.ongewijzigd || 0) +
+                  (r.overgeslagen || 0);
+        telling.textContent = "Van de " + (r.totaal || 0).toLocaleString("nl-BE") +
+          " rijen zijn er " + som.toLocaleString("nl-BE") + " verklaard." +
+          (som === r.totaal ? "" : " Er blijven er " + (r.totaal - som) +
+            " over; dat hoort niet en is het melden waard.");
+      }
+      var knop = uitslag.querySelector("[data-naar-regels]");
+      if (knop && r.batch && (r.ongewijzigd || r.overgeslagen || r.aangevuld)) {
+        knop.href = (document.body.dataset.basis || "/") +
+          "importeren/batch/" + r.batch + "/regels";
+        knop.classList.remove("verborgen");
+      }
       if (r.uit_bestand) {
         var p = uitslag.querySelector("[data-uit-bestand]");
         p.classList.remove("verborgen");

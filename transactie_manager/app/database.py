@@ -9,7 +9,7 @@ from flask import g
 
 from .config import DB_PATH, DEFAULT_SETTINGS
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS app_meta (
@@ -114,6 +114,18 @@ CREATE TABLE IF NOT EXISTS import_batches (
     gebruiker     TEXT,
     tijdstip      TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS import_regels (
+    id              INTEGER PRIMARY KEY,
+    batch_id        INTEGER NOT NULL REFERENCES import_batches(id) ON DELETE CASCADE,
+    rijnummer       INTEGER NOT NULL,
+    reden           TEXT NOT NULL,
+    detail_enc      TEXT,
+    rij_enc         TEXT,
+    bestaande_tx_id INTEGER,
+    afgehandeld     INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS ix_impregel_batch ON import_regels(batch_id, reden);
 
 CREATE TABLE IF NOT EXISTS transacties (
     id                       INTEGER PRIMARY KEY,

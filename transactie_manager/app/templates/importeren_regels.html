@@ -1,0 +1,113 @@
+{% extends "basis.html" %}
+{% block titel %}Overgeslagen rijen{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Rijen die niet als nieuwe transactie zijn ingelezen</h1>
+  <p>{{ bestandsnaam }} · {{ aantal_rijen }} rijen in het bestand</p>
+  <div class="rechts">
+    <a class="knop stil" href="{{ url_for('importeren.geschiedenis') }}">Eerdere invoer</a>
+  </div>
+</div>
+
+<div class="vlak">
+  <h2>Waarom ze niet zijn toegevoegd</h2>
+  <div class="tabel-omhulsel">
+    <table>
+      <thead><tr><th>Reden</th><th class="getal">Rijen</th><th></th></tr></thead>
+      <tbody>
+        {% for sleutel, label in redenen.items() if tellingen.get(sleutel) %}
+          <tr>
+            <td>{{ label }}</td>
+            <td class="getal">{{ tellingen[sleutel] }}</td>
+            <td>
+              <a class="knop stil klein"
+                 href="{{ url_for('importeren.batchregels', batch_id=batch_id,
+                                  reden=sleutel) }}">Bekijken</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="knoppen" style="margin-top:14px">
+    <a class="knop stil" href="{{ url_for('importeren.batchregels', batch_id=batch_id) }}">
+      Alles tonen</a>
+    <a class="knop stil"
+       href="{{ url_for('importeren.batchregels', batch_id=batch_id,
+                        reden=gekozen_reden, afgehandeld=1) }}">
+      Ook de nagekeken rijen tonen</a>
+  </div>
+</div>
+
+<div class="vlak">
+  <h2>{{ redenen.get(gekozen_reden, 'Alle rijen') }}</h2>
+  {% if rijen %}
+    <p>Klopt een beoordeling niet, dan voeg je de rij hier alsnog toe. De
+      dubbelcontrole wordt dan overgeslagen, want jij weet beter dan de
+      toepassing of het om dezelfde verrichting gaat.</p>
+
+    <div class="tabel-omhulsel vasthoogte" style="margin-top:14px">
+      <table>
+        <thead>
+          <tr><th>Rij</th><th>Reden</th><th>Inhoud van de rij</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for r in rijen %}
+            <tr class="{{ 'status-bevestigd' if r.afgehandeld }}">
+              <td class="getal">{{ r.rijnummer }}</td>
+              <td>
+                {{ redenen.get(r.reden, r.reden) }}
+                <span class="klein-detail">{{ r.detail }}</span>
+              </td>
+              <td>
+                {% for kolom, waarde in r.waarden.items() %}
+                  <span class="klein-detail"><strong>{{ kolom }}:</strong>
+                    {{ waarde }}</span>
+                {% endfor %}
+              </td>
+              <td>
+                <div class="knoppen">
+                  {% if r.bestaande_tx_id %}
+                    <a class="knop stil klein"
+                       href="{{ url_for('tx.bewerken', tx_id=r.bestaande_tx_id,
+                                        terug=huidig_pad()) }}">Bestaande openen</a>
+                  {% endif %}
+                  {% if not r.afgehandeld and r.reden != 'aangevuld' %}
+                    <form method="post"
+                          action="{{ url_for('importeren.regel_toevoegen',
+                                             regel_id=r.id) }}"
+                          data-bevestig="Deze rij alsnog toevoegen als aparte transactie?">
+                      <button type="submit" class="klein">Toch toevoegen</button>
+                    </form>
+                  {% endif %}
+                  {% if not r.afgehandeld %}
+                    <form method="post"
+                          action="{{ url_for('importeren.regel_afhandelen',
+                                             regel_id=r.id) }}">
+                      <button type="submit" class="stil klein">Nagekeken</button>
+                    </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <form method="post"
+          action="{{ url_for('importeren.batch_afhandelen', batch_id=batch_id) }}"
+          style="margin-top:14px"
+          data-bevestig="Al deze rijen als nagekeken markeren?">
+      <input type="hidden" name="reden" value="{{ gekozen_reden }}">
+      <button type="submit" class="stil">Alles hier als nagekeken markeren</button>
+    </form>
+  {% else %}
+    <div class="leeg">
+      <strong>Niets meer na te kijken</strong>
+      Elke rij van dit bestand is ofwel toegevoegd, ofwel nagekeken.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
