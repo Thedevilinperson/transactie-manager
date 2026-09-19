@@ -107,6 +107,20 @@
     het over; anders komen ze op <em>nazicht</em> te staan zonder categorie. Wat
     je zelf hebt ingedeeld, blijft altijd staan.</p>
 
+  <div class="knoppen" style="margin-bottom:14px">
+    <form method="post" data-bevestig="Alle regels opnieuw toepassen op je hele boekhouding? Elke transactie die door een regel is ingedeeld, wordt opnieuw beoordeeld. Transacties waar geen enkele regel meer op past, komen op nazicht te staan zonder categorie.">
+      <input type="hidden" name="actie" value="alles">
+      <input type="hidden" name="terug" value="{{ request.full_path }}">
+      <button type="submit" class="stil">Alle regels opnieuw toepassen</button>
+    </form>
+  </div>
+  <p class="klein-detail">Nodig wanneer je prioriteiten hebt verschoven of
+    meerdere regels na elkaar hebt aangepast. Een regel aanpassen kijkt namelijk
+    alleen naar wat aan díe regel hing; een transactie die aan een andere regel
+    hangt, blijft daar hangen, ook als jouw aangepaste regel nu voorgaat. Deze
+    knop loopt over je hele boekhouding en zet dat in één keer recht. Ook hier
+    blijft staan wat je zelf hebt ingedeeld.</p>
+
   <form method="get" class="filterblok" data-autofilter data-anker="regels">
     <div class="filterlijn">
       <div class="fveld breed">

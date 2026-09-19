@@ -12,7 +12,8 @@ from ..categorizer.ai import test_verbinding
 from ..crypto import normalize, normalize_iban
 from ..database import connect, get_db, instelling, log, now_iso, zet_instelling
 from ..regelonderhoud import (BEWERKT_TOELICHTING, UIT_TOELICHTING, WIS_TOELICHTING,
-                              hangende_transacties, herbekijk, pas_toe, verslag)
+                              Uitkomst, hangende_transacties, herbekijk, herbekijk_alles,
+                              pas_toe, verslag)
 
 bp = Blueprint("instellingen", __name__, url_prefix="/instellingen")
 
@@ -320,21 +321,19 @@ def regels():
                 f"UPDATE regels SET {', '.join(k + ' = ?' for k in velden)} WHERE id = ?",
                 tuple(velden.values()) + (regel_id,),
             )
-            overgenomen, gewist = herbekijk(conn, crypto, hingen,
-                                            toelichting=BEWERKT_TOELICHTING)
-            erbij = pas_toe(conn, crypto, regel_id)
+            uit = herbekijk(conn, crypto, hingen, toelichting=BEWERKT_TOELICHTING)
+            uit.erbij = pas_toe(conn, crypto, regel_id)
             conn.commit()
             log(conn, crypto, g.gebruiker, "regel bewerkt", f"regel={regel_id}")
-            flash("Regel aangepast. " + verslag(overgenomen, gewist, erbij), "goed")
+            flash("Regel aangepast. " + verslag(uit), "goed")
 
         elif actie == "verwijderen":
             regel_id = request.form.get("id", type=int)
             hingen = hangende_transacties(conn, crypto, regel_id)
             conn.execute("DELETE FROM regels WHERE id=?", (regel_id,))
-            overgenomen, gewist = herbekijk(conn, crypto, hingen,
-                                            toelichting=WIS_TOELICHTING)
+            uit = herbekijk(conn, crypto, hingen, toelichting=WIS_TOELICHTING)
             conn.commit()
-            flash("Regel verwijderd. " + verslag(overgenomen, gewist), "goed")
+            flash("Regel verwijderd. " + verslag(uit), "goed")
 
         elif actie == "actief":
             regel_id = request.form.get("id", type=int)
@@ -347,15 +346,21 @@ def regels():
                 # Uitzetten volgt exact dezelfde weg als verwijderen.
                 hingen = hangende_transacties(conn, crypto, regel_id)
                 conn.execute("UPDATE regels SET actief = 0 WHERE id=?", (regel_id,))
-                overgenomen, gewist = herbekijk(conn, crypto, hingen,
-                                                toelichting=UIT_TOELICHTING)
+                uit = herbekijk(conn, crypto, hingen, toelichting=UIT_TOELICHTING)
                 conn.commit()
-                flash("Regel uitgezet. " + verslag(overgenomen, gewist), "goed")
+                flash("Regel uitgezet. " + verslag(uit), "goed")
             else:
                 conn.execute("UPDATE regels SET actief = 1 WHERE id=?", (regel_id,))
-                erbij = pas_toe(conn, crypto, regel_id)
+                uit = Uitkomst(erbij=pas_toe(conn, crypto, regel_id))
                 conn.commit()
-                flash("Regel weer aangezet. " + verslag(0, 0, erbij), "goed")
+                flash("Regel weer aangezet. " + verslag(uit), "goed")
+
+        elif actie == "alles":
+            uit = herbekijk_alles(conn, crypto)
+            conn.commit()
+            log(conn, crypto, g.gebruiker, "regels opnieuw toegepast",
+                f"gewist={uit.gewist} anders={uit.overgenomen} erbij={uit.erbij}")
+            flash("Alle regels opnieuw toegepast. " + verslag(uit), "goed")
 
         return redirect(bestemming)
 

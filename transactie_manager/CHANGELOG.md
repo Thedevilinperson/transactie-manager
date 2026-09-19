@@ -4,6 +4,40 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.9.8] — 2026-09-19
+
+### Erbij
+- **Knop *Alle regels opnieuw toepassen*, boven de regeltabel.** Elke transactie
+  die door een regel is ingedeeld, wordt opnieuw beoordeeld met de regels zoals
+  ze nu staan, en daarna worden de regels nog losgelaten op alles wat geen
+  categorie heeft.
+- Nodig wanneer je prioriteiten hebt verschoven of meerdere regels na elkaar
+  hebt aangepast. Het onderhoud per regel kijkt alleen naar wat aan díe regel
+  hing: een transactie die aan een andere regel hangt blijft daar hangen, ook
+  als je aangepaste regel nu voorgaat. Deze knop zet dat in één keer recht.
+- De ingreep loopt over je hele boekhouding en staat daarom apart, achter een
+  bevestiging die zegt wat er gaat gebeuren. Wat je zelf hebt ingedeeld, en wat
+  de fuzzy stap of het AI-model heeft toegewezen, blijft ook hier staan.
+
+### Gewijzigd
+- **Een herbeoordeling laat een transactie met rust wanneer de regel die erop
+  past nog naar dezelfde categorie wijst.** Voordien werd ze dan toch
+  weggeschreven en als "overgenomen" geteld, wat bij de nieuwe knop op elke
+  transactie zou neerkomen. Wel wordt in dat geval alsnog vastgelegd wélke regel
+  het is, voor rijen van vóór schemaversie 4 waar dat nog nergens stond. De knop
+  vult die dus gaandeweg aan.
+- De melding achteraf telt nu drie dingen apart: hoeveel er op nazicht komen,
+  hoeveel er een andere categorie kregen, en hoeveel er alsnog een categorie
+  bij kregen — met erachter hoeveel er bleven staan zoals ze stonden.
+
+### Technisch
+- `herbekijk()` geeft een `Uitkomst` terug in plaats van een tweetal, zodat er
+  ruimte is voor die vier tellingen zonder bij elke uitbreiding de aanroepers
+  aan te passen.
+- `pas_toe()` werkt nu ook zonder `regel_id`, en past dan alle actieve regels
+  samen toe op wat geen categorie heeft.
+
+
 ## [0.9.7] — 2026-09-19
 
 ### Gewijzigd

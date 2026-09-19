@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.9.7
+Versie 0.9.8
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -405,6 +405,22 @@ van 12,50 te pakken? Regels zonder vork vangen alles en staan er dus altijd bij.
 
 Klikken op een kolomkop sorteert; nog eens klikken draait de richting om. De
 kolom *Treffers* laat zien welke regels werk doen en welke nooit aanslaan.
+
+**Alle regels opnieuw toepassen.** Boven de tabel staat daar een knop voor. Elke
+transactie die door een regel is ingedeeld, wordt opnieuw beoordeeld met de
+regels zoals ze nu staan, en daarna worden de regels nog losgelaten op alles wat
+geen categorie heeft.
+
+Je hebt die knop nodig wanneer je prioriteiten hebt verschoven of meerdere regels
+na elkaar hebt aangepast. Een regel aanpassen kijkt namelijk alleen naar wat aan
+díe regel hing. Hangt een transactie aan een andere regel die nog altijd past,
+dan blijft ze daar hangen, ook als je aangepaste regel nu voorgaat. Geef je
+bijvoorbeeld een nieuwe Total-regel prioriteit 1, dan verhuizen de bestaande
+Total-transacties pas mee als je op deze knop klikt.
+
+De ingreep loopt over je hele boekhouding, dus er komt eerst een bevestiging.
+Wat je zelf hebt ingedeeld blijft staan, en wat de fuzzy stap of het AI-model
+heeft toegewezen ook. Alleen wat door een regel is ingedeeld, wordt herbekeken.
 
 Drie dingen blijven ongemoeid. Wat je zelf hebt ingedeeld, blijft altijd staan:
 zodra jij een categorie kiest, is de band met de regel verbroken en overschrijft
