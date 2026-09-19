@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.9.8
+Versie 0.9.9
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -509,7 +509,29 @@ Heb je regels toegevoegd of je referentielijst vernieuwd? Klik dan op **Opnieuw
 indelen** bij het nazicht. Alles wat nog niet bevestigd is, gaat opnieuw door de
 motor. Bevestigde transacties blijven staan — en een treffer via een regel geldt
 als bevestigd, dus die worden hier niet herbekeken. Een regel uitzetten of
-verwijderen regelt zichzelf: zie *Een regel uitzetten of verwijderen* hierboven.
+verwijderen regelt zichzelf: zie *Een regel bewerken, uitzetten of verwijderen*
+hierboven.
+
+**Wat die melding betekent.** Achteraf staat er hoeveel transacties er opnieuw
+ingedeeld zijn, uitgesplitst per stap: *via vaste regel*, *via gelijkenis*, *via
+AI-model*. Dat onderscheid is belangrijk, want het is niet hetzelfde als de
+filter *Vaste regel* in de transactielijst.
+
+Staat er "1300 opnieuw ingedeeld" en zie je er maar twintig onder *Vaste regel*,
+dan is dat geen fout: de overige 1280 komen van stap 2, de gelijkenis met je
+historiek. Die krijgen methode *Gelijkenis*. Dat gebeurt ook wanneer je net
+regels uit je historiek hebt afgeleid — de motor bouwt zijn
+vergelijkingsmateriaal mee op uit die regels, maar een transactie die via de
+gelijkenis binnenkomt en niet via de regel zelf, telt als gelijkenis.
+
+**Welke lijnen precies.** Na een herindeling kom je meteen op de transactielijst
+uit, gefilterd op *aangepast sinds* het moment waarop de herindeling begon. Daar
+staan dus net die transacties. Wil je ze per stap bekijken, zet er dan de filter
+*Bron* bij. Het merkje *aangepast sinds* reist mee wanneer je andere filters
+aanvinkt; het kruisje erop laat het los.
+
+Dat filter kijkt naar het tijdstip van wijzigen, tot op de seconde. Heb je in
+diezelfde seconde nog iets anders aangepast, dan staat dat er ook bij.
 
 ---
 

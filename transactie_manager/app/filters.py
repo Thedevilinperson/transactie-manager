@@ -56,6 +56,9 @@ class Filters:
     status: str = ""
     zoekterm: str = ""
     alleen_bevestigd: bool = False
+    # Alleen rijen die sinds dit tijdstip zijn aangepast. Wordt gezet door een
+    # herindeling, zodat je meteen ziet wát die precies veranderd heeft.
+    gewijzigd_na: str = ""
     # Uitsluiten, alleen gebruikt bij de grafieken.
     uit_winkels: list[str] = field(default_factory=list)
     uit_landen: list[str] = field(default_factory=list)
@@ -81,6 +84,7 @@ class Filters:
             status=arg.get("status", ""),
             zoekterm=arg.get("q", "").strip(),
             alleen_bevestigd=arg.get("alleen_bevestigd") == "1",
+            gewijzigd_na=arg.get("gewijzigd_na", "").strip(),
             uit_winkels=[w for w in arg.getlist("uit_winkel") if w],
             uit_landen=[w for w in arg.getlist("uit_land") if w],
             uit_categorieen=[int(c) for c in arg.getlist("uit_categorie") if c.isdigit()],
@@ -122,6 +126,9 @@ class Filters:
         if self.methoden:
             stukken.append(f"methode IN ({','.join('?' * len(self.methoden))})")
             params += self.methoden
+        if self.gewijzigd_na:
+            stukken.append("gewijzigd_op >= ?")
+            params.append(self.gewijzigd_na)
         return " AND ".join(stukken), params
 
     # -- gedeelte dat ontsleuteling vraagt ----------------------------------

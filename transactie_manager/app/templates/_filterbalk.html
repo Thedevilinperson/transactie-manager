@@ -9,6 +9,11 @@
                     anker='') %}
 <form method="get" action="{{ doel }}" class="filterblok" data-autofilter
       {% if anker %}data-anker="{{ anker }}"{% endif %}>
+  {# Blijft meereizen bij elke andere filterkeuze; het kruisje op het merkje
+     eronder is de manier om ze los te laten. #}
+  {% if filters.gewijzigd_na %}
+    <input type="hidden" name="{{ p }}gewijzigd_na" value="{{ filters.gewijzigd_na }}">
+  {% endif %}
   <div class="filterlijn">
 
     {% if toon_zoeken %}
@@ -244,7 +249,8 @@
   {% set actief = filters.jaren or filters.landen or filters.winkels
                   or filters.methoden or filters.uit_winkels or filters.uit_landen
                   or filters.uit_categorieen or filters.hoofd_id or filters.rekening_id
-                  or filters.status or filters.alleen_bevestigd or filters.zoekterm %}
+                  or filters.status or filters.alleen_bevestigd or filters.zoekterm
+                  or filters.gewijzigd_na %}
   {% if actief %}
     <div class="gekozenfilters">
       <span class="filterlabel">Actief:</span>
@@ -275,6 +281,9 @@
         {{ merk('zonder ' ~ l, p ~ 'uit_land', l, anker) }}{% endfor %}
       {% if filters.alleen_bevestigd %}
         {{ merk('alleen bevestigd', p ~ 'alleen_bevestigd', none, anker) }}{% endif %}
+      {% if filters.gewijzigd_na %}
+        {{ merk('aangepast sinds ' ~ filters.gewijzigd_na[11:16],
+                p ~ 'gewijzigd_na', none, anker) }}{% endif %}
     </div>
   {% endif %}
 {% endmacro %}

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import collections
 import json
 from datetime import date
 from decimal import Decimal, InvalidOperation
@@ -14,7 +15,7 @@ from ..categories import boom, keuzelijst, laad_alles, nakomelingen, pad_tekst
 from ..filters import METHODEN, STATUSSEN, Filters, keuzes, rekeningen as alle_rekeningen
 from ..categorizer.ai import maak_regel_van_voorstel
 from ..categorizer.engine import Motor, TransactieKenmerken, Voorstel
-from ..database import get_db, instelling, log
+from ..database import get_db, instelling, log, now_iso
 from ..transacties import bewaar, haal, tel, werk_bij, zoek
 
 bp = Blueprint("tx", __name__, url_prefix="/transacties")
@@ -329,11 +330,22 @@ def herindelen_get():
 @bp.route("/herindelen", methods=["POST"])
 @login_vereist
 def herindelen():
-    """Laat de motor opnieuw los op alles wat nog niet bevestigd is."""
+    """Laat de motor opnieuw los op alles wat nog niet bevestigd is.
+
+    Er wordt alleen geteld wat er werkelijk verandert. Voordien telde elke rij
+    mee waarvoor de motor íets vond, ook als dat precies was wat er al stond —
+    een tweede herindeling meldde dan weer hetzelfde aantal.
+
+    De telling gaat per stap uiteen, want dat is wat je daarna wil terugvinden:
+    een vaste regel, een gelijkenis met de historiek en het AI-model belanden
+    alle drie onder een andere *methode* in de lijst.
+    """
     conn = get_db()
     crypto = g.crypto
     motor = Motor(conn, crypto)
-    aangepast = 0
+    vanaf = now_iso()
+    veranderd: collections.Counter = collections.Counter()
+    ongewijzigd = 0
     rijen = conn.execute(
         "SELECT * FROM transacties WHERE status <> 'bevestigd'"
     ).fetchall()
@@ -341,22 +353,45 @@ def herindelen():
     for row in rijen:
         tx = rij_naar_object(row, crypto)
         voorstel = motor.beoordeel(tx.kenmerken)
-        if voorstel.gevonden:
-            werk_bij(
-                conn, crypto, tx.id,
-                categorie_id=voorstel.categorie_id,
-                subcategorie_id=voorstel.subcategorie_id,
-                subsub_id=voorstel.subsub_id,
-                handelaar=voorstel.handelaar or tx.handelaar,
-                land=voorstel.land or tx.land,
-                zekerheid=voorstel.zekerheid,
-                methode=voorstel.methode,
-                status=voorstel.status,
-                toelichting=voorstel.toelichting,
-                regel_id=voorstel.regel_id,
-            )
-            aangepast += 1
-    log(conn, crypto, g.gebruiker, "herindeling", f"aangepast={aangepast}")
+        if not voorstel.gevonden:
+            continue
+        if (voorstel.categorie_id == row["categorie_id"]
+                and voorstel.subcategorie_id == row["subcategorie_id"]
+                and voorstel.subsub_id == row["subsub_id"]
+                and voorstel.methode == row["methode"]
+                and voorstel.status == row["status"]):
+            ongewijzigd += 1
+            continue
+        werk_bij(
+            conn, crypto, tx.id,
+            categorie_id=voorstel.categorie_id,
+            subcategorie_id=voorstel.subcategorie_id,
+            subsub_id=voorstel.subsub_id,
+            handelaar=voorstel.handelaar or tx.handelaar,
+            land=voorstel.land or tx.land,
+            zekerheid=voorstel.zekerheid,
+            status=voorstel.status,
+            methode=voorstel.methode,
+            toelichting=voorstel.toelichting,
+            regel_id=voorstel.regel_id,
+        )
+        veranderd[voorstel.methode] += 1
+
+    totaal = sum(veranderd.values())
+    log(conn, crypto, g.gebruiker, "herindeling",
+        f"veranderd={totaal} ongewijzigd={ongewijzigd} "
+        + " ".join(f"{m}={n}" for m, n in sorted(veranderd.items())))
     conn.commit()
-    flash(f"{aangepast} transacties opnieuw ingedeeld.", "goed")
-    return redirect(url_for("tx.nazicht"))
+
+    if not totaal:
+        flash(f"Er viel niets bij te sturen. {ongewijzigd} transacties stonden al "
+              "zoals de motor ze zou indelen.", "goed")
+        return redirect(url_for("tx.nazicht"))
+
+    namen = dict(METHODEN)
+    uitsplitsing = ", ".join(f"{n} via {namen.get(m, m).lower()}"
+                             for m, n in veranderd.most_common())
+    flash(f"{totaal} transacties opnieuw ingedeeld: {uitsplitsing}."
+          + (f" {ongewijzigd} stonden al goed." if ongewijzigd else "")
+          + " Hieronder staan net die transacties.", "goed")
+    return redirect(url_for("tx.lijst", gewijzigd_na=vanaf))

@@ -4,6 +4,35 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.9.9] — 2026-09-19
+
+### Opgelost
+- **De melding na een herindeling klopte niet.** Ze telde elke transactie
+  waarvoor de motor íets vond, ook als dat precies was wat er al stond. Een
+  tweede herindeling meldde dan opnieuw hetzelfde aantal, terwijl er niets
+  gebeurd was. Alleen echte wijzigingen tellen nu mee, en staat er niets bij te
+  sturen, dan zegt ze dat ook.
+
+### Gewijzigd
+- **De melding splitst uit per stap: vaste regel, gelijkenis, AI-model.** Dat is
+  wat de verwarring veroorzaakte. "1300 transacties opnieuw ingedeeld" gaat over
+  alle drie de stappen samen, terwijl de filter *Vaste regel* alleen de eerste
+  toont. Het leeuwendeel komt doorgaans van de gelijkenis met je historiek, ook
+  wanneer die historiek zelf uit je regels is opgebouwd. Nu staat er bijvoorbeeld
+  "1281 via gelijkenis, 19 via vaste regel".
+- **Na een herindeling land je op de lijst met precies die transacties**, in
+  plaats van op het nazichtscherm. Voordien was er geen enkele manier om te zien
+  welke rijen er aangepast waren.
+
+### Erbij
+- **Filter *aangepast sinds*.** Toont de transacties die sinds een bepaald
+  tijdstip gewijzigd zijn; de herindeling zet hem op het moment waarop ze begon.
+  Hij reist mee wanneer je er andere filters bij kiest, en het kruisje op het
+  merkje laat hem los. Let op: hij kijkt naar het tijdstip van wijzigen, tot op
+  de seconde — heb je in diezelfde seconde nog iets anders aangepast, dan staat
+  dat er ook bij.
+
+
 ## [0.9.8] — 2026-09-19
 
 ### Erbij
