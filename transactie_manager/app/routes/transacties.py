@@ -179,6 +179,9 @@ def bewerken(tx_id: int):
             methode="manueel",
             zekerheid=1.0,
             toelichting="Manueel aangepast.",
+            # Wie zelf indeelt, maakt de band met de regel los: een latere
+            # wijziging aan die regel mag deze keuze niet meer overschrijven.
+            regel_id=None,
         )
         if request.form.get("onthouden") == "1":
             bijgewerkt = haal(conn, crypto, tx_id)
@@ -350,6 +353,7 @@ def herindelen():
                 methode=voorstel.methode,
                 status=voorstel.status,
                 toelichting=voorstel.toelichting,
+                regel_id=voorstel.regel_id,
             )
             aangepast += 1
     log(conn, crypto, g.gebruiker, "herindeling", f"aangepast={aangepast}")

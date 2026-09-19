@@ -4,6 +4,46 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.9.6] — 2026-09-19
+
+### Opgelost
+- **Een regel verwijderen of uitzetten liet de categorie staan.** De transacties
+  die de regel had ingedeeld, bleven in hun categorie hangen aan een regel die
+  niet meer bestond. Ze lieten zich ook niet meer rechtzetten: een regel zet
+  `status='bevestigd'`, en *Opnieuw indelen* raakt alleen wat nog niet bevestigd
+  is. Elke transactie met de hand terugzetten was de enige uitweg.
+- Verwijder of zet je nu een regel uit, dan laten die transacties hun categorie
+  los. Past er nog een andere regel op, dan neemt die het over; is er geen, dan
+  komen ze bij *Zonder categorie* te staan. Na afloop staat er hoeveel het er
+  waren en hoeveel er overgenomen zijn.
+- **Zet je een regel weer aan, dan pakt hij op wat nog geen categorie heeft.**
+  De tegenhanger van het uitzetten, zodat je een regel tijdelijk kan uitzetten
+  zonder je indeling kwijt te spelen.
+
+### Blijft staan
+- Wat je zelf hebt ingedeeld. Een handmatige toewijzing verbreekt de band met de
+  regel, zodat een latere wijziging aan die regel jouw keuze niet overschrijft.
+- Wat de fuzzy stap of het AI-model heeft toegewezen. Alleen een toewijzing die
+  van déze regel kwam, gaat weg.
+- Handelaar en land. Die staan los van de indeling, en een regel is meestal niet
+  de enige plek waar ze vandaan komen.
+
+### Gewijzigd
+- **Schemaversie 4: een transactie onthoudt nu wélke regel haar indeelde.**
+  Voordien stond er alleen `methode='regel'`, zonder te zeggen welke. Bestaande
+  databanken krijgen de kolom er bij het opstarten vanzelf bij; er is niets voor
+  te doen.
+- Transacties van vóór deze versie hebben die kolom niet ingevuld. Ze worden
+  herkend door de vraag om te draaien: zou déze regel deze transactie ingedeeld
+  hebben, gegeven de regels zoals ze stonden? Is een andere regel voorgegaan,
+  dan hing ze aan die andere en blijft ze met rust.
+- De regelstap van de motor staat nu in een eigen klasse, `Regelboek`, die het
+  regelonderhoud deelt met de motor. Dezelfde vraag hoort maar één keer
+  beantwoord te worden, anders lopen de twee vroeg of laat uit elkaar. Aan de
+  volgorde waarin regels gekozen worden, verandert niets.
+- Het regelscherm zegt nu vooraf wat verwijderen met je transacties doet.
+
+
 ## [0.9.5] — 2026-09-17
 
 ### Opgelost

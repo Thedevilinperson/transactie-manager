@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.9.5
+Versie 0.9.6
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -381,6 +381,21 @@ Een treffer via een regel is zeker en wordt meteen bevestigd. Behalve wanneer de
 regel als onzeker gemarkeerd staat: dat gebeurt bij tegenpartijen die in je
 referentielijst onder meer dan één categorie voorkomen.
 
+**Een regel uitzetten of verwijderen.** De transacties die hij had ingedeeld,
+laten die categorie dan ook los. Past er nog een andere regel op, dan neemt die
+het over; is er geen, dan komen ze bij *Zonder categorie* te staan en kan je ze
+daar via de filter terugvinden. Na afloop staat er hoeveel het er waren.
+
+Zet je de regel weer aan, dan pakt hij op wat nog geen categorie heeft. Je kan
+een regel dus tijdelijk uitzetten zonder je indeling kwijt te spelen.
+
+Drie dingen blijven ongemoeid. Wat je zelf hebt ingedeeld, blijft altijd staan:
+zodra jij een categorie kiest, is de band met de regel verbroken en overschrijft
+een latere wijziging aan die regel jouw keuze niet meer. Wat de fuzzy stap of het
+AI-model heeft toegewezen, blijft eveneens staan — alleen een toewijzing die van
+déze regel kwam, gaat weg. En handelaar en land blijven zoals ze waren; die staan
+los van de indeling.
+
 ### Stap 2: fuzzy vergelijking
 
 Lukt stap 1 niet, dan vergelijkt de toepassing de naam van de tegenpartij met
@@ -459,7 +474,9 @@ categorieënbestand blijven daarbij staan.
 
 Heb je regels toegevoegd of je referentielijst vernieuwd? Klik dan op **Opnieuw
 indelen** bij het nazicht. Alles wat nog niet bevestigd is, gaat opnieuw door de
-motor. Bevestigde transacties blijven staan.
+motor. Bevestigde transacties blijven staan — en een treffer via een regel geldt
+als bevestigd, dus die worden hier niet herbekeken. Een regel uitzetten of
+verwijderen regelt zichzelf: zie *Een regel uitzetten of verwijderen* hierboven.
 
 ---
 

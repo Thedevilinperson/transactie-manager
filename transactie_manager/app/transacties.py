@@ -37,6 +37,7 @@ class Transactie:
     is_afrekening: bool = False
     ouder_tx_id: int | None = None
     bron: str = "bank"
+    regel_id: int | None = None
 
     @property
     def kenmerken(self) -> TransactieKenmerken:
@@ -78,6 +79,7 @@ def rij_naar_object(row, crypto) -> Transactie:
         is_afrekening=bool(row["is_afrekening"]),
         ouder_tx_id=row["ouder_tx_id"],
         bron=row["bron"],
+        regel_id=row["regel_id"] if "regel_id" in row.keys() else None,
     )
 
 
@@ -230,8 +232,8 @@ def bewaar(conn, crypto, *, rekening_id: int, boekdatum: date | str, bedrag: Dec
         " tegenpartij_rek_idx, begunstigde_enc, mededeling_enc, handelaar_enc, handelaar_idx,"
         " land_enc, categorie_id, subcategorie_id, subsub_id, zekerheid, methode, status,"
         " toelichting_enc, vingerafdruk, batch_id, ruwe_data_enc, is_afrekening, ouder_tx_id,"
-        " bron, aangemaakt_op, gewijzigd_op)"
-        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        " bron, regel_id, aangemaakt_op, gewijzigd_op)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (
             rekening_id, datum, vd, vrd,
             crypto.enc(referentie) if referentie else None,
@@ -255,6 +257,7 @@ def bewaar(conn, crypto, *, rekening_id: int, boekdatum: date | str, bedrag: Dec
             afdruk, batch_id,
             crypto.enc(ruwe_data) if ruwe_data else None,
             1 if is_afrekening else 0, ouder_tx_id, bron,
+            voorstel.regel_id if voorstel.methode == "regel" else None,
             tijdstip, tijdstip,
         ),
     )
@@ -372,6 +375,7 @@ def werk_bij(conn, crypto, tx_id: int, **velden) -> None:
         "subsub_id": ("subsub_id", None),
         "zekerheid": ("zekerheid", None),
         "methode": ("methode", None),
+        "regel_id": ("regel_id", None),
         "status": ("status", None),
         "beschrijving": ("beschrijving_enc", "enc"),
         "referentie": ("referentie_enc", "enc"),

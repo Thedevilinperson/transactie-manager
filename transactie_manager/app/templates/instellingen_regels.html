@@ -86,6 +86,10 @@
 
 <div class="vlak">
   <h2>Bestaande regels</h2>
+  <p class="klein-detail">Zet je een regel uit of verwijder je hem, dan laten de
+    transacties die hij indeelde die categorie ook los. Past er nog een andere
+    regel op, dan neemt die het over; anders komen ze bij <em>Zonder categorie</em>
+    te staan. Wat je zelf hebt ingedeeld, blijft altijd staan.</p>
   {% if rijen %}
     <div class="tabel-omhulsel">
       <table>
@@ -127,7 +131,7 @@
                     <button type="submit" class="stil klein">
                       {{ 'Uitzetten' if r.actief else 'Aanzetten' }}</button>
                   </form>
-                  <form method="post" data-bevestig="Deze regel verwijderen?">
+                  <form method="post" data-bevestig="Deze regel verwijderen? De transacties die hij indeelde, komen zonder categorie te staan, tenzij een andere regel ze overneemt.">
                     <input type="hidden" name="actie" value="verwijderen">
                     <input type="hidden" name="id" value="{{ r.id }}">
                     <button type="submit" class="gevaar klein">Verwijderen</button>

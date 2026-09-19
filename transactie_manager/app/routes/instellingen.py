@@ -11,6 +11,8 @@ from ..categories import boom, keuzelijst, laad_alles
 from ..categorizer.ai import test_verbinding
 from ..crypto import normalize, normalize_iban
 from ..database import connect, get_db, instelling, log, now_iso, zet_instelling
+from ..regelonderhoud import (UIT_TOELICHTING, WIS_TOELICHTING, maak_los, pas_toe,
+                              verslag)
 
 bp = Blueprint("instellingen", __name__, url_prefix="/instellingen")
 
@@ -231,13 +233,38 @@ def regels():
                 conn.commit()
                 flash("Regel toegevoegd.", "goed")
         elif actie == "verwijderen":
-            conn.execute("DELETE FROM regels WHERE id=?", (request.form.get("id", type=int),))
+            regel_id = request.form.get("id", type=int)
+            # Eerst de transacties, dan pas de regel: zijn definitie is nog
+            # nodig om te herkennen wat er aan hing.
+            overgenomen, gewist = maak_los(conn, crypto, regel_id,
+                                           toelichting=WIS_TOELICHTING)
+            conn.execute("DELETE FROM regels WHERE id=?", (regel_id,))
             conn.commit()
-            flash("Regel verwijderd.", "goed")
+            flash("Regel verwijderd. " + verslag(overgenomen, gewist), "goed")
         elif actie == "actief":
-            conn.execute("UPDATE regels SET actief = 1 - actief WHERE id=?",
-                         (request.form.get("id", type=int),))
-            conn.commit()
+            regel_id = request.form.get("id", type=int)
+            rij = conn.execute("SELECT actief FROM regels WHERE id=?",
+                               (regel_id,)).fetchone()
+            if rij is None:
+                flash("Die regel bestaat niet meer.", "fout")
+                return redirect(url_for("instellingen.regels"))
+            conn.execute("UPDATE regels SET actief = 1 - actief WHERE id=?", (regel_id,))
+            if rij["actief"]:
+                overgenomen, gewist = maak_los(conn, crypto, regel_id,
+                                               toelichting=UIT_TOELICHTING)
+                conn.commit()
+                flash("Regel uitgeschakeld. " + verslag(overgenomen, gewist), "goed")
+            else:
+                aangepast = pas_toe(conn, crypto, regel_id)
+                conn.commit()
+                flash(
+                    "Regel weer ingeschakeld. " + (
+                        f"{aangepast} transactie{'s' if aangepast != 1 else ''} "
+                        f"zonder categorie {'kregen' if aangepast != 1 else 'kreeg'} "
+                        "er alsnog een." if aangepast else
+                        "Er stonden geen transacties zonder categorie klaar die "
+                        "erbij passen."),
+                    "goed")
         return redirect(url_for("instellingen.regels"))
 
     platte = laad_alles(conn, crypto)

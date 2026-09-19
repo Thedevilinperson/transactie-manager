@@ -192,7 +192,8 @@ def importeer(conn, crypto, rijen: list[tuple], *, vervang: bool = True,
 
     if vervang:
         conn.execute("UPDATE transacties SET categorie_id=NULL, subcategorie_id=NULL,"
-                     " subsub_id=NULL, status='niet_toegewezen', methode='geen'")
+                     " subsub_id=NULL, status='niet_toegewezen', methode='geen',"
+                     " regel_id=NULL")
         conn.execute("DELETE FROM regels")
         conn.execute("DELETE FROM categorieen")
 

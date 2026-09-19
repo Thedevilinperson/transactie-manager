@@ -67,6 +67,7 @@ class Voorstel:
     methode: str = "geen"
     status: str = "niet_toegewezen"
     toelichting: str = ""
+    regel_id: int | None = None
 
     @property
     def gevonden(self) -> bool:
@@ -118,11 +119,15 @@ class Regel:
     herkomst: str = "handmatig"
 
 
-def laad_regels(conn, crypto) -> list[Regel]:
+def laad_regels(conn, crypto, alleen_actief: bool = True) -> list[Regel]:
+    """De regels op prioriteit. Met `alleen_actief=False` komen de
+    uitgeschakelde er ook bij — nodig om te weten wat een regel deed voordat
+    hij uitgezet werd."""
     regels = []
-    for row in conn.execute(
-        "SELECT * FROM regels WHERE actief = 1 ORDER BY prioriteit, id"
-    ):
+    sql = "SELECT * FROM regels"
+    if alleen_actief:
+        sql += " WHERE actief = 1"
+    for row in conn.execute(sql + " ORDER BY prioriteit, id"):
         regels.append(Regel(
             id=row["id"],
             naam=crypto.dec(row["naam_enc"]) or "",
@@ -211,6 +216,7 @@ def naar_voorstel(regel: Regel) -> Voorstel:
         toelichting=(f"{omschrijving} wijst naar meer dan één categorie. "
                      "Kies zelf welke hier past."
                      if onzeker else f"Toegewezen door {omschrijving}."),
+        regel_id=regel.id,
     )
 
 
@@ -231,6 +237,7 @@ def pas_regels_toe(regels: list[Regel], k: TransactieKenmerken) -> Voorstel | No
                 toelichting=(f"{omschrijving} wijst in de historiek naar meer dan "
                              "één categorie. Kies zelf welke hier past."
                              if onzeker else f"Toegewezen door {omschrijving}."),
+                regel_id=regel.id,
             )
     return None
 
@@ -357,18 +364,21 @@ def fuzzy_voorstel(geschiedenis: list[Referentie], kandidaten: list[str],
 # Samenhangende motor
 # --------------------------------------------------------------------------
 
-class Motor:
-    """Laadt regels en geschiedenis één keer en beoordeelt daarna elke rij.
+class Regelboek:
+    """De regelstap van de motor, los van de fuzzy stap.
 
     Bij duizenden regels loont het om de exacte vergelijkingen in een
     woordenboek te zetten; alleen de bevat- en regex-regels worden nog
     doorlopen.
+
+    De klasse staat apart omdat het regelonderhoud dezelfde keuze moet kunnen
+    maken als de motor: welke regel zou déze transactie nu toewijzen? Zou dat
+    met een eigen kopie van die logica gebeuren, dan gaan beide op den duur uit
+    elkaar lopen.
     """
 
-    def __init__(self, conn, crypto):
-        self.conn = conn
-        self.crypto = crypto
-        self.regels = laad_regels(conn, crypto)
+    def __init__(self, regels: list[Regel]):
+        self.regels = sorted(regels, key=lambda r: (r.prioriteit, r.id))
         self.exact: dict[tuple[str, str], Regel] = {}
         self.los: list[Regel] = []
         for regel in self.regels:
@@ -382,13 +392,8 @@ class Motor:
             else:
                 self.los.append(regel)
 
-        self.geschiedenis = bouw_geschiedenis(conn, crypto, self.regels)
-        self.kandidaten = [ref.tekst for ref in self.geschiedenis]
-        self.auto_drempel = float(instelling(conn, "fuzzy_auto_drempel", "92"))
-        self.suggestie_drempel = float(instelling(conn, "fuzzy_suggestie_drempel", "72"))
-
-    def beoordeel(self, k: TransactieKenmerken) -> Voorstel:
-        """Zoekt de best passende regel en valt anders terug op de fuzzy stap.
+    def beste(self, k: TransactieKenmerken) -> Regel | None:
+        """De regel die deze transactie toewijst, of None.
 
         Exacte treffers en regels met een bedragvork worden samen beoordeeld en
         niet na elkaar: anders zou een brede regel op de tegenpartij altijd
@@ -398,19 +403,42 @@ class Motor:
         for veld, waarde in (("sleutel", k.sleutel()),
                              ("beschrijving", normalize(k.beschrijving)),
                              ("tegenpartij_naam", normalize(k.tegenpartij_naam)),
-                             ("tegenpartij_rekening", normalize_iban(k.tegenpartij_rekening))):
+                             ("tegenpartij_rekening",
+                              normalize_iban(k.tegenpartij_rekening))):
             if not waarde:
                 continue
             regel = self.exact.get((veld, waarde))
-            if regel is not None and (regel.richting is None or regel.richting == k.richting):
+            if regel is not None and (regel.richting is None
+                                      or regel.richting == k.richting):
                 kandidaten.append(regel)
 
         los = eerste_passende(self.los, k)
         if los is not None:
             kandidaten.append(los)
 
-        if kandidaten:
-            beste = min(kandidaten, key=lambda r: (r.prioriteit, r.id))
+        if not kandidaten:
+            return None
+        return min(kandidaten, key=lambda r: (r.prioriteit, r.id))
+
+
+class Motor:
+    """Laadt regels en geschiedenis één keer en beoordeelt daarna elke rij."""
+
+    def __init__(self, conn, crypto):
+        self.conn = conn
+        self.crypto = crypto
+        self.regels = laad_regels(conn, crypto)
+        self.regelboek = Regelboek(self.regels)
+
+        self.geschiedenis = bouw_geschiedenis(conn, crypto, self.regels)
+        self.kandidaten = [ref.tekst for ref in self.geschiedenis]
+        self.auto_drempel = float(instelling(conn, "fuzzy_auto_drempel", "92"))
+        self.suggestie_drempel = float(instelling(conn, "fuzzy_suggestie_drempel", "72"))
+
+    def beoordeel(self, k: TransactieKenmerken) -> Voorstel:
+        """Zoekt de best passende regel en valt anders terug op de fuzzy stap."""
+        beste = self.regelboek.beste(k)
+        if beste is not None:
             return naar_voorstel(beste)
 
         voorstel = fuzzy_voorstel(self.geschiedenis, self.kandidaten, k,

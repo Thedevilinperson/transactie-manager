@@ -9,7 +9,7 @@ from flask import g
 
 from .config import DB_PATH, DEFAULT_SETTINGS
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS app_meta (
@@ -162,6 +162,7 @@ CREATE TABLE IF NOT EXISTS transacties (
     is_afrekening            INTEGER NOT NULL DEFAULT 0,
     ouder_tx_id              INTEGER REFERENCES transacties(id) ON DELETE CASCADE,
     bron                     TEXT NOT NULL DEFAULT 'bank',
+    regel_id                 INTEGER REFERENCES regels(id) ON DELETE SET NULL,
     aangemaakt_op            TEXT NOT NULL,
     gewijzigd_op             TEXT NOT NULL
 );
@@ -246,6 +247,20 @@ def _migreer(conn: sqlite3.Connection) -> None:
     for naam, soort in nieuw.items():
         if naam not in bestaand:
             conn.execute(f"ALTER TABLE gebruikers ADD COLUMN {naam} {soort}")
+
+    # Sinds schemaversie 4 onthoudt een transactie wélke regel haar indeelde.
+    # Zonder dat kon een verwijderde regel haar toewijzingen niet meer
+    # terugvinden en bleef de categorie staan. Bestaande rijen krijgen NULL; die
+    # worden nog altijd teruggevonden door de regel opnieuw op de rij los te
+    # laten.
+    tx_kolommen = {rij["name"] for rij in conn.execute("PRAGMA table_info(transacties)")}
+    if "regel_id" not in tx_kolommen:
+        conn.execute("ALTER TABLE transacties ADD COLUMN regel_id INTEGER"
+                     " REFERENCES regels(id) ON DELETE SET NULL")
+    # De index hoort hier en niet in SCHEMA: dat script loopt vóór deze
+    # migratie, en op een bestaande databank bestaat de kolom dan nog niet.
+    conn.execute("CREATE INDEX IF NOT EXISTS ix_tx_regel ON transacties(regel_id)")
+
     conn.execute(
         "INSERT INTO app_meta (sleutel, waarde) VALUES ('schema_versie', ?) "
         "ON CONFLICT(sleutel) DO UPDATE SET waarde = excluded.waarde",
