@@ -2,6 +2,21 @@
 {% from "_kiezer.html" import categoriekiezer %}
 {% block titel %}Regels{% endblock %}
 
+{% macro kop(sleutel, label, klasse='') %}
+  {# Eén kolomkop die op klikken sorteert. Klik je op de kolom waarop al
+     gesorteerd wordt, dan draait de richting om. #}
+  {% set aan = filters.sorteer == sleutel %}
+  {% set om = '0' if aan and filters.omgekeerd else '1' %}
+  <th {% if klasse %}class="{{ klasse }}"{% endif %}>
+    <a class="sorteerkop {{ 'actief' if aan }}"
+       href="{{ url_for('instellingen.regels', **dict(request.args.to_dict(),
+                                                     sorteer=sleutel,
+                                                     omgekeerd=om)) }}#regels">
+      {{ label }}<span class="pijl">{{ '▼' if aan and filters.omgekeerd
+                                        else ('▲' if aan else '') }}</span></a>
+  </th>
+{% endmacro %}
+
 {% block inhoud %}
 <div class="kop">
   <h1>Regels</h1>
@@ -84,19 +99,82 @@
   </form>
 </div>
 
-<div class="vlak">
+<div class="vlak" id="regels">
   <h2>Bestaande regels</h2>
-  <p class="klein-detail">Zet je een regel uit of verwijder je hem, dan laten de
-    transacties die hij indeelde die categorie ook los. Past er nog een andere
-    regel op, dan neemt die het over; anders komen ze bij <em>Zonder categorie</em>
-    te staan. Wat je zelf hebt ingedeeld, blijft altijd staan.</p>
+  <p class="klein-detail">Zet je een regel uit, verwijder je hem, of pas je hem
+    zo aan dat hij hier niet meer op past, dan laten de transacties die hij
+    indeelde die categorie los. Past er nog een andere regel op, dan neemt die
+    het over; anders komen ze op <em>nazicht</em> te staan zonder categorie. Wat
+    je zelf hebt ingedeeld, blijft altijd staan.</p>
+
+  <form method="get" class="filterblok" data-autofilter data-anker="regels">
+    <div class="filterlijn">
+      <div class="fveld breed">
+        <label for="q">Zoeken</label>
+        <input type="search" id="q" name="q" value="{{ filters.q }}" data-traag
+               placeholder="naam, waarde, categorie, winkel">
+      </div>
+      <div class="fveld">
+        <label for="categorie">Categorie</label>
+        <select id="categorie" name="categorie">
+          <option value="">Alle</option>
+          {% for k in hoofdcategorieen %}
+            <option value="{{ k.id }}" {{ 'selected' if filters.categorie == k.id }}>
+              {{ k.naam }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fveld">
+        <label for="veld_f">Kijkt naar</label>
+        <select id="veld_f" name="veld_f">
+          <option value="">Alle velden</option>
+          {% for sleutel, label in veldnamen.items() %}
+            <option value="{{ sleutel }}" {{ 'selected' if filters.veld == sleutel }}>
+              {{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fveld">
+        <label for="bedrag_f">Vangt bedrag</label>
+        <input type="number" step="0.01" id="bedrag_f" name="bedrag_f" data-traag
+               value="{{ filters.bedrag if filters.bedrag is not none else '' }}"
+               placeholder="12,50">
+      </div>
+      <div class="fveld">
+        <label for="actief_f">Actief</label>
+        <select id="actief_f" name="actief_f">
+          <option value="">Alle</option>
+          <option value="ja" {{ 'selected' if filters.actief == 'ja' }}>Alleen actieve</option>
+          <option value="nee" {{ 'selected' if filters.actief == 'nee' }}>Alleen uitgezette</option>
+        </select>
+      </div>
+      <input type="hidden" name="sorteer" value="{{ filters.sorteer }}">
+      <input type="hidden" name="omgekeerd" value="{{ '1' if filters.omgekeerd else '0' }}">
+      <div class="fveld">
+        <label>&nbsp;</label>
+        <a class="knop stil" href="{{ url_for('instellingen.regels') }}#regels">Wissen</a>
+      </div>
+    </div>
+    <p class="klein-detail">
+      {% if rijen|length == totaal %}{{ totaal }} regels.
+      {% else %}{{ rijen|length }} van {{ totaal }} regels.{% endif %}
+      <em>Vangt bedrag</em> toont de regels waarvan de bedragvork dat bedrag
+      bevat; regels zonder vork vangen alles.</p>
+  </form>
+
   {% if rijen %}
     <div class="tabel-omhulsel">
       <table>
         <thead>
           <tr>
-            <th class="getal">Prio</th><th>Naam</th><th>Voorwaarde</th>
-            <th>Bedrag</th><th>Indeling</th><th>Actief</th><th></th>
+            {{ kop('prioriteit', 'Prio', 'getal') }}
+            {{ kop('naam', 'Naam') }}
+            {{ kop('voorwaarde', 'Voorwaarde') }}
+            {{ kop('bedrag', 'Bedrag') }}
+            {{ kop('indeling', 'Indeling') }}
+            {{ kop('treffers', 'Treffers', 'getal') }}
+            {{ kop('actief', 'Actief') }}
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -105,7 +183,8 @@
               <td class="getal">{{ r.prioriteit }}</td>
               <td>{{ r.naam }}</td>
               <td>
-                {{ r.veld.replace('_', ' ') }} {{ r.operator }} “{{ r.waarde }}”
+                {{ veldnamen.get(r.veld, r.veld.replace('_', ' ')) }}
+                {{ r.operator }} “{{ r.waarde }}”
                 {% if r.richting %}<span class="klein-detail">enkel
                   {{ 'uitgaven' if r.richting == 'uit' else 'inkomsten' }}</span>{% endif %}
               </td>
@@ -122,18 +201,24 @@
                 {{ r.pad }}
                 {% if r.handelaar %}<span class="klein-detail">zaak: {{ r.handelaar }}</span>{% endif %}
               </td>
-              <td>{{ 'ja' if r.actief else 'nee' }}</td>
+              <td class="getal">{{ r.treffers }}</td>
+              <td>{% if r.actief %}ja
+                {% else %}<span class="merkje geen">uitgezet</span>{% endif %}</td>
               <td>
                 <div class="knoppen">
+                  <a class="knop stil klein"
+                     href="{{ url_for('instellingen.regel_bewerken', regel_id=r.id) }}">Bewerken</a>
                   <form method="post">
                     <input type="hidden" name="actie" value="actief">
                     <input type="hidden" name="id" value="{{ r.id }}">
+                    <input type="hidden" name="terug" value="{{ request.full_path }}">
                     <button type="submit" class="stil klein">
                       {{ 'Uitzetten' if r.actief else 'Aanzetten' }}</button>
                   </form>
-                  <form method="post" data-bevestig="Deze regel verwijderen? De transacties die hij indeelde, komen zonder categorie te staan, tenzij een andere regel ze overneemt.">
+                  <form method="post" data-bevestig="Deze regel verwijderen? De transacties die hij indeelde, komen op nazicht te staan zonder categorie, tenzij een andere regel ze overneemt.">
                     <input type="hidden" name="actie" value="verwijderen">
                     <input type="hidden" name="id" value="{{ r.id }}">
+                    <input type="hidden" name="terug" value="{{ request.full_path }}">
                     <button type="submit" class="gevaar klein">Verwijderen</button>
                   </form>
                 </div>
@@ -143,6 +228,9 @@
         </tbody>
       </table>
     </div>
+  {% elif totaal %}
+    <div class="leeg"><strong>Geen regel voldoet aan de filter</strong>
+      Pas de zoekopdracht aan of wis de filter.</div>
   {% else %}
     <div class="leeg"><strong>Nog geen regels</strong>
       Voeg er hierboven een toe, of laat de motor ze leren bij het bevestigen.</div>

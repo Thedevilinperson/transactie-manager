@@ -4,6 +4,49 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.9.7] — 2026-09-19
+
+### Gewijzigd
+- **Transacties waarvan de categorie wegvalt, komen nu op *nazicht* te staan in
+  plaats van bij *Zonder categorie*.** Ze duiken dus op in het nazichtscherm,
+  waar je ze meteen kan afhandelen, in plaats van stilletjes ergens onderaan een
+  lijst te belanden. Dat geldt voor alle drie de gevallen: een regel
+  verwijderen, uitzetten of bewerken.
+
+### Erbij
+- **Een regel bewerken.** Naast elke regel staat nu *Bewerken*. Het scherm is
+  hetzelfde als bij toevoegen, met de huidige waarden ingevuld, en er is een
+  keuze *Allebei* bij Soort die voordien alleen via de databank te zetten was.
+- Bewaren volgt exact dezelfde weg als verwijderen: eerst wordt opgezocht welke
+  transacties aan de oude regel hingen, dan wordt de regel aangepast, dan worden
+  net die transacties opnieuw beoordeeld met de regels zoals ze daarna zijn.
+  Past de aangepaste regel er nog op, dan blijft alles staan. Past hij er niet
+  meer op, dan neemt een andere regel het over of komt de transactie op nazicht.
+  Daarna wordt de nieuwe regel nog losgelaten op wat geen categorie heeft, zodat
+  een regel die breder wordt ook meteen aanslaat.
+- **De regeltabel is te filteren.** Zoeken op naam, waarde, categorie of winkel;
+  filteren op hoofdcategorie, op het veld waar de regel naar kijkt, en op actief
+  of uitgezet. Daarbij hoort *Vangt bedrag*: vul een bedrag in en je ziet welke
+  regels dat bedrag zouden vangen — handig bij bedragvorken, waar het net de
+  vraag is welke regel een aankoop van 12,50 te pakken krijgt.
+- **De kolommen zijn sorteerbaar.** Prioriteit, naam, voorwaarde, bedrag,
+  indeling, treffers en actief; klikken op dezelfde kolom draait de richting om.
+  Onder de filter staat hoeveel regels er getoond worden van het totaal.
+- De kolom *Treffers* staat er nu bij, zodat je ziet welke regels werk doen en
+  welke nooit aanslaan.
+
+### Bevestigd
+- *Uitzetten* heeft dezelfde uitwerking op de transacties als verwijderen. Dat
+  was al zo sinds 0.9.6; het staat nu ook als zodanig in de code, want beide
+  paden lopen door dezelfde twee stappen in plaats van door een eigen variant.
+
+### Technisch
+- `regelonderhoud` is opgesplitst in `hangende_transacties()` en `herbekijk()`.
+  De eerste vraagt, zolang de oude regel nog geldt, wat eraan hing; de tweede
+  beoordeelt net die transacties opnieuw. Verwijderen, uitzetten en bewerken
+  gebruiken alle drie dezelfde twee stappen — één weg in plaats van drie.
+
+
 ## [0.9.6] — 2026-09-19
 
 ### Opgelost

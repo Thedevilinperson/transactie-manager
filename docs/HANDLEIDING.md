@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.9.6
+Versie 0.9.7
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -381,13 +381,30 @@ Een treffer via een regel is zeker en wordt meteen bevestigd. Behalve wanneer de
 regel als onzeker gemarkeerd staat: dat gebeurt bij tegenpartijen die in je
 referentielijst onder meer dan één categorie voorkomen.
 
-**Een regel uitzetten of verwijderen.** De transacties die hij had ingedeeld,
-laten die categorie dan ook los. Past er nog een andere regel op, dan neemt die
-het over; is er geen, dan komen ze bij *Zonder categorie* te staan en kan je ze
-daar via de filter terugvinden. Na afloop staat er hoeveel het er waren.
+**Een regel bewerken, uitzetten of verwijderen.** In alle drie de gevallen
+laten de transacties die hij had ingedeeld die categorie los. Past er nog een
+andere regel op, dan neemt die het over; is er geen, dan komen ze op *nazicht*
+te staan zonder categorie en vind je ze terug in het nazichtscherm. Na afloop
+staat er hoeveel het er waren.
+
+Bewerken volgt dezelfde weg als verwijderen. Eerst wordt opgezocht wat aan de
+oude regel hing, dan wordt de regel aangepast, dan worden net die transacties
+opnieuw beoordeeld. Past de aangepaste regel er nog op, dan blijft alles gewoon
+staan. Daarna wordt de nieuwe regel nog losgelaten op wat geen categorie heeft,
+zodat een regel die breder wordt ook meteen aanslaat.
 
 Zet je de regel weer aan, dan pakt hij op wat nog geen categorie heeft. Je kan
 een regel dus tijdelijk uitzetten zonder je indeling kwijt te spelen.
+
+**Zoeken en sorteren in de regels.** Boven de tabel staat een filterbalk. Je
+kan zoeken op naam, waarde, categorie of winkel, en filteren op hoofdcategorie,
+op het veld waar de regel naar kijkt, en op actief of uitgezet. *Vangt bedrag*
+is de nuttigste: vul een bedrag in en je ziet welke regels dat bedrag zouden
+vangen. Bij bedragvorken is dat net de vraag — welke regel krijgt een aankoop
+van 12,50 te pakken? Regels zonder vork vangen alles en staan er dus altijd bij.
+
+Klikken op een kolomkop sorteert; nog eens klikken draait de richting om. De
+kolom *Treffers* laat zien welke regels werk doen en welke nooit aanslaan.
 
 Drie dingen blijven ongemoeid. Wat je zelf hebt ingedeeld, blijft altijd staan:
 zodra jij een categorie kiest, is de band met de regel verbroken en overschrijft
@@ -533,7 +550,7 @@ bibliotheken. Ze werken dus ook zonder internet.
 |-----------------------|-------------------------------------------------------------|
 | Rekeningen            | Rekeningen toevoegen en aanpassen                           |
 | Categorieën           | De boom van drie niveaus beheren                            |
-| Regels                | Vaste regels toevoegen, uitzetten en verwijderen            |
+| Regels                | Vaste regels toevoegen, bewerken, uitzetten en verwijderen  |
 | Referentielijst       | Een categorieënbestand inlezen                              |
 | Automatisch indelen   | Drempels en het AI-model                                    |
 | Gebruikers            | Extra gebruikers, alleen voor beheerders                    |

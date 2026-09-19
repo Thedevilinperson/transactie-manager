@@ -1,22 +1,31 @@
 """Wat er met de transacties moet gebeuren als een regel verandert.
 
-Een regel verwijderen of uitschakelen hield voordien op bij de regeltabel. De
-transacties die hij ooit had ingedeeld, bleven in hun categorie staan — met
-`methode='regel'` en `status='bevestigd'`, waardoor zelfs *Opnieuw indelen* ze
-niet meer aanraakte. De indeling bleef dus hangen aan een regel die niet meer
-bestond, en de enige uitweg was elke transactie met de hand terugzetten.
+Een regel verwijderen, uitzetten of bewerken hield voordien op bij de
+regeltabel. De transacties die hij ooit had ingedeeld, bleven in hun categorie
+staan — met `methode='regel'` en `status='bevestigd'`, waardoor zelfs *Opnieuw
+indelen* ze niet meer aanraakte. De indeling bleef dus hangen aan een regel die
+niet meer bestond, en de enige uitweg was elke transactie met de hand
+terugzetten.
 
-Hier staat de tegenhanger: haalt de regel weg, dan wordt gekeken of een andere
-regel het overneemt, en zo niet wordt de categorie gewist. Zet je hem terug aan,
-dan pakt hij op wat nog geen categorie heeft.
+Hier staat de tegenhanger. De werkwijze is overal dezelfde en bestaat uit drie
+stappen, in deze volgorde:
+
+1. `hangende_transacties()` — zoek op, zolang de oude regel nog geldt, welke
+   transacties aan hem hingen;
+2. wijzig de regel: verwijderen, uitzetten of bewerken;
+3. `herbekijk()` — laat de regels zoals ze nú zijn opnieuw los op precies die
+   transacties.
+
+Die volgorde is wezenlijk: na stap 2 valt niet meer te achterhalen wat er aan de
+oude regel hing.
 
 Twee dingen blijven bewust ongemoeid:
 
 * wat je zelf hebt ingedeeld (`methode='manueel'`) en wat de fuzzy stap of het
-  AI-model heeft toegewezen. Alleen een toewijzing die van déze regel kwam,
-  gaat weg;
-* handelaar en land. Die staan los van de indeling, en een regel is meestal
-  niet de enige plek waar ze vandaan komen.
+  AI-model heeft toegewezen. Alleen een toewijzing die van een regel kwam, gaat
+  weg;
+* handelaar en land. Die staan los van de indeling, en een regel is meestal niet
+  de enige plek waar ze vandaan komen.
 """
 
 from __future__ import annotations
@@ -26,52 +35,67 @@ from .transacties import rij_naar_object, werk_bij
 
 WIS_TOELICHTING = "De regel die deze transactie indeelde, bestaat niet meer."
 UIT_TOELICHTING = "De regel die deze transactie indeelde, staat uit."
+BEWERKT_TOELICHTING = ("De regel die deze transactie indeelde, is aangepast en "
+                       "past hier niet meer op.")
 
 
-def _hing_aan(row, regel_id: int, boek_voor: Regelboek, kenmerken) -> bool:
-    """Was deze transactie door die regel ingedeeld?
+def hangende_transacties(conn, crypto, regel_id: int) -> list[int]:
+    """De transacties die door deze regel zijn ingedeeld.
 
-    Staat de regel er expliciet bij, dan is het antwoord zeker. Voor rijen van
-    vóór schemaversie 4 staat er niets, en dan blijft alleen de vraag over: zou
-    déze regel deze transactie ingedeeld hebben, gegeven de regels zoals ze
-    stonden? Is een andere regel voorgegaan, dan hing ze aan die andere en
-    blijft ze met rust.
-    """
-    if row["regel_id"] is not None:
-        return row["regel_id"] == regel_id
-    gekozen = boek_voor.beste(kenmerken)
-    return gekozen is not None and gekozen.id == regel_id
+    Staat de regel expliciet bij de transactie, dan is het antwoord zeker. Voor
+    rijen van vóór schemaversie 4 staat er niets, en dan blijft alleen de vraag
+    over: zou déze regel deze transactie ingedeeld hebben, gegeven de regels
+    zoals ze nu staan? Is een andere regel voorgegaan, dan hing ze aan die
+    andere en blijft ze met rust.
 
-
-def maak_los(conn, crypto, regel_id: int, *, toelichting: str = WIS_TOELICHTING
-             ) -> tuple[int, int]:
-    """Haalt de indeling weg bij alles wat aan deze regel hing.
-
-    Roep dit aan nádat de regel uitgeschakeld is, of vlak vóór hij verwijderd
-    wordt — de definitie is nog nodig om de oudere rijen te herkennen.
-
-    Geeft (overgenomen, gewist) terug.
+    Roep dit aan vóór je de regel wijzigt; daarna is zijn definitie weg.
     """
     alle = laad_regels(conn, crypto, alleen_actief=False)
     deze = next((r for r in alle if r.id == regel_id), None)
-    resterend = [r for r in laad_regels(conn, crypto) if r.id != regel_id]
+    andere = [r for r in laad_regels(conn, crypto) if r.id != regel_id]
+    # Zoals het nú is: de regels die gelden, plus degene die gaat veranderen.
+    boek = Regelboek(andere + ([deze] if deze is not None else []))
 
-    # Zoals het was: de regels die nu nog gelden, plus degene die weggaat.
-    boek_voor = Regelboek(resterend + ([deze] if deze is not None else []))
-    boek_na = Regelboek(resterend)
-
-    overgenomen = gewist = 0
-    rijen = conn.execute(
+    gevonden = []
+    for row in conn.execute(
         "SELECT * FROM transacties WHERE methode = 'regel'"
         " AND (regel_id = ? OR regel_id IS NULL)", (regel_id,)
-    ).fetchall()
-
-    for row in rijen:
-        tx = rij_naar_object(row, crypto)
-        if not _hing_aan(row, regel_id, boek_voor, tx.kenmerken):
+    ):
+        if row["regel_id"] is not None:
+            gevonden.append(row["id"])
             continue
+        if deze is None:
+            continue
+        tx = rij_naar_object(row, crypto)
+        gekozen = boek.beste(tx.kenmerken)
+        if gekozen is not None and gekozen.id == regel_id:
+            gevonden.append(row["id"])
+    return gevonden
 
-        vervanger = boek_na.beste(tx.kenmerken)
+
+def herbekijk(conn, crypto, tx_ids: list[int], *,
+              toelichting: str = WIS_TOELICHTING) -> tuple[int, int]:
+    """Laat de regels zoals ze nu zijn opnieuw los op deze transacties.
+
+    Past er nog een regel op, dan neemt die het over. Past er geen enkele meer
+    op, dan gaat de categorie weg en komt de transactie op *nazicht* te staan,
+    zodat ze in het nazichtscherm opduikt in plaats van stilletjes ergens
+    onderaan een lijst te belanden.
+
+    Geeft (overgenomen, gewist) terug.
+    """
+    if not tx_ids:
+        return 0, 0
+    boek = Regelboek(laad_regels(conn, crypto))
+
+    overgenomen = gewist = 0
+    for tx_id in tx_ids:
+        row = conn.execute("SELECT * FROM transacties WHERE id = ?", (tx_id,)).fetchone()
+        if row is None or row["methode"] != "regel":
+            # Ondertussen zelf ingedeeld of verwijderd: afblijven.
+            continue
+        tx = rij_naar_object(row, crypto)
+        vervanger = boek.beste(tx.kenmerken)
         if vervanger is not None:
             voorstel = naar_voorstel(vervanger)
             werk_bij(
@@ -90,20 +114,19 @@ def maak_los(conn, crypto, regel_id: int, *, toelichting: str = WIS_TOELICHTING
             werk_bij(
                 conn, crypto, tx.id,
                 categorie_id=None, subcategorie_id=None, subsub_id=None,
-                zekerheid=0.0, methode="geen", status="niet_toegewezen",
+                zekerheid=0.0, methode="geen", status="nazicht",
                 toelichting=toelichting, regel_id=None,
             )
             gewist += 1
-
     return overgenomen, gewist
 
 
 def pas_toe(conn, crypto, regel_id: int) -> int:
-    """Laat een regel los op wat nog geen categorie heeft.
+    """Laat één regel los op wat nog geen categorie heeft.
 
-    De tegenhanger van `maak_los`, voor wanneer je een regel weer aanzet. Raakt
-    alleen transacties zonder categorie: wat elders al is ingedeeld, en zeker
-    wat jij zelf hebt ingedeeld, blijft staan.
+    Voor wanneer je een regel weer aanzet, of hem zo bewerkt dat hij breder
+    wordt. Raakt alleen transacties zonder categorie: wat elders al is
+    ingedeeld, en zeker wat jij zelf hebt ingedeeld, blijft staan.
     """
     regel = next((r for r in laad_regels(conn, crypto) if r.id == regel_id), None)
     if regel is None:
@@ -136,15 +159,19 @@ def pas_toe(conn, crypto, regel_id: int) -> int:
     return aangepast
 
 
-def verslag(overgenomen: int, gewist: int) -> str:
+def verslag(overgenomen: int, gewist: int, erbij: int = 0) -> str:
     """Eén zin over wat er met de transacties gebeurd is."""
-    if not overgenomen and not gewist:
-        return "Er hingen geen transacties aan deze regel."
     stukken = []
     if gewist:
-        stukken.append(f"{gewist} {'transactie staat' if gewist == 1 else 'transacties staan'}"
-                       " nu zonder categorie")
+        stukken.append(
+            f"{gewist} {'transactie staat' if gewist == 1 else 'transacties staan'}"
+            " nu op nazicht zonder categorie")
     if overgenomen:
         stukken.append(f"{overgenomen} {'is' if overgenomen == 1 else 'zijn'}"
                        " overgenomen door een andere regel")
+    if erbij:
+        stukken.append(f"{erbij} {'kreeg' if erbij == 1 else 'kregen'}"
+                       " er alsnog een categorie bij")
+    if not stukken:
+        return "Er veranderde niets aan je transacties."
     return " en ".join(stukken) + "."

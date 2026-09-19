@@ -1,0 +1,100 @@
+{% extends "basis.html" %}
+{% from "_kiezer.html" import categoriekiezer %}
+{% block titel %}Regel bewerken{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Regel bewerken</h1>
+  <p>Bewaren volgt dezelfde weg als verwijderen: de transacties die aan deze
+    regel hingen, worden opnieuw beoordeeld met de regels zoals ze daarna zijn.
+    Past de aangepaste regel er nog op, dan blijft alles staan. Past hij er niet
+    meer op en neemt geen andere regel het over, dan komen ze op nazicht te staan
+    zonder categorie. Wat je zelf hebt ingedeeld, blijft altijd staan.</p>
+</div>
+
+<div class="vlak">
+  <form method="post" action="{{ url_for('instellingen.regels') }}" data-categoriekiezer>
+    <input type="hidden" name="actie" value="bewerken">
+    <input type="hidden" name="id" value="{{ regel.id }}">
+
+    <div class="rooster drie">
+      <div class="veld">
+        <label for="regelnaam">Naam van de regel</label>
+        <input type="text" id="regelnaam" name="naam" value="{{ regel.naam }}">
+      </div>
+      <div class="veld">
+        <label for="veld">Kijk naar</label>
+        <select id="veld" name="veld">
+          {% for sleutel, label in veldnamen.items() %}
+            <option value="{{ sleutel }}" {{ 'selected' if regel.veld == sleutel }}>
+              {{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="veld">
+        <label for="operator">Vergelijking</label>
+        <select id="operator" name="operator">
+          <option value="bevat" {{ 'selected' if regel.operator == 'bevat' }}>Bevat</option>
+          <option value="gelijk" {{ 'selected' if regel.operator == 'gelijk' }}>
+            Is precies gelijk aan</option>
+          <option value="regex" {{ 'selected' if regel.operator == 'regex' }}>
+            Reguliere expressie</option>
+        </select>
+      </div>
+      <div class="veld">
+        <label for="waarde">Waarde</label>
+        <input type="text" id="waarde" name="waarde" required value="{{ regel.waarde }}">
+      </div>
+      <div class="veld">
+        <label for="bedrag_min">Bedrag vanaf</label>
+        <input type="number" step="0.01" id="bedrag_min" name="bedrag_min"
+               value="{{ regel.bedrag_min if regel.bedrag_min is not none else '' }}">
+      </div>
+      <div class="veld">
+        <label for="bedrag_max">Bedrag tot (niet inbegrepen)</label>
+        <input type="number" step="0.01" id="bedrag_max" name="bedrag_max"
+               value="{{ regel.bedrag_max if regel.bedrag_max is not none else '' }}">
+      </div>
+      <div class="veld">
+        <label>Soort</label>
+        <div class="knoppen">
+          <span class="keuzeregel">
+            <input type="radio" id="rr_uit" name="richting" value="uit"
+                   {{ 'checked' if regel.richting == 'uit' }}>
+            <label for="rr_uit">Uitgave</label>
+          </span>
+          <span class="keuzeregel">
+            <input type="radio" id="rr_in" name="richting" value="in"
+                   {{ 'checked' if regel.richting == 'in' }}>
+            <label for="rr_in">Inkomst</label>
+          </span>
+          <span class="keuzeregel">
+            <input type="radio" id="rr_alle" name="richting" value=""
+                   {{ 'checked' if not regel.richting }}>
+            <label for="rr_alle">Allebei</label>
+          </span>
+        </div>
+      </div>
+      <div class="veld">
+        <label for="handelaar">Winkel of zaak toekennen</label>
+        <input type="text" id="handelaar" name="handelaar" value="{{ regel.handelaar }}">
+      </div>
+      <div class="veld">
+        <label for="land">Land toekennen</label>
+        <input type="text" id="land" name="land" value="{{ regel.land }}">
+      </div>
+      <div class="veld">
+        <label for="prioriteit">Prioriteit (laag gaat voor)</label>
+        <input type="number" id="prioriteit" name="prioriteit" value="{{ regel.prioriteit }}">
+      </div>
+    </div>
+
+    {{ categoriekiezer(keuzes, regel.categorie_id, regel.subcategorie_id, regel.subsub_id) }}
+
+    <div class="knoppen">
+      <button type="submit">Bewaren</button>
+      <a class="knop stil" href="{{ url_for('instellingen.regels') }}#regels">Annuleren</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

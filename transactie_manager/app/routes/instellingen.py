@@ -11,8 +11,8 @@ from ..categories import boom, keuzelijst, laad_alles
 from ..categorizer.ai import test_verbinding
 from ..crypto import normalize, normalize_iban
 from ..database import connect, get_db, instelling, log, now_iso, zet_instelling
-from ..regelonderhoud import (UIT_TOELICHTING, WIS_TOELICHTING, maak_los, pas_toe,
-                              verslag)
+from ..regelonderhoud import (BEWERKT_TOELICHTING, UIT_TOELICHTING, WIS_TOELICHTING,
+                              hangende_transacties, herbekijk, pas_toe, verslag)
 
 bp = Blueprint("instellingen", __name__, url_prefix="/instellingen")
 
@@ -193,7 +193,95 @@ def categorieen():
 
 # --------------------------------------------------------------------------
 # Regels
-# --------------------------------------------------------------------------
+
+VELDNAMEN = {
+    "tegenpartij_naam": "Naam tegenpartij",
+    "tegenpartij_rekening": "Rekening tegenpartij",
+    "mededeling": "Mededeling",
+    "beschrijving": "Beschrijving",
+    "sleutel": "Gecombineerde sleutel",
+    "alles": "Alle tekstvelden samen",
+}
+
+SORTEERSLEUTELS = {
+    "prioriteit": lambda r: (r["prioriteit"], r["id"]),
+    "naam": lambda r: (normalize(r["naam"]), r["prioriteit"]),
+    "voorwaarde": lambda r: (r["veld"], normalize(r["waarde"])),
+    # Regels zonder ondergrens vooraan, daarna oplopend.
+    "bedrag": lambda r: (r["bedrag_min"] is None and r["bedrag_max"] is None,
+                         r["bedrag_min"] if r["bedrag_min"] is not None else -1e18,
+                         r["bedrag_max"] if r["bedrag_max"] is not None else 1e18),
+    "indeling": lambda r: (normalize(r["pad"]), r["prioriteit"]),
+    "actief": lambda r: (not r["actief"], r["prioriteit"]),
+    "treffers": lambda r: (-r["treffers"], r["prioriteit"]),
+}
+
+
+def _regelvelden(form, crypto):
+    """De velden van het formulier, klaar om weg te schrijven.
+
+    Geeft None terug wanneer er geen waarde is ingevuld; zonder waarde kan een
+    regel nergens op passen.
+    """
+    waarde = form.get("waarde", "").strip()
+    if not waarde:
+        return None
+    handelaar = form.get("handelaar", "").strip()
+    land = form.get("land", "").strip()
+    return {
+        "naam_enc": crypto.enc(form.get("naam", "").strip() or waarde),
+        "prioriteit": form.get("prioriteit", 100, type=int),
+        "veld": form.get("veld", "tegenpartij_naam"),
+        "operator": form.get("operator", "bevat"),
+        "waarde_enc": crypto.enc(waarde),
+        "waarde_idx": crypto.blind(normalize(waarde)),
+        "bedrag_min": form.get("bedrag_min", type=float),
+        "bedrag_max": form.get("bedrag_max", type=float),
+        "richting": form.get("richting") or None,
+        "categorie_id": form.get("categorie_id", type=int),
+        "subcategorie_id": form.get("subcategorie_id", type=int),
+        "subsub_id": form.get("subsub_id", type=int),
+        "handelaar_enc": crypto.enc(handelaar) if handelaar else None,
+        "land_enc": crypto.enc(land) if land else None,
+    }
+
+
+def _regelfilters(args):
+    return {
+        "q": args.get("q", "").strip(),
+        "categorie": args.get("categorie", type=int),
+        "veld": args.get("veld_f", ""),
+        "actief": args.get("actief_f", ""),
+        "bedrag": args.get("bedrag_f", type=float),
+        "sorteer": args.get("sorteer", "prioriteit"),
+        "omgekeerd": args.get("omgekeerd") == "1",
+    }
+
+
+def _past_op_filter(rij, f) -> bool:
+    if f["q"]:
+        naald = normalize(f["q"])
+        hooi = normalize(" ".join([rij["naam"], rij["waarde"], rij["pad"],
+                                   rij["handelaar"]]))
+        if naald not in hooi:
+            return False
+    if f["categorie"] and f["categorie"] not in rij["cat_ids"]:
+        return False
+    if f["veld"] and rij["veld"] != f["veld"]:
+        return False
+    if f["actief"] == "ja" and not rij["actief"]:
+        return False
+    if f["actief"] == "nee" and rij["actief"]:
+        return False
+    if f["bedrag"] is not None:
+        # Welke regels zou dit bedrag halen? Ondergrens telt mee, bovengrens niet.
+        bedrag = abs(f["bedrag"])
+        if rij["bedrag_min"] is not None and bedrag < rij["bedrag_min"]:
+            return False
+        if rij["bedrag_max"] is not None and bedrag >= rij["bedrag_max"]:
+            return False
+    return True
+
 
 @bp.route("/regels", methods=["GET", "POST"])
 @login_vereist
@@ -203,70 +291,90 @@ def regels():
 
     if request.method == "POST":
         actie = request.form.get("actie")
+        bestemming = request.form.get("terug") or url_for("instellingen.regels")
+
         if actie == "toevoegen":
-            waarde = request.form.get("waarde", "").strip()
-            if not waarde:
+            velden = _regelvelden(request.form, crypto)
+            if velden is None:
                 flash("Geef aan waarop de regel moet passen.", "fout")
             else:
+                kolommen = list(velden) + ["aangemaakt_op"]
                 conn.execute(
-                    "INSERT INTO regels (naam_enc, prioriteit, veld, operator, waarde_enc,"
-                    " waarde_idx, bedrag_min, bedrag_max, richting, categorie_id,"
-                    " subcategorie_id, subsub_id, handelaar_enc, land_enc, aangemaakt_op)"
-                    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                    (
-                        crypto.enc(request.form.get("naam", "").strip() or waarde),
-                        request.form.get("prioriteit", 100, type=int),
-                        request.form.get("veld", "tegenpartij_naam"),
-                        request.form.get("operator", "bevat"),
-                        crypto.enc(waarde), crypto.blind(normalize(waarde)),
-                        request.form.get("bedrag_min", type=float),
-                        request.form.get("bedrag_max", type=float),
-                        request.form.get("richting") or None,
-                        request.form.get("categorie_id", type=int),
-                        request.form.get("subcategorie_id", type=int),
-                        request.form.get("subsub_id", type=int),
-                        crypto.enc(request.form.get("handelaar", "").strip()) or None,
-                        crypto.enc(request.form.get("land", "").strip()) or None,
-                        now_iso(),
-                    ),
+                    f"INSERT INTO regels ({', '.join(kolommen)})"
+                    f" VALUES ({', '.join('?' * len(kolommen))})",
+                    tuple(velden.values()) + (now_iso(),),
                 )
                 conn.commit()
                 flash("Regel toegevoegd.", "goed")
+
+        elif actie == "bewerken":
+            regel_id = request.form.get("id", type=int)
+            velden = _regelvelden(request.form, crypto)
+            if velden is None:
+                flash("Geef aan waarop de regel moet passen.", "fout")
+                return redirect(url_for("instellingen.regel_bewerken", regel_id=regel_id))
+            # Dezelfde weg als verwijderen: eerst opzoeken wat eraan hing,
+            # zolang de oude definitie nog geldt.
+            hingen = hangende_transacties(conn, crypto, regel_id)
+            conn.execute(
+                f"UPDATE regels SET {', '.join(k + ' = ?' for k in velden)} WHERE id = ?",
+                tuple(velden.values()) + (regel_id,),
+            )
+            overgenomen, gewist = herbekijk(conn, crypto, hingen,
+                                            toelichting=BEWERKT_TOELICHTING)
+            erbij = pas_toe(conn, crypto, regel_id)
+            conn.commit()
+            log(conn, crypto, g.gebruiker, "regel bewerkt", f"regel={regel_id}")
+            flash("Regel aangepast. " + verslag(overgenomen, gewist, erbij), "goed")
+
         elif actie == "verwijderen":
             regel_id = request.form.get("id", type=int)
-            # Eerst de transacties, dan pas de regel: zijn definitie is nog
-            # nodig om te herkennen wat er aan hing.
-            overgenomen, gewist = maak_los(conn, crypto, regel_id,
-                                           toelichting=WIS_TOELICHTING)
+            hingen = hangende_transacties(conn, crypto, regel_id)
             conn.execute("DELETE FROM regels WHERE id=?", (regel_id,))
+            overgenomen, gewist = herbekijk(conn, crypto, hingen,
+                                            toelichting=WIS_TOELICHTING)
             conn.commit()
             flash("Regel verwijderd. " + verslag(overgenomen, gewist), "goed")
+
         elif actie == "actief":
             regel_id = request.form.get("id", type=int)
             rij = conn.execute("SELECT actief FROM regels WHERE id=?",
                                (regel_id,)).fetchone()
             if rij is None:
                 flash("Die regel bestaat niet meer.", "fout")
-                return redirect(url_for("instellingen.regels"))
-            conn.execute("UPDATE regels SET actief = 1 - actief WHERE id=?", (regel_id,))
+                return redirect(bestemming)
             if rij["actief"]:
-                overgenomen, gewist = maak_los(conn, crypto, regel_id,
-                                               toelichting=UIT_TOELICHTING)
+                # Uitzetten volgt exact dezelfde weg als verwijderen.
+                hingen = hangende_transacties(conn, crypto, regel_id)
+                conn.execute("UPDATE regels SET actief = 0 WHERE id=?", (regel_id,))
+                overgenomen, gewist = herbekijk(conn, crypto, hingen,
+                                                toelichting=UIT_TOELICHTING)
                 conn.commit()
-                flash("Regel uitgeschakeld. " + verslag(overgenomen, gewist), "goed")
+                flash("Regel uitgezet. " + verslag(overgenomen, gewist), "goed")
             else:
-                aangepast = pas_toe(conn, crypto, regel_id)
+                conn.execute("UPDATE regels SET actief = 1 WHERE id=?", (regel_id,))
+                erbij = pas_toe(conn, crypto, regel_id)
                 conn.commit()
-                flash(
-                    "Regel weer ingeschakeld. " + (
-                        f"{aangepast} transactie{'s' if aangepast != 1 else ''} "
-                        f"zonder categorie {'kregen' if aangepast != 1 else 'kreeg'} "
-                        "er alsnog een." if aangepast else
-                        "Er stonden geen transacties zonder categorie klaar die "
-                        "erbij passen."),
-                    "goed")
-        return redirect(url_for("instellingen.regels"))
+                flash("Regel weer aangezet. " + verslag(0, 0, erbij), "goed")
 
+        return redirect(bestemming)
+
+    filters = _regelfilters(request.args)
+    rijen = _regelrijen(conn, crypto)
+    getoond = [r for r in rijen if _past_op_filter(r, filters)]
+    sleutel = SORTEERSLEUTELS.get(filters["sorteer"], SORTEERSLEUTELS["prioriteit"])
+    getoond.sort(key=sleutel, reverse=filters["omgekeerd"])
+
+    return render_template(
+        "instellingen_regels.html", rijen=getoond, totaal=len(rijen),
+        filters=filters, veldnamen=VELDNAMEN,
+        hoofdcategorieen=[k for k in keuzelijst(boom(conn, crypto))
+                          if k["niveau"] == 0],
+        keuzes=keuzelijst(boom(conn, crypto, alleen_actief=True)),
+    )
+
+
+def _regelrijen(conn, crypto) -> list[dict]:
     platte = laad_alles(conn, crypto)
 
     def pad(*ids):
@@ -282,10 +390,28 @@ def regels():
             "bedrag_min": r["bedrag_min"], "bedrag_max": r["bedrag_max"],
             "richting": r["richting"], "actief": bool(r["actief"]),
             "pad": pad(r["categorie_id"], r["subcategorie_id"], r["subsub_id"]),
+            "cat_ids": {i for i in (r["categorie_id"], r["subcategorie_id"],
+                                    r["subsub_id"]) if i},
+            "categorie_id": r["categorie_id"], "subcategorie_id": r["subcategorie_id"],
+            "subsub_id": r["subsub_id"],
             "handelaar": crypto.dec(r["handelaar_enc"]) or "",
+            "land": crypto.dec(r["land_enc"]) or "",
+            "treffers": r["treffers"], "herkomst": r["herkomst"],
         })
+    return rijen
+
+
+@bp.route("/regels/<int:regel_id>")
+@login_vereist
+def regel_bewerken(regel_id: int):
+    conn = get_db()
+    crypto = g.crypto
+    regel = next((r for r in _regelrijen(conn, crypto) if r["id"] == regel_id), None)
+    if regel is None:
+        flash("Die regel bestaat niet meer.", "fout")
+        return redirect(url_for("instellingen.regels"))
     return render_template(
-        "instellingen_regels.html", rijen=rijen,
+        "instellingen_regel.html", regel=regel, veldnamen=VELDNAMEN,
         keuzes=keuzelijst(boom(conn, crypto, alleen_actief=True)),
     )
 
