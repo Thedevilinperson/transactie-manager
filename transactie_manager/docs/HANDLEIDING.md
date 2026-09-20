@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.13.1
+Versie 0.13.2
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -139,15 +139,30 @@ rekeningen elke rij aan de juiste rekening hangen.
 Je kan twee kanten op.
 
 **Je hebt al een categorieënbestand.** Ga naar **Instellingen ›
-Referentielijst**. Er staat een voorbeeldbestand klaar om te downloaden. Het werkblad moet vijf kolommen hebben, in deze volgorde:
+Referentielijst**. Er staat een voorbeeldbestand klaar om te downloaden.
 
-| Kolom | Inhoud                                                          |
-|-------|-----------------------------------------------------------------|
-| A     | referentiesleutel: de beschrijving en de tegenpartij, met een koppelteken ertussen |
-| B     | hoofdcategorie                                                  |
-| C     | categorie (eerste subniveau)                                    |
-| D     | subcategorie (tweede subniveau)                                 |
-| E     | winkel, of bij vakantie het land van bestemming                 |
+De kolommen worden herkend aan hun kopregel, dus hun volgorde doet er niet toe
+en je hoeft ze niet allemaal te hebben:
+
+| Kop                 | Inhoud                                                      |
+|---------------------|-------------------------------------------------------------|
+| Sleutel             | de beschrijving en de tegenpartij, met een koppelteken ertussen |
+| Hoofdcategorie      | verplicht — zonder deze kolom valt er niets af te leiden     |
+| Categorie           | eerste subniveau                                            |
+| Subcategorie        | tweede subniveau                                            |
+| Winkel              | winkel, of bij vakantie het land van bestemming             |
+
+In plaats van *Sleutel* mag er ook Omschrijving, Beschrijving, Referentie,
+Mededeling of Tegenpartij staan; in plaats van *Winkel* ook Handelaar, Zaak of
+Land.
+
+**Een bestand met enkel de boomstructuur** — dus alleen Hoofdcategorie,
+Categorie en Subcategorie — werkt ook. Er valt dan geen enkele regel uit af te
+leiden, want er staat nergens welke transactie in welke categorie hoort. Het
+scherm zegt dat en neemt alleen de boom over.
+
+Staat er helemaal geen kopregel in je bestand, dan wordt de oude volgorde
+aangehouden: sleutel, hoofdcategorie, categorie, subcategorie, winkel.
 
 Je krijgt eerst een analysescherm te zien: hoeveel categorieën eruit volgen, hoe
 de boom eruitziet, en welke tegenpartijen in je lijst naar meer dan één

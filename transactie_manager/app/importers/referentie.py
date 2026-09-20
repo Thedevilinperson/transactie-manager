@@ -35,8 +35,45 @@ from ..database import now_iso
 # Waarden die "niet ingevuld" betekenen in het bestand.
 LEEG = {"", "-", "?", "n/a", "na", "nvt", "none"}
 
-# Deze kolomkoppen worden herkend; de volgorde telt, niet de exacte naam.
-VERWACHTE_KOP = ["sleutel", "hoofdcategorie", "categorie", "subcategorie", "winkel"]
+# Hoe een kopregel op onze vijf velden wordt afgebeeld. Een bestand hoeft niet
+# alle kolommen te hebben en de volgorde ligt niet vast: er zijn lijsten met
+# enkel de boomstructuur (drie kolommen) en lijsten die ook de koppeling met de
+# beschrijvingen bevatten (vijf). Vroeger werd er blind op positie gelezen,
+# waardoor een bestand van drie kolommen zijn categorie op de plaats van de
+# hoofdcategorie kreeg en de boom een niveau verschoof.
+KOPWOORDEN = {
+    "sleutel": ("sleutel", "omschrijving", "beschrijving", "referentie",
+                "mededeling", "tegenpartij"),
+    "hoofdcategorie": ("hoofdcategorie", "hoofdcat", "hoofd"),
+    "categorie": ("categorie", "cat"),
+    "subcategorie": ("subcategorie", "subcat", "sub"),
+    "winkel": ("winkel", "handelaar", "zaak", "land"),
+}
+
+VELDVOLGORDE = ["sleutel", "hoofdcategorie", "categorie", "subcategorie", "winkel"]
+
+
+def _kolomindeling(kop: list) -> dict[str, int] | None:
+    """Welke kolom hoort bij welk veld? None als er geen bruikbare kop staat.
+
+    Er wordt van achter naar voor gekeken: "subcategorie" bevat het woord
+    "categorie", dus het langste passende woord wint. Zonder die volgorde zou
+    een kolom Subcategorie als Categorie gelezen worden.
+    """
+    schoon = [str(c or "").strip().lower() for c in kop]
+    indeling: dict[str, int] = {}
+    for i, naam in enumerate(schoon):
+        if not naam:
+            continue
+        beste = None
+        for veld, woorden in KOPWOORDEN.items():
+            for woord in woorden:
+                if woord in naam and (beste is None or len(woord) > beste[1]):
+                    beste = (veld, len(woord))
+        if beste and beste[0] not in indeling:
+            indeling[beste[0]] = i
+    # Zonder hoofdcategorie valt er niets zinnigs af te leiden.
+    return indeling if "hoofdcategorie" in indeling else None
 
 
 def _schoon(waarde) -> str:
@@ -56,6 +93,9 @@ class Analyse:
     categorieen: int = 0
     subcategorieen: int = 0
     sleutelregels: int = 0
+    # Bevat het bestand de koppeling met de beschrijvingen? Zo niet, dan valt er
+    # geen enkele regel uit af te leiden en kan alleen de boom overgenomen worden.
+    met_sleutels: bool = True
     partijregels: int = 0
     botsingen: int = 0
     boom: dict = field(default_factory=dict)
@@ -63,23 +103,51 @@ class Analyse:
 
 
 def lees(pad: Path) -> list[tuple]:
-    """Leest het werkblad uit als lijst van vijf kolommen."""
+    """Leest het werkblad uit als lijst van vijf kolommen.
+
+    De kolommen worden op hun kopregel herkend, niet op hun plaats. Staat er
+    geen bruikbare kop, dan wordt teruggevallen op de oude volgorde: sleutel,
+    hoofdcategorie, categorie, subcategorie, winkel.
+    """
     from openpyxl import load_workbook
 
     wb = load_workbook(pad, read_only=True, data_only=True)
     ws = wb[wb.sheetnames[0]]
     rijen = []
-    for i, rij in enumerate(ws.iter_rows(values_only=True)):
-        if i == 0:
-            kop = [str(c or "").strip().lower() for c in rij[:5]]
-            # Een kopregel herkennen we aan het woord "hoofdcategorie".
-            if any("hoofdcategorie" in c for c in kop):
+    indeling: dict[str, int] | None = None
+    eerste = True
+
+    for rij in ws.iter_rows(values_only=True):
+        if eerste:
+            eerste = False
+            indeling = _kolomindeling(list(rij))
+            if indeling is not None:
                 continue
-        waarden = list(rij[:5]) + [None] * max(0, 5 - len(rij))
-        if _schoon(waarden[0]):
-            rijen.append(tuple(waarden[:5]))
+
+        if indeling is None:
+            waarden = list(rij[:5]) + [None] * max(0, 5 - len(rij))
+            waarden = waarden[:5]
+        else:
+            waarden = [rij[indeling[veld]] if veld in indeling
+                       and indeling[veld] < len(rij) else None
+                       for veld in VELDVOLGORDE]
+
+        # Een rij is bruikbaar zodra ze een sleutel óf een hoofdcategorie heeft.
+        # Zonder die tweede voorwaarde zou een bestand met enkel de
+        # boomstructuur volledig weggefilterd worden.
+        if _schoon(waarden[0]) or _schoon(waarden[1]):
+            rijen.append(tuple(waarden))
     wb.close()
     return rijen
+
+
+def heeft_sleutels(rijen: list[tuple]) -> bool:
+    """Bevat dit bestand de koppeling met de beschrijvingen?
+
+    Zo niet, dan valt er niets uit af te leiden en kan alleen de boomstructuur
+    overgenomen worden.
+    """
+    return any(_schoon(rij[0]) for rij in rijen)
 
 
 # --------------------------------------------------------------------------
@@ -130,7 +198,7 @@ def splits(sleutel: str, beschrijvingen: list[str]) -> tuple[str, str]:
 # --------------------------------------------------------------------------
 
 def analyseer(rijen: list[tuple]) -> Analyse:
-    analyse = Analyse(rijen=len(rijen))
+    analyse = Analyse(rijen=len(rijen), met_sleutels=heeft_sleutels(rijen))
     beschrijvingen = leer_beschrijvingen(rijen)
 
     # Hoofdlettergebruik verschilt per regel ("Auto" naast "auto"). We houden
@@ -161,7 +229,7 @@ def analyseer(rijen: list[tuple]) -> Analyse:
     analyse.categorieen = sum(len([c for c in subs if c]) for subs in boom.values())
     analyse.subcategorieen = sum(
         len([s for s in subsubs if s]) for subs in boom.values() for subsubs in subs.values())
-    analyse.sleutelregels = analyse.bruikbaar
+    analyse.sleutelregels = analyse.bruikbaar if analyse.met_sleutels else 0
     analyse.partijregels = sum(1 for paden in per_partij.values() if len(paden) == 1)
     analyse.botsingen = sum(1 for paden in per_partij.values() if len(paden) > 1)
 

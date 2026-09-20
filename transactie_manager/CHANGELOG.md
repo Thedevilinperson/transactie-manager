@@ -4,6 +4,37 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.13.2] — 2026-09-20
+
+### Opgelost
+- **Een categorieënbestand met alleen de boomstructuur kwam een niveau verschoven
+  binnen.** De kolommen werden op hun plaats gelezen, niet op hun naam, en de
+  eerste kolom werd altijd als sleutel opgevat. Bij een bestand met drie kolommen
+  — Hoofdcategorie, Categorie, Subcategorie — schoof daardoor alles op: de
+  categorie werd hoofdcategorie, de subcategorie werd categorie, en de echte
+  hoofdcategorieën verdwenen. Het resultaat was een boom waarin *Auto* en
+  *Transport* niet meer bij elkaar stonden.
+- **De kolommen worden nu op hun kopregel herkend**, dus hun volgorde en hun
+  aantal doen er niet meer toe. Herkend worden Sleutel (ook Omschrijving,
+  Beschrijving, Referentie, Mededeling, Tegenpartij), Hoofdcategorie, Categorie,
+  Subcategorie en Winkel (ook Handelaar, Zaak, Land). Bij het zoeken wint het
+  langst passende woord, zodat een kolom *Subcategorie* niet als *Categorie*
+  gelezen wordt.
+- Staat er geen bruikbare kopregel, dan geldt de oude volgorde. Bestanden zonder
+  kop blijven dus werken zoals voordien.
+- Een rij telt nu mee zodra ze een sleutel **of** een hoofdcategorie heeft. Met
+  enkel de oude voorwaarde zou een bestand zonder sleutelkolom volledig
+  weggefilterd worden.
+
+### Gewijzigd
+- **Het voorbeeldscherm past zich aan het bestand aan.** Zit er geen kolom met
+  beschrijvingen in, dan valt er geen enkele regel af te leiden; de keuze tussen
+  *volledige lijst* en *alleen de boomstructuur* verschijnt dan niet, en er staat
+  bij wat je zou moeten toevoegen om er wel regels uit te halen.
+- De analyse telde het aantal afgeleide regels gelijk aan het aantal bruikbare
+  rijen, ook wanneer er geen sleutels waren. Bij zo'n bestand staat er nu nul.
+
+
 ## [0.13.1] — 2026-09-20
 
 ### Opgelost

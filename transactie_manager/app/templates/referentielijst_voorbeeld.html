@@ -82,23 +82,36 @@
 
   <div class="vlak">
     <h2>Wat overnemen uit de lijst</h2>
-    <div class="keuzeregel" style="align-items:flex-start;margin-top:6px">
-      <input type="radio" id="omvang_volledig" name="omvang" value="volledig" checked
-             style="margin-top:4px">
-      <label for="omvang_volledig"><strong>De volledige referentielijst.</strong>
-        Categorieën én de koppeling met de beschrijvingen, waaruit
-        {{ analyse.sleutelregels }} regels worden afgeleid. Kies dit wanneer de
-        lijst ook je manier van indelen beschrijft.</label>
-    </div>
-    <div class="keuzeregel" style="align-items:flex-start;margin-top:10px">
-      <input type="radio" id="omvang_boom" name="omvang" value="boom"
-             style="margin-top:4px">
-      <label for="omvang_boom"><strong>Alleen de boomstructuur.</strong>
-        Enkel de categorieën, hun onderverdelingen en hun volgorde. Er worden geen
-        regels afgeleid, dus je indeling blijft je eigen werk. Kies dit wanneer de
-        lijst je categorieën beschrijft maar niet hoe je transacties erin
-        terechtkomen.</label>
-    </div>
+    {% if analyse.met_sleutels %}
+      <div class="keuzeregel" style="align-items:flex-start;margin-top:6px">
+        <input type="radio" id="omvang_volledig" name="omvang" value="volledig" checked
+               style="margin-top:4px">
+        <label for="omvang_volledig"><strong>De volledige referentielijst.</strong>
+          Categorieën én de koppeling met de beschrijvingen, waaruit
+          {{ analyse.sleutelregels }} regels worden afgeleid. Kies dit wanneer de
+          lijst ook je manier van indelen beschrijft.</label>
+      </div>
+      <div class="keuzeregel" style="align-items:flex-start;margin-top:10px">
+        <input type="radio" id="omvang_boom" name="omvang" value="boom"
+               style="margin-top:4px">
+        <label for="omvang_boom"><strong>Alleen de boomstructuur.</strong>
+          Enkel de categorieën, hun onderverdelingen en hun volgorde. Er worden geen
+          regels afgeleid, dus je indeling blijft je eigen werk. Kies dit wanneer de
+          lijst je categorieën beschrijft maar niet hoe je transacties erin
+          terechtkomen.</label>
+      </div>
+    {% else %}
+      <input type="hidden" name="omvang" value="boom">
+      <p><strong>Alleen de boomstructuur.</strong> Dit bestand bevat geen kolom
+        met beschrijvingen of tegenpartijen, dus er valt geen enkele regel uit af
+        te leiden. Wat overgenomen wordt zijn de categorieën, hun
+        onderverdelingen en hun volgorde.</p>
+      <p class="klein-detail">Wil je ook regels laten afleiden, voeg dan een
+        kolom toe met de omschrijving zoals ze op je afschrift staat — kop
+        <em>Sleutel</em>, <em>Omschrijving</em> of <em>Beschrijving</em>. De
+        kolommen worden op hun kopregel herkend, dus hun volgorde doet er niet
+        toe.</p>
+    {% endif %}
   </div>
 
   <div class="vlak">
@@ -128,7 +141,9 @@
     </div>
 
     <div class="keuzeregel" style="margin-top:14px">
-      <input type="checkbox" id="partijregels" name="partijregels" value="1" checked>
+      <input type="checkbox" id="partijregels" name="partijregels" value="1"
+             {{ 'checked' if analyse.met_sleutels }}
+             {{ 'disabled' if not analyse.met_sleutels }}>
       <label for="partijregels">Ook brede regels maken op enkel de tegenpartij
         <span class="klein-detail">(niet van toepassing bij “alleen de
         boomstructuur”)</span></label>
