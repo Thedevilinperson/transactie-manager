@@ -3,6 +3,7 @@ kredietkaartuittreksels in PDF."""
 
 from __future__ import annotations
 
+import collections
 import secrets
 from decimal import Decimal
 from pathlib import Path
@@ -11,7 +12,7 @@ from flask import (Blueprint, flash, g, redirect, render_template, request,
                    send_from_directory, url_for)
 from werkzeug.utils import secure_filename
 
-from .. import backup
+from .. import backup, veilig_terug
 from ..auth import login_vereist
 from ..categorizer.engine import Motor, TransactieKenmerken
 from ..config import UPLOAD_DIR
@@ -181,10 +182,92 @@ def kredietkaart():
         "SELECT COUNT(*) n FROM transacties WHERE is_afrekening=1").fetchone()["n"]
     jaren = kk.afrekeningsjaren(conn, crypto)
     jaar = request.args.get("jaar", type=int)
+    status = request.args.get("status_f", "")
+
+    alles = kk.zoek_afrekeningen(conn, crypto, jaar)
+    for a in alles:
+        a["status"] = _afrekeningsstatus(a)
+    getoond = [a for a in alles if not status or a["status"] == status]
+
+    # Hoeveel open afrekeningen zouden met één klik afgevinkt kunnen worden?
+    koppelbaar = sum(
+        1 for a in alles if a["status"] == "open"
+        and len(kk.zoek_tegenboekingen(conn, crypto, a["id"])) == 1)
+
     return render_template(
-        "kredietkaart.html",
-        afrekeningen=kk.zoek_afrekeningen(conn, crypto, jaar),
+        "kredietkaart.html", afrekeningen=getoond, totaal=len(alles),
         jaren=jaren, gekozen_jaar=jaar, verwerkt=hangend,
+        status=status, koppelbaar=koppelbaar,
+        tellingen=collections.Counter(a["status"] for a in alles),
+    )
+
+
+AFREKENINGSSTATUSSEN = [
+    ("open", "Nog te doen"),
+    ("uitgesplitst", "Uitgesplitst"),
+    ("tegengeboekt", "Tegengeboekt"),
+]
+
+
+def _afrekeningsstatus(a: dict) -> str:
+    """Uitgesplitst gaat voor: staan er aankopen onder, dan is dat de waarheid."""
+    if a["is_afrekening"]:
+        return "uitgesplitst"
+    if a.get("tegenboeking_tx_id"):
+        return "tegengeboekt"
+    return "open"
+
+
+@bp.route("/kredietkaart/tegenboekingen-koppelen", methods=["POST"])
+@login_vereist
+def tegenboekingen_koppelen():
+    """Alle open afrekeningen met een eenduidige tegenboeking in één keer."""
+    conn = get_db()
+    crypto = g.crypto
+    backup.maak("tegenboekingen")
+    aantal = kk.koppel_tegenboekingen(conn, crypto)
+    log(conn, crypto, g.gebruiker, "tegenboekingen_gekoppeld", f"aantal={aantal}")
+    conn.commit()
+    flash(f"{aantal} {'afrekening is' if aantal == 1 else 'afrekeningen zijn'}"
+          " aan de tegenboeking gehangen." if aantal else
+          "Geen enkele open afrekening heeft een eenduidige tegenboeking.", "goed")
+    return redirect(veilig_terug(request.form.get("terug"),
+                                 url_for("bijzonder.kredietkaart")))
+
+
+@bp.route("/kredietkaart/afrekening/<int:tx_id>/tegenboeking", methods=["GET", "POST"])
+@login_vereist
+def tegenboeking(tx_id: int):
+    """De tegenboeking van één afrekening met de hand aanwijzen of loskoppelen."""
+    conn = get_db()
+    crypto = g.crypto
+    afrekening = haal(conn, crypto, tx_id)
+    if afrekening is None:
+        flash("Die transactie bestaat niet meer.", "fout")
+        return redirect(url_for("bijzonder.kredietkaart"))
+
+    if request.method == "POST":
+        keuze = request.form.get("tegenboeking_id", type=int)
+        if keuze:
+            conn.execute("UPDATE transacties SET tegenboeking_tx_id=? WHERE id=?",
+                         (keuze, tx_id))
+            melding = "De afrekening staat nu als tegengeboekt."
+        else:
+            conn.execute("UPDATE transacties SET tegenboeking_tx_id=NULL WHERE id=?",
+                         (tx_id,))
+            melding = "De koppeling met de tegenboeking is weg."
+        log(conn, crypto, g.gebruiker, "tegenboeking_gezet", f"tx={tx_id} naar={keuze}")
+        conn.commit()
+        flash(melding, "goed")
+        return redirect(url_for("bijzonder.kredietkaart"))
+
+    huidig = None
+    if afrekening.tegenboeking_tx_id:
+        huidig = haal(conn, crypto, afrekening.tegenboeking_tx_id)
+    return render_template(
+        "kredietkaart_tegenboeking.html", afrekening=afrekening, huidig=huidig,
+        kandidaten=kk.zoek_tegenboekingen(conn, crypto, tx_id),
+        venster=kk.VENSTER_DAGEN,
     )
 
 

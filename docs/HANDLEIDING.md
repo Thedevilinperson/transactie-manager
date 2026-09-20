@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.12.0
+Versie 0.13.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -342,7 +342,41 @@ meer mee in de overzichten, zodat het bedrag maar één keer in je cijfers staat
 Wil je terug? **Losmaken** bij die afrekening verwijdert de aankopen en laat de
 afrekening weer meetellen.
 
-### 5.2 Hoe de PDF gelezen wordt
+### 5.2 De status van een afrekening
+
+Elke afrekening in het overzicht heeft een status, en je kan erop filteren:
+
+- **Nog te doen** — er is niets mee gebeurd. Dit is precies wat je categorie
+  Kredietkaart nog laat oplopen.
+- **Uitgesplitst** — er hangen aankopen onder. De afrekening telt niet meer mee;
+  de aankopen nemen haar plaats in.
+- **Tegengeboekt** — ze valt weg tegen een andere boeking.
+
+Die laatste is er voor afrekeningen die zijn teruggestort of rechtgezet. Zo'n
+afrekening hoef je niet uit te splitsen: samen met haar tegenboeking komt ze op
+nul uit. Wijs je de tegenboeking aan, dan verdwijnt ze uit je werklijst zonder
+dat er iets aan je cijfers verandert.
+
+**Automatisch afvinken.** Staat er boven het overzicht hoeveel open afrekeningen
+een eenduidige tegenboeking hebben, met een knop om ze in één keer te koppelen.
+Dat gebeurt alleen wanneer er précies één kandidaat is. Zijn er meerdere, dan is
+het een keuze en geen vaststelling, en die laat de toepassing aan jou.
+
+Een tegenboeking is een boeking op dezelfde rekening, met hetzelfde bedrag maar
+het tegengestelde teken, binnen tien dagen, die nog nergens aan hangt. Dat
+venster is krap gehouden: ruimer maken vergroot de kans dat een toevallig gelijk
+bedrag wordt aangezien voor een tegenboeking.
+
+**Met de hand** kan ook. Klik bij een afrekening op *Tegenboeking aanwijzen*; je
+krijgt de kandidaten met datum, bedrag en omschrijving. Daar zet je ze ook weer
+terug op *nog te doen*.
+
+> Waarom komt je categorie Kredietkaart op nul uit? Niet doordat er iets wordt
+> weggestreept, maar doordat een uitgesplitste afrekening simpelweg niet meer
+> meetelt en een tegengeboekte tegen haar tegenboeking wegvalt. Wat er blijft
+> staan, zijn de afrekeningen die nog *nog te doen* zijn.
+
+### 5.3 Hoe de PDF gelezen wordt
 
 Uittreksels van Mastercard en Visa zijn PDF's met een echte tekstlaag. Die tekst
 wordt uitgelezen met `pdfplumber`, dat de woorden per regel teruggeeft mét hun

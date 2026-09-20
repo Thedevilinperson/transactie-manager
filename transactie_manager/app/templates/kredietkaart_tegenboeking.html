@@ -1,0 +1,61 @@
+{% extends "basis.html" %}
+{% block titel %}Tegenboeking{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Tegenboeking aanwijzen</h1>
+  <p>Voor de afrekening van {{ afrekening.boekdatum|datum }} van
+    {{ afrekening.bedrag|euro }}.</p>
+</div>
+
+<div class="vlak">
+  <h2>Waarom dit bestaat</h2>
+  <p>Een kaartafrekening die is teruggestort of rechtgezet, hoef je niet uit te
+    splitsen in aankopen: ze valt weg tegen haar tegenboeking en komt samen op
+    nul uit. Wijs je die tegenboeking hier aan, dan verdwijnt de afrekening uit
+    je lijst <em>nog te doen</em>, zonder dat er iets aan je cijfers verandert.</p>
+  <p class="klein-detail">Voorgesteld worden boekingen op dezelfde rekening met
+    hetzelfde bedrag maar het tegengestelde teken, binnen {{ venster }} dagen, die
+    nog nergens aan hangen.</p>
+</div>
+
+<div class="vlak">
+  <h2>Kiezen</h2>
+  {% if huidig %}
+    <p>Nu gekoppeld aan de boeking van {{ huidig.boekdatum|datum }} van
+      {{ huidig.bedrag|euro }}.</p>
+  {% endif %}
+
+  <form method="post">
+    {% if kandidaten %}
+      {% for k in kandidaten %}
+        <div class="keuzeregel" style="align-items:flex-start;margin-top:8px">
+          <input type="radio" id="k{{ k.id }}" name="tegenboeking_id"
+                 value="{{ k.id }}" style="margin-top:4px"
+                 {{ 'checked' if huidig and huidig.id == k.id }}>
+          <label for="k{{ k.id }}">{{ k.boekdatum|datum }} —
+            <strong>{{ k.bedrag|euro }}</strong><br>
+            <span class="klein-detail">{{ k.omschrijving }}</span></label>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="leeg"><strong>Geen passende boeking gevonden</strong>
+        Er staat binnen {{ venster }} dagen geen boeking met hetzelfde bedrag en
+        het tegengestelde teken op deze rekening. Splits de afrekening dan uit in
+        aankopen, of laat ze staan.</div>
+    {% endif %}
+
+    <div class="keuzeregel" style="align-items:flex-start;margin-top:12px">
+      <input type="radio" id="k_geen" name="tegenboeking_id" value=""
+             style="margin-top:4px" {{ 'checked' if not huidig }}>
+      <label for="k_geen">Geen tegenboeking — zet de afrekening terug op
+        <em>nog te doen</em>.</label>
+    </div>
+
+    <div class="knoppen" style="margin-top:16px">
+      <button type="submit">Bewaren</button>
+      <a class="knop stil" href="{{ url_for('bijzonder.kredietkaart') }}">Terug</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

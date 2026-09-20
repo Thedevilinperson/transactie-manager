@@ -38,6 +38,7 @@ class Transactie:
     ouder_tx_id: int | None = None
     bron: str = "bank"
     regel_id: int | None = None
+    tegenboeking_tx_id: int | None = None
 
     @property
     def kenmerken(self) -> TransactieKenmerken:
@@ -80,6 +81,8 @@ def rij_naar_object(row, crypto) -> Transactie:
         ouder_tx_id=row["ouder_tx_id"],
         bron=row["bron"],
         regel_id=row["regel_id"] if "regel_id" in row.keys() else None,
+        tegenboeking_tx_id=(row["tegenboeking_tx_id"]
+                            if "tegenboeking_tx_id" in row.keys() else None),
     )
 
 
@@ -376,6 +379,7 @@ def werk_bij(conn, crypto, tx_id: int, **velden) -> None:
         "zekerheid": ("zekerheid", None),
         "methode": ("methode", None),
         "regel_id": ("regel_id", None),
+        "tegenboeking_tx_id": ("tegenboeking_tx_id", None),
         "status": ("status", None),
         "beschrijving": ("beschrijving_enc", "enc"),
         "referentie": ("referentie_enc", "enc"),

@@ -50,6 +50,42 @@
         gevonden</span>
     </form>
   {% endif %}
+  <form method="get" class="filterblok" data-autofilter>
+    {% if gekozen_jaar %}<input type="hidden" name="jaar" value="{{ gekozen_jaar }}">{% endif %}
+    <div class="filterlijn">
+      <div class="fveld">
+        <label for="status_f">Status</label>
+        <select id="status_f" name="status_f">
+          <option value="">Alle ({{ totaal }})</option>
+          <option value="open" {{ 'selected' if status == 'open' }}>
+            Nog te doen ({{ tellingen['open'] }})</option>
+          <option value="uitgesplitst" {{ 'selected' if status == 'uitgesplitst' }}>
+            Uitgesplitst ({{ tellingen['uitgesplitst'] }})</option>
+          <option value="tegengeboekt" {{ 'selected' if status == 'tegengeboekt' }}>
+            Tegengeboekt ({{ tellingen['tegengeboekt'] }})</option>
+        </select>
+      </div>
+    </div>
+    <p class="klein-detail">Een afrekening telt niet meer mee in je cijfers zodra
+      ze uitgesplitst is. Een tegengeboekte afrekening blijft staan, maar valt
+      tegen haar tegenboeking weg — samen komen ze op nul uit. Wat onder
+      <em>nog te doen</em> staat, is wat je categorie Kredietkaart nog laat
+      oplopen.</p>
+  </form>
+
+  {% if koppelbaar %}
+    <div class="melding goed" style="margin-bottom:14px">
+      {{ koppelbaar }} open
+      {{ 'afrekening heeft' if koppelbaar == 1 else 'afrekeningen hebben' }}
+      precies één passende tegenboeking.
+      <form method="post" style="display:inline-block;margin-left:8px"
+            action="{{ url_for('bijzonder.tegenboekingen_koppelen') }}">
+        <input type="hidden" name="terug" value="{{ request.full_path }}">
+        <button type="submit" class="stil klein">Automatisch afvinken</button>
+      </form>
+    </div>
+  {% endif %}
+
   {% if afrekeningen %}
     <div class="tabel-omhulsel">
       <table>
@@ -65,20 +101,30 @@
               <td class="getal bedrag-uit">{{ a.bedrag|euro }}</td>
               <td class="getal">{{ a.aantal_kinderen or '—' }}</td>
               <td>
-                {% if a.is_afrekening %}
+                {% if a.status == 'uitgesplitst' %}
                   <span class="merkje zeker">uitgesplitst</span>
+                {% elif a.status == 'tegengeboekt' %}
+                  <span class="merkje zeker">tegengeboekt</span>
                 {% else %}
-                  <span class="merkje geen">nog niet</span>
+                  <span class="merkje geen">nog te doen</span>
                 {% endif %}
               </td>
               <td>
-                {% if a.aantal_kinderen %}
-                  <form method="post"
-                        action="{{ url_for('bijzonder.losmaken', tx_id=a.id) }}"
-                        data-bevestig="De aankopen onder deze afrekening verwijderen?">
-                    <button type="submit" class="gevaar klein">Losmaken</button>
-                  </form>
-                {% endif %}
+                <div class="knoppen">
+                  {% if a.status != 'uitgesplitst' %}
+                    <a class="knop stil klein"
+                       href="{{ url_for('bijzonder.tegenboeking', tx_id=a.id) }}">
+                      {{ 'Tegenboeking wijzigen' if a.status == 'tegengeboekt'
+                         else 'Tegenboeking aanwijzen' }}</a>
+                  {% endif %}
+                  {% if a.aantal_kinderen %}
+                    <form method="post"
+                          action="{{ url_for('bijzonder.losmaken', tx_id=a.id) }}"
+                          data-bevestig="De aankopen onder deze afrekening verwijderen?">
+                      <button type="submit" class="gevaar klein">Losmaken</button>
+                    </form>
+                  {% endif %}
+                </div>
               </td>
             </tr>
           {% endfor %}

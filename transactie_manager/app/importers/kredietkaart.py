@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
@@ -364,7 +364,7 @@ def zoek_afrekeningen(conn, crypto, jaar: int | None = None,
     rijen scheelt dat een veelvoud.
     """
     sql = ("SELECT id, boekdatum, bedrag_enc, beschrijving_enc,"
-           " tegenpartij_naam_enc, is_afrekening FROM transacties"
+           " tegenpartij_naam_enc, is_afrekening, tegenboeking_tx_id FROM transacties"
            " WHERE richting = 'uit' AND ouder_tx_id IS NULL")
     params: list = []
     if jaar:
@@ -391,7 +391,96 @@ def zoek_afrekeningen(conn, crypto, jaar: int | None = None,
             "omschrijving": f"{beschrijving} — {tegenpartij}".strip(" —"),
             "aantal_kinderen": kinderen.get(row["id"], 0),
             "is_afrekening": bool(row["is_afrekening"]),
+            "tegenboeking_tx_id": row["tegenboeking_tx_id"],
         })
         if len(kandidaten) >= limiet:
             break
     return kandidaten
+
+
+# --------------------------------------------------------------------------
+# Tegenboekingen
+# --------------------------------------------------------------------------
+
+# Hoeveel dagen een tegenboeking van haar afrekening mag afliggen. Een
+# terugstorting of een correctie komt doorgaans binnen enkele dagen; ruimer
+# maken vergroot de kans dat een toevallig gelijk bedrag wordt aangezien voor
+# een tegenboeking.
+VENSTER_DAGEN = 10
+
+
+def _datum(tekst: str) -> date | None:
+    try:
+        return date.fromisoformat(tekst[:10])
+    except (TypeError, ValueError):
+        return None
+
+
+def zoek_tegenboekingen(conn, crypto, afrekening_id: int,
+                        venster: int = VENSTER_DAGEN) -> list[dict]:
+    """Boekingen die deze afrekening kunnen tegenboeken.
+
+    Een tegenboeking staat op dezelfde rekening, heeft hetzelfde bedrag met het
+    tegengestelde teken, ligt dicht in de tijd, en hangt nog nergens aan. Het
+    bedrag staat versleuteld, dus de vergelijking gebeurt na het ontsleutelen —
+    daarom wordt eerst op rekening en datum voorgeselecteerd.
+    """
+    afrekening = conn.execute(
+        "SELECT id, rekening_id, boekdatum, bedrag_enc FROM transacties WHERE id = ?",
+        (afrekening_id,)).fetchone()
+    if afrekening is None:
+        return []
+    dag = _datum(afrekening["boekdatum"])
+    if dag is None:
+        return []
+    doelbedrag = -crypto.dec_amount(afrekening["bedrag_enc"])
+
+    al_gebruikt = {
+        rij["tegenboeking_tx_id"] for rij in conn.execute(
+            "SELECT tegenboeking_tx_id FROM transacties"
+            " WHERE tegenboeking_tx_id IS NOT NULL")
+    }
+
+    gevonden = []
+    for row in conn.execute(
+        "SELECT id, boekdatum, bedrag_enc, beschrijving_enc, tegenpartij_naam_enc"
+        " FROM transacties WHERE rekening_id = ? AND id <> ?"
+        " AND is_afrekening = 0 AND ouder_tx_id IS NULL"
+        " AND boekdatum BETWEEN ? AND ? ORDER BY boekdatum",
+        (afrekening["rekening_id"], afrekening_id,
+         (dag - timedelta(days=venster)).isoformat(),
+         (dag + timedelta(days=venster)).isoformat()),
+    ):
+        if row["id"] in al_gebruikt:
+            continue
+        if crypto.dec_amount(row["bedrag_enc"]) != doelbedrag:
+            continue
+        beschrijving = crypto.dec(row["beschrijving_enc"]) or ""
+        tegenpartij = crypto.dec(row["tegenpartij_naam_enc"]) or ""
+        gevonden.append({
+            "id": row["id"],
+            "boekdatum": row["boekdatum"],
+            "bedrag": crypto.dec_amount(row["bedrag_enc"]),
+            "omschrijving": (f"{beschrijving} — {tegenpartij}".strip(" —")
+                             or "(geen omschrijving)"),
+        })
+    return gevonden
+
+
+def koppel_tegenboekingen(conn, crypto, venster: int = VENSTER_DAGEN) -> int:
+    """Hangt elke open afrekening aan haar tegenboeking, als die eenduidig is.
+
+    Alleen wanneer er précies één kandidaat is. Zijn er meerdere, dan is het een
+    keuze en geen vaststelling; die laat de toepassing aan jou.
+    """
+    gekoppeld = 0
+    for kandidaat in zoek_afrekeningen(conn, crypto):
+        if kandidaat["is_afrekening"] or kandidaat.get("tegenboeking_tx_id"):
+            continue
+        mogelijk = zoek_tegenboekingen(conn, crypto, kandidaat["id"], venster)
+        if len(mogelijk) != 1:
+            continue
+        conn.execute("UPDATE transacties SET tegenboeking_tx_id = ? WHERE id = ?",
+                     (mogelijk[0]["id"], kandidaat["id"]))
+        gekoppeld += 1
+    return gekoppeld

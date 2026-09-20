@@ -9,7 +9,7 @@ from flask import g
 
 from .config import DB_PATH, DEFAULT_SETTINGS
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS app_meta (
@@ -179,6 +179,7 @@ CREATE TABLE IF NOT EXISTS transacties (
     ouder_tx_id              INTEGER REFERENCES transacties(id) ON DELETE CASCADE,
     bron                     TEXT NOT NULL DEFAULT 'bank',
     regel_id                 INTEGER REFERENCES regels(id) ON DELETE SET NULL,
+    tegenboeking_tx_id       INTEGER REFERENCES transacties(id) ON DELETE SET NULL,
     aangemaakt_op            TEXT NOT NULL,
     gewijzigd_op             TEXT NOT NULL
 );
@@ -276,6 +277,14 @@ def _migreer(conn: sqlite3.Connection) -> None:
     # De index hoort hier en niet in SCHEMA: dat script loopt vóór deze
     # migratie, en op een bestaande databank bestaat de kolom dan nog niet.
     conn.execute("CREATE INDEX IF NOT EXISTS ix_tx_regel ON transacties(regel_id)")
+
+    # Schemaversie 6: een kaartafrekening kan naar haar tegenboeking wijzen.
+    # Daarmee is ze afgehandeld zonder dat ze uitgesplitst hoeft te worden.
+    if "tegenboeking_tx_id" not in tx_kolommen:
+        conn.execute("ALTER TABLE transacties ADD COLUMN tegenboeking_tx_id INTEGER"
+                     " REFERENCES transacties(id) ON DELETE SET NULL")
+    conn.execute("CREATE INDEX IF NOT EXISTS ix_tx_tegenboeking"
+                 " ON transacties(tegenboeking_tx_id)")
 
     # Schemaversie 5: een regel kan meer dan één voorwaarde hebben. Bestaande
     # regels houden hun ene voorwaarde in de regeltabel en krijgen hier niets.

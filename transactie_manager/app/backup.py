@@ -42,6 +42,7 @@ REDENEN = {
     "herindeling": "Voor een herindeling",
     "dagelijks": "Dagelijkse kopie",
     "wissen": "Voor het leegmaken van de databank",
+    "tegenboekingen": "Voor het koppelen van tegenboekingen",
 }
 
 BLIJVEND = {"handmatig", "voor_herstel", "wissen"}

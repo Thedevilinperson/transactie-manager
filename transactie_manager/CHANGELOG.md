@@ -4,6 +4,37 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.13.0] — 2026-09-20
+
+### Erbij
+- **Kaartafrekeningen hebben nu een status: *nog te doen*, *uitgesplitst* of
+  *tegengeboekt*.** Een afrekening die is teruggestort of rechtgezet, hoeft niet
+  uitgesplitst te worden in aankopen: ze valt weg tegen haar tegenboeking. Wijs
+  die aan en de afrekening verdwijnt uit je werklijst.
+- **Automatisch afvinken.** Staat er boven het overzicht hoeveel open
+  afrekeningen een eenduidige tegenboeking hebben, met een knop om ze in één
+  keer te koppelen. Dat gebeurt alleen wanneer er précies één kandidaat is:
+  zijn er meerdere, dan is het een keuze en geen vaststelling, en die blijft aan
+  jou.
+- Een tegenboeking is een boeking op dezelfde rekening, met hetzelfde bedrag maar
+  het tegengestelde teken, binnen tien dagen, die nog nergens aan hangt. Dat
+  venster is bewust krap: ruimer maken vergroot de kans dat een toevallig gelijk
+  bedrag wordt aangezien voor een tegenboeking.
+- **Met de hand aanwijzen of loskoppelen** kan via een eigen scherm per
+  afrekening, dat de kandidaten toont met datum, bedrag en omschrijving.
+- **Filteren op status** boven het overzicht, met de aantallen per status erbij.
+  *Nog te doen* is precies wat je categorie Kredietkaart nog laat oplopen.
+
+### Gewijzigd
+- **Schemaversie 6: een transactie kan naar haar tegenboeking wijzen**
+  (`tegenboeking_tx_id`). Bestaande databanken krijgen de kolom bij het
+  opstarten; er is niets voor te doen.
+- Aan de cijfers verandert niets. Een uitgesplitste afrekening telde al niet
+  meer mee, en een tegengeboekte valt weg tegen haar tegenboeking — samen komen
+  ze op nul uit. De status zegt dus wat er nog te doen is, niet wat er wordt
+  geteld.
+
+
 ## [0.12.0] — 2026-09-20
 
 ### Erbij
