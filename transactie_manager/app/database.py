@@ -9,7 +9,7 @@ from flask import g
 
 from .config import DB_PATH, DEFAULT_SETTINGS
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS app_meta (
@@ -99,6 +99,8 @@ CREATE TABLE IF NOT EXISTS regels (
     land_enc      TEXT,
     actief        INTEGER NOT NULL DEFAULT 1,
     treffers      INTEGER NOT NULL DEFAULT 0,
+    bevestigd_op   TEXT,
+    bevestigd_door TEXT,
     herkomst      TEXT NOT NULL DEFAULT 'handmatig',
     aangemaakt_op TEXT NOT NULL
 );
@@ -285,6 +287,13 @@ def _migreer(conn: sqlite3.Connection) -> None:
                      " REFERENCES transacties(id) ON DELETE SET NULL")
     conn.execute("CREATE INDEX IF NOT EXISTS ix_tx_tegenboeking"
                  " ON transacties(tegenboeking_tx_id)")
+
+    # Schemaversie 7: een regel onthoudt of jij haar hebt goedgekeurd. Zonder
+    # dat zag je bij het terugkomen niet meer dat je haar al had nagekeken.
+    regelkolommen = {rij["name"] for rij in conn.execute("PRAGMA table_info(regels)")}
+    for naam, soort in (("bevestigd_op", "TEXT"), ("bevestigd_door", "TEXT")):
+        if naam not in regelkolommen:
+            conn.execute(f"ALTER TABLE regels ADD COLUMN {naam} {soort}")
 
     # Schemaversie 5: een regel kan meer dan één voorwaarde hebben. Bestaande
     # regels houden hun ene voorwaarde in de regeltabel en krijgen hier niets.

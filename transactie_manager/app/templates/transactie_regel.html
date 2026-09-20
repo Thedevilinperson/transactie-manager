@@ -15,6 +15,11 @@
     “{{ regel.waarde }}” — hangt nu aan
     <a href="{{ url_for('tx.lijst', regel=regel.id) }}">{{ treffers }}
       {{ 'transactie' if treffers == 1 else 'transacties' }}</a>.</p>
+  {% if regel.bevestigd_op %}
+    <p class="melding goed">Je hebt deze regel bevestigd op
+      {{ regel.bevestigd_op[:10]|datum }}{% if regel.bevestigd_door %} door
+      {{ regel.bevestigd_door }}{% endif %}.</p>
+  {% endif %}
   {% if regel.onzeker %}
     <p>Deze regel is uit je historiek afgeleid en wees daar naar meer dan één
       categorie. Daarom deelt ze wel in, maar vraagt ze telkens om nazicht.
@@ -24,14 +29,26 @@
 
 <div class="vlak">
   <h2>Wat wil je doen</h2>
-  <form method="post" style="display:inline-block">
-    <input type="hidden" name="actie" value="klopt">
-    <input type="hidden" name="terug" value="{{ terug }}">
-    <button type="submit">Ze klopt</button>
-  </form>
+  <div class="knoppen">
+    <form method="post">
+      <input type="hidden" name="actie" value="klopt">
+      <input type="hidden" name="terug" value="{{ terug }}">
+      <button type="submit">
+        {{ 'Ze klopt nog steeds' if regel.bevestigd_op else 'Ze klopt' }}</button>
+    </form>
+    {% if regel.bevestigd_op %}
+      <form method="post">
+        <input type="hidden" name="actie" value="intrekken">
+        <input type="hidden" name="terug" value="{{ terug }}">
+        <button type="submit" class="stil">Bevestiging intrekken</button>
+      </form>
+    {% endif %}
+  </div>
   <p class="klein-detail" style="margin:8px 0 18px">De transactie wordt
     bevestigd{% if regel.onzeker %}, en de regel vraagt voortaan niet meer om
-    nazicht{% endif %}.</p>
+    nazicht{% endif %}{% if not regel.bevestigd_op %}. De regel krijgt een vinkje,
+    zodat je later ziet dat je ze hebt nagekeken{% endif %}. Intrekken haalt dat
+    vinkje weg; de regel zelf blijft staan en deelt gewoon verder in.</p>
 
   <div class="knoppen">
     <a class="knop stil"

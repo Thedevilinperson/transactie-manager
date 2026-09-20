@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.15.0
+Versie 0.16.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -487,8 +487,8 @@ referentielijst onder meer dan één categorie voorkomen.
 link. Klik erop en je komt op een scherm met de regel die deze transactie
 indeelde, hoeveel transacties er nu aan hangen, en drie keuzes:
 
-- **Ze klopt** — de transactie wordt bevestigd. Vroeg de regel telkens om
-  nazicht, dan doet ze dat voortaan niet meer.
+- **Ze klopt** — de transactie wordt bevestigd en de regel krijgt jouw vinkje.
+  Vroeg ze telkens om nazicht, dan doet ze dat voortaan niet meer.
 - **Ze klopt niet, regel bewerken** — je komt op het bewerkscherm. Bewaren
   beoordeelt meteen de transacties die eraan hingen opnieuw.
 - **Ze klopt niet, regel verwijderen** — wat eraan hing komt op nazicht te staan
@@ -503,6 +503,18 @@ deelt in, maar vraagt om bevestiging.
 
 In de regeltabel staat bij elke regel hoeveel transacties er nu aan hangen. Dat
 getal is doorklikbaar, zodat je ziet wat een regel in de praktijk doet.
+
+**Het vinkje.** Een regel die je met *Ze klopt* hebt goedgekeurd, onthoudt dat —
+met de datum en wie het deed. In de transactielijst krijgt elke transactie van
+zo'n regel een ✓ achter het merkje *regel*. Daarmee zie je in één oogopslag wat
+je nog moet nakijken en wat al door je handen is gegaan.
+
+In de regeltabel staat er een kolom *Nagekeken* met een filter ernaast: alle
+regels, alleen de bevestigde, of alleen wat nog niet nagekeken is. Zo werk je je
+lijst systematisch af.
+
+Van gedacht veranderd? Op hetzelfde scherm staat **Bevestiging intrekken**. De
+regel blijft staan en deelt gewoon verder in; alleen het vinkje gaat weg.
 
 **Een regel bewerken, uitzetten of verwijderen.** In alle drie de gevallen
 laten de transacties die hij had ingedeeld die categorie los. Past er nog een

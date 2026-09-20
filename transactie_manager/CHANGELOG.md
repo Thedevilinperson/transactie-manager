@@ -4,6 +4,33 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.16.0] — 2026-09-20
+
+### Erbij
+- **Een bevestigde regel blijft bevestigd, en dat is te zien.** *Ze klopt* legde
+  de goedkeuring nergens vast: kwam je later terug, dan stond het scherm er weer
+  precies zo bij en wist je niet meer of je die regel al had nagekeken. De regel
+  onthoudt nu wanneer en door wie ze bevestigd is.
+- **Een vinkje achter het merkje *regel* in de transactielijst.** Elke transactie
+  die door een bevestigde regel is ingedeeld, krijgt er een; zweef erover en je
+  ziet dat de regel nagekeken is. Zo herken je in één oogopslag wat je nog moet
+  bekijken.
+- **Kolom *Nagekeken* in de regeltabel**, met de datum en de gebruiker in de
+  tooltip, en een filter ernaast: alle regels, alleen de bevestigde, of alleen
+  wat nog niet nagekeken is. Sorteren op die kolom kan ook.
+- **Bevestiging intrekken** op het oordeelscherm, voor wanneer je van gedacht
+  verandert. De regel zelf blijft staan en deelt gewoon verder in; alleen het
+  vinkje gaat weg.
+- Bij een regel die je al bevestigd hebt, staat er *Ze klopt nog steeds* op de
+  knop in plaats van *Ze klopt*.
+
+### Gewijzigd
+- **Schemaversie 7: `bevestigd_op` en `bevestigd_door` op de regeltabel.**
+  Bestaande databanken krijgen de kolommen bij het opstarten; er is niets voor te
+  doen. Je bestaande regels staan als nog niet nagekeken — dat klopt ook, want je
+  hebt ze nog niet één voor één goedgekeurd.
+
+
 ## [0.15.0] — 2026-09-20
 
 ### Opgelost

@@ -227,6 +227,7 @@ SORTEERSLEUTELS = {
                          r["bedrag_max"] if r["bedrag_max"] is not None else 1e18),
     "indeling": lambda r: (normalize(r["pad"]), r["prioriteit"]),
     "actief": lambda r: (not r["actief"], r["prioriteit"]),
+    "bevestigd": lambda r: (r["bevestigd_op"] is None, r["bevestigd_op"] or ""),
     "treffers": lambda r: (-r["treffers"], r["prioriteit"]),
 }
 
@@ -304,6 +305,7 @@ def _regelfilters(args):
         "bedrag": args.get("bedrag_f", type=float),
         "vork": args.get("vork_f", ""),
         "combi": args.get("combi_f", ""),
+        "bevestigd": args.get("bevestigd_f", ""),
         "sorteer": args.get("sorteer", "prioriteit"),
         "omgekeerd": args.get("omgekeerd") == "1",
     }
@@ -329,6 +331,10 @@ def _past_op_filter(rij, f) -> bool:
     # Een regel "gebruikt een bedragvork" zodra ze een onder- of een bovengrens
     # heeft. Eén grens volstaat: het paar "tot 10" en "vanaf 10" is juist de
     # gewone vorm van zo'n vork.
+    if f["bevestigd"] == "ja" and not rij["bevestigd_op"]:
+        return False
+    if f["bevestigd"] == "nee" and rij["bevestigd_op"]:
+        return False
     if f["combi"] == "ja" and not rij["extra"]:
         return False
     if f["combi"] == "nee" and rij["extra"]:
@@ -492,6 +498,7 @@ def _regelrijen(conn, crypto) -> list[dict]:
             "handelaar": crypto.dec(r["handelaar_enc"]) or "",
             "land": crypto.dec(r["land_enc"]) or "",
             "treffers": treffers.get(r["id"], 0), "herkomst": r["herkomst"],
+            "bevestigd_op": r["bevestigd_op"], "bevestigd_door": r["bevestigd_door"],
             "extra": extra.get(r["id"], []),
         })
     return rijen

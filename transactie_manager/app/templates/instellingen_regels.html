@@ -156,6 +156,16 @@
         </select>
       </div>
       <div class="fveld">
+        <label for="bevestigd_f">Nagekeken</label>
+        <select id="bevestigd_f" name="bevestigd_f">
+          <option value="">Alle regels</option>
+          <option value="ja" {{ 'selected' if filters.bevestigd == 'ja' }}>
+            Alleen bevestigde</option>
+          <option value="nee" {{ 'selected' if filters.bevestigd == 'nee' }}>
+            Alleen nog niet nagekeken</option>
+        </select>
+      </div>
+      <div class="fveld">
         <label for="combi_f">Voorwaarden</label>
         <select id="combi_f" name="combi_f">
           <option value="">Alle regels</option>
@@ -216,6 +226,7 @@
             {{ kop('bedrag', 'Bedrag') }}
             {{ kop('indeling', 'Indeling') }}
             {{ kop('treffers', 'Treffers', 'getal') }}
+            {{ kop('bevestigd', 'Nagekeken') }}
             {{ kop('actief', 'Actief') }}
             <th></th>
           </tr>
@@ -248,6 +259,9 @@
                   <a href="{{ url_for('tx.lijst', regel=r.id) }}">{{ r.treffers }}</a>
                 {% else %}0{% endif %}
               </td>
+              <td>{% if r.bevestigd_op %}
+                  <span class="merkje zeker" title="Bevestigd op {{ r.bevestigd_op[:10] }}{% if r.bevestigd_door %} door {{ r.bevestigd_door }}{% endif %}">✓ ja</span>
+                {% else %}<span class="klein-detail">nog niet</span>{% endif %}</td>
               <td>{% if r.actief %}ja
                 {% else %}<span class="merkje geen">uitgezet</span>{% endif %}</td>
               <td>

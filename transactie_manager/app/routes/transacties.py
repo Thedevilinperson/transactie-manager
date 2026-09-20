@@ -78,6 +78,10 @@ def lijst():
         hoofdcategorieen=[c for c in _alle_keuzes(conn, crypto) if c["niveau"] == 0],
         alle_categorieen=_alle_keuzes(conn, crypto),
         totaal_aantal=tel(conn),
+        # De regels die jij hebt nagekeken, zodat de lijst er een vinkje bij
+        # kan zetten zonder per rij een vraag te stellen.
+        bevestigde_regels={rij["id"] for rij in conn.execute(
+            "SELECT id FROM regels WHERE bevestigd_op IS NOT NULL")},
     )
 
 
@@ -412,20 +416,32 @@ def regel_oordeel(tx_id: int):
         terug = veilig_terug(request.form.get("terug"), url_for("tx.nazicht"))
 
         if actie == "klopt":
-            # De transactie is akkoord, en een regel die om bevestiging vroeg
-            # hoeft dat niet meer te doen: ze is nu één keer goedgekeurd.
+            # De transactie is akkoord, en de regel draagt voortaan jouw
+            # goedkeuring. Vroeg ze om nazicht, dan hoeft dat niet meer.
             werk_bij(conn, crypto, tx_id, status="bevestigd", zekerheid=1.0,
                      toelichting="Regel bevestigd.")
             gepromoveerd = regel["herkomst"] in ONZEKERE_HERKOMSTEN
-            if gepromoveerd:
-                conn.execute("UPDATE regels SET herkomst = ? WHERE id = ?",
-                             (regel["herkomst"].replace("_onzeker", ""), regel["id"]))
+            conn.execute(
+                "UPDATE regels SET bevestigd_op = ?, bevestigd_door = ?, herkomst = ?"
+                " WHERE id = ?",
+                (now_iso(), g.gebruiker,
+                 regel["herkomst"].replace("_onzeker", ""), regel["id"]))
             log(conn, crypto, g.gebruiker, "regel_bevestigd",
                 f"tx={tx_id} regel={regel['id']}")
             conn.commit()
             flash("Bevestigd." + (" Deze regel vraagt voortaan niet meer om nazicht."
                                   if gepromoveerd else ""), "goed")
             return redirect(terug)
+
+        if actie == "intrekken":
+            conn.execute("UPDATE regels SET bevestigd_op = NULL, bevestigd_door = NULL"
+                         " WHERE id = ?", (regel["id"],))
+            log(conn, crypto, g.gebruiker, "regel_bevestiging_ingetrokken",
+                f"regel={regel['id']}")
+            conn.commit()
+            flash("De bevestiging is ingetrokken. De regel zelf blijft staan en "
+                  "deelt gewoon verder in.", "goed")
+            return redirect(url_for("tx.regel_oordeel", tx_id=tx_id, terug=terug))
 
         if actie == "verwijderen":
             hingen = hangende_transacties(conn, crypto, regel["id"])
@@ -443,7 +459,9 @@ def regel_oordeel(tx_id: int):
                "veld": regel["veld"], "operator": regel["operator"],
                "waarde": crypto.dec(regel["waarde_enc"]) or "",
                "herkomst": regel["herkomst"],
-               "onzeker": regel["herkomst"] in ONZEKERE_HERKOMSTEN},
+               "onzeker": regel["herkomst"] in ONZEKERE_HERKOMSTEN,
+               "bevestigd_op": regel["bevestigd_op"],
+               "bevestigd_door": regel["bevestigd_door"]},
         treffers=conn.execute("SELECT COUNT(*) n FROM transacties WHERE regel_id = ?",
                               (regel["id"],)).fetchone()["n"],
         terug=veilig_terug(request.args.get("terug"), url_for("tx.nazicht")),

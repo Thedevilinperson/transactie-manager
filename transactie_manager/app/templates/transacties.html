@@ -67,10 +67,13 @@
               <td>{{ pad_tekst(tx.categorie_id, tx.subcategorie_id, tx.subsub_id) }}</td>
               <td>
                 {% if tx.regel_id %}
+                  {% set nagekeken = tx.regel_id in bevestigde_regels %}
                   <a href="{{ url_for('tx.regel_oordeel', tx_id=tx.id,
                                       terug=url_for('tx.lijst', **request.args)) }}"
-                     title="Naar de regel die deze transactie indeelde">
-                    <span class="merkje {{ tx.methode }}">{{ tx.methode }}</span></a>
+                     title="{{ 'Regel nagekeken en bevestigd' if nagekeken
+                               else 'Naar de regel die deze transactie indeelde' }}">
+                    <span class="merkje {{ tx.methode }}">{{ tx.methode }}{% if
+                      nagekeken %} ✓{% endif %}</span></a>
                 {% else %}
                   <span class="merkje {{ tx.methode }}">{{ tx.methode }}</span>
                 {% endif %}
