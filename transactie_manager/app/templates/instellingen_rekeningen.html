@@ -1,7 +1,9 @@
 {% extends "basis.html" %}
+{% from "_instellingentabs.html" import instellingentabs %}
 {% block titel %}Rekeningen{% endblock %}
 
 {% block inhoud %}
+{{ instellingentabs(is_beheerder) }}
 <div class="kop">
   <h1>Rekeningen</h1>
   <p>Elke transactie hoort bij één rekening.</p>

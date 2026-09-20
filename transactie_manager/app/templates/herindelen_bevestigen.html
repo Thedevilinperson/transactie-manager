@@ -1,0 +1,39 @@
+{% extends "basis.html" %}
+{% block titel %}Opnieuw indelen{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Nog even bevestigen</h1>
+  <p>Het inlezen is gelukt. De herindeling zelf vraagt nog één klik, want ze
+    herschrijft meer dan alleen de categorie.</p>
+</div>
+
+<div class="vlak">
+  <h2>Wat er gaat gebeuren</h2>
+  <p>De motor gaat over
+    {% if bereik == 'zonder_categorie' %}
+      <strong>alleen de transacties die nu geen categorie hebben</strong>. Alles
+      wat al ergens in zit blijft staan, met de bron erbij.
+    {% else %}
+      <strong>alles wat nog niet bevestigd is</strong>, ook transacties die al
+      een categorie hebben.
+    {% endif %}
+  </p>
+
+  <p>Bij een herindeling gaat de <em>bron</em> van de toewijzing verloren. Een
+    transactie die nu <em>met de hand</em> als methode heeft, kan daarna
+    <em>gelijkenis</em> of <em>vaste regel</em> zeggen. De categorie kan dezelfde
+    blijven, maar waar ze vandaan kwam niet. Er is een kopie van je databank
+    gelegd van vlak vóór het inlezen; via
+    <a href="{{ url_for('instellingen.backups') }}">Kopieën</a> zet je die terug.</p>
+
+  <form method="post" action="{{ url_for('tx.herindelen') }}">
+    <input type="hidden" name="bereik" value="{{ bereik }}">
+    <div class="knoppen">
+      <button type="submit">Ja, opnieuw indelen</button>
+      <a class="knop stil" href="{{ url_for('instellingen.categorieen') }}">
+        Nee, laat zoals het is</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

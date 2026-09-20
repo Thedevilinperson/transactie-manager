@@ -1,7 +1,9 @@
 {% extends "basis.html" %}
+{% from "_instellingentabs.html" import instellingentabs %}
 {% block titel %}Regels uit historiek{% endblock %}
 
 {% block inhoud %}
+{{ instellingentabs(is_beheerder) }}
 <div class="kop">
   <h1>Regels uit historiek</h1>
   <p>Een referentielijst afleiden uit wat je al ingedeeld hebt.</p>

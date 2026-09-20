@@ -9,7 +9,7 @@ from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, flash, g, redirect, render_template, request, url_for
 
-from .. import veilig_terug
+from .. import backup, veilig_terug
 from ..auth import login_vereist
 from ..categories import boom, keuzelijst, laad_alles, nakomelingen, pad_tekst
 from ..filters import METHODEN, STATUSSEN, Filters, keuzes, rekeningen as alle_rekeningen
@@ -321,6 +321,13 @@ def alles_bevestigen():
     return redirect(url_for("tx.nazicht"))
 
 
+BEREIKEN = {
+    "zonder_categorie": ("alleen transacties zonder categorie",
+                         "categorie_id IS NULL AND status <> 'bevestigd'"),
+    "onbevestigd": ("alles wat nog niet bevestigd is", "status <> 'bevestigd'"),
+}
+
+
 @bp.route("/herindelen", methods=["GET"])
 @login_vereist
 def herindelen_get():
@@ -342,13 +349,23 @@ def herindelen():
     """
     conn = get_db()
     crypto = g.crypto
+
+    # Standaard alleen wat nog geen categorie heeft. Dat is het veilige bereik:
+    # een transactie die al ergens in zit, is daar meestal met opzet beland —
+    # met de hand, of via een regel die je toen goed vond. Wie écht alles wil
+    # laten herzien, kiest dat uitdrukkelijk.
+    keuze = request.form.get("bereik", "zonder_categorie")
+    if keuze not in BEREIKEN:
+        keuze = "zonder_categorie"
+    omschrijving, waar = BEREIKEN[keuze]
+
     motor = Motor(conn, crypto)
     vanaf = now_iso()
     veranderd: collections.Counter = collections.Counter()
     ongewijzigd = 0
-    rijen = conn.execute(
-        "SELECT * FROM transacties WHERE status <> 'bevestigd'"
-    ).fetchall()
+    rijen = conn.execute(f"SELECT * FROM transacties WHERE {waar}").fetchall()
+    if rijen:
+        backup.maak("herindeling")
     from ..transacties import rij_naar_object
     for row in rijen:
         tx = rij_naar_object(row, crypto)
@@ -379,19 +396,19 @@ def herindelen():
 
     totaal = sum(veranderd.values())
     log(conn, crypto, g.gebruiker, "herindeling",
-        f"veranderd={totaal} ongewijzigd={ongewijzigd} "
+        f"bereik={keuze} veranderd={totaal} ongewijzigd={ongewijzigd} "
         + " ".join(f"{m}={n}" for m, n in sorted(veranderd.items())))
     conn.commit()
 
     if not totaal:
-        flash(f"Er viel niets bij te sturen. {ongewijzigd} transacties stonden al "
-              "zoals de motor ze zou indelen.", "goed")
+        flash(f"Er viel niets bij te sturen bij {omschrijving}. {ongewijzigd} "
+              "transacties stonden al zoals de motor ze zou indelen.", "goed")
         return redirect(url_for("tx.nazicht"))
 
     namen = dict(METHODEN)
     uitsplitsing = ", ".join(f"{n} via {namen.get(m, m).lower()}"
                              for m, n in veranderd.most_common())
-    flash(f"{totaal} transacties opnieuw ingedeeld: {uitsplitsing}."
+    flash(f"{totaal} transacties opnieuw ingedeeld ({omschrijving}): {uitsplitsing}."
           + (f" {ongewijzigd} stonden al goed." if ongewijzigd else "")
           + " Hieronder staan net die transacties.", "goed")
     return redirect(url_for("tx.lijst", gewijzigd_na=vanaf))

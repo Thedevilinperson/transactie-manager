@@ -1,0 +1,31 @@
+{# De tabbladen boven elk instellingenscherm.
+
+   De zijbalk houdt één regel "Instellingen" over; welk scherm je daarbinnen
+   nodig hebt, kies je hier. Zo blijft de zijbalk over wat je dagelijks doet en
+   niet over wat je één keer instelt. #}
+
+{% macro instellingentabs(is_beheerder=false) %}
+  {% set tabs = [
+    ('instellingen.rekeningen', 'Rekeningen', false),
+    ('instellingen.categorieen', 'Categorieën', false),
+    ('instellingen.regels', 'Regels', false),
+    ('bijzonder.referentielijst', 'Referentielijst', false),
+    ('bijzonder.regels_uit_historiek', 'Regels uit historiek', false),
+    ('instellingen.model', 'Automatisch indelen', false),
+    ('instellingen.herstel', 'Herstel en e-mail', false),
+    ('instellingen.gebruikers', 'Gebruikers', true),
+    ('instellingen.backups', 'Kopieën', true),
+    ('instellingen.opnieuw_beginnen', 'Opnieuw beginnen', true),
+    ('instellingen.logboek', 'Logboek', true),
+  ] %}
+  <nav class="tabs">
+    {% for punt, label, beheer in tabs if not beheer or is_beheerder %}
+      {% set hier = request.endpoint == punt
+                    or (punt == 'instellingen.regels'
+                        and request.endpoint == 'instellingen.regel_bewerken')
+                    or (punt == 'bijzonder.referentielijst'
+                        and 'referentielijst' in (request.endpoint or '')) %}
+      <a href="{{ url_for(punt) }}" class="{{ 'actief' if hier }}">{{ label }}</a>
+    {% endfor %}
+  </nav>
+{% endmacro %}

@@ -1,0 +1,31 @@
+{% extends "basis.html" %}
+{% block titel %}Handleiding{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Handleiding</h1>
+  <p>Versie {{ versie }}</p>
+</div>
+
+{% if not doc.gevonden %}
+  <div class="vlak">
+    <div class="leeg"><strong>De handleiding is niet gevonden</strong>
+      Het bestand <code>docs/HANDLEIDING.md</code> hoort naast de toepassing te
+      staan. In de add-on zit het mee in het image.</div>
+  </div>
+{% else %}
+  <div class="handleiding-blad">
+    <nav class="handleiding-inhoud">
+      <strong>Inhoud</strong>
+      <ul>
+        {% for k in doc.koppen if k.niveau <= 2 %}
+          <li class="niveau-{{ k.niveau }}"><a href="#{{ k.anker }}">{{ k.tekst }}</a></li>
+        {% endfor %}
+      </ul>
+    </nav>
+    <article class="vlak handleiding-tekst">
+      {{ doc.html|safe }}
+    </article>
+  </div>
+{% endif %}
+{% endblock %}

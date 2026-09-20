@@ -10,6 +10,7 @@ from flask import (Blueprint, flash, g, redirect, render_template, request, sess
 from .. import veilig_terug
 from .. import crypto as cryptomod
 from .. import lokaal, mail
+from .. import backup
 from ..auth import (HERSTELCODE_MINUTEN, beeindig_sessie, controleer_aanmelding,
                     herstel_wachtwoord, huidige_sessie, login_vereist, maak_gebruiker,
                     maak_herstelcode, start_sessie, zet_herstelsleutel)
@@ -96,6 +97,9 @@ def login():
         else:
             _POGINGEN.pop(ip, None)
             start_sessie(rij, dek)
+            # Eén kopie per dag, bij de eerste aanmelding. Een vaste taak zou
+            # hier niets toevoegen: wat niet gebruikt wordt, verandert ook niet.
+            backup.dagelijks()
             return redirect(veilig_terug(volgende, url_for("dashboard.index")))
 
     return render_template("aanmelden.html", volgende=volgende)

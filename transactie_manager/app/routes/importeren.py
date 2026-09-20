@@ -13,6 +13,7 @@ from flask import (Blueprint, flash, g, jsonify, redirect, render_template, requ
                    url_for)
 from werkzeug.utils import secure_filename
 
+from .. import backup
 from ..auth import login_vereist
 from ..categories import zoek_of_maak
 from ..categorizer.engine import Motor, TransactieKenmerken, Voorstel
@@ -156,6 +157,10 @@ def uitvoeren():
         "per_iban": {r["iban_idx"]: r["id"] for r in rekeningen if r["iban_idx"]},
         "gebruiker": g.gebruiker,
     }
+
+    # Een bestand inlezen voegt niet alleen transacties toe: met "indeling
+    # overnemen" maakt het ook categorieën aan. Eerst een kopie op de plank.
+    backup.maak("historiek" if instellingen["neem_indeling_over"] else "bestand")
 
     token = pad.stem
     taken.start(token, f"Invoer van {instellingen['bestandsnaam']}",

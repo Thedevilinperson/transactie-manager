@@ -1,4 +1,5 @@
 {% extends "basis.html" %}
+{% from "_instellingentabs.html" import instellingentabs %}
 {% from "_kiezer.html" import categoriekiezer %}
 {% from "_regelvoorwaarden.html" import extra_voorwaarden, toon_voorwaarden %}
 {% block titel %}Regels{% endblock %}
@@ -19,6 +20,7 @@
 {% endmacro %}
 
 {% block inhoud %}
+{{ instellingentabs(is_beheerder) }}
 <div class="kop">
   <h1>Regels</h1>
   <p>Vaste koppelingen tussen transactiegegevens en een categorie. Ze worden

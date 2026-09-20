@@ -1,0 +1,74 @@
+{% extends "basis.html" %}
+{% from "_instellingentabs.html" import instellingentabs %}
+{% block titel %}Opnieuw beginnen{% endblock %}
+
+{% block inhoud %}
+{{ instellingentabs(is_beheerder) }}
+<div class="kop">
+  <h1>Opnieuw beginnen</h1>
+  <p>Leegmaken wat je hebt opgebouwd, zonder de toepassing opnieuw te
+    installeren.</p>
+</div>
+
+<div class="vlak">
+  <h2>Wat er nu in staat</h2>
+  <ul>
+    <li>{{ telling.transacties }} transacties, waarvan {{ telling.ingedeeld }}
+      met een categorie en {{ telling.handmatig }} met de hand ingedeeld</li>
+    <li>{{ telling.categorieen }} categorieën en {{ telling.regels }} regels</li>
+    <li>{{ telling.rekeningen }} rekeningen en {{ telling.batches }} ingelezen
+      bestanden</li>
+  </ul>
+  <p class="klein-detail">Je gebruikers, wachtwoorden en instellingen blijven
+    hoe dan ook staan — je moet je dus niet opnieuw aanmelden of opnieuw
+    installeren.</p>
+</div>
+
+<div class="vlak">
+  <h2>Wissen</h2>
+  <p>Er wordt eerst een kopie van de databank gelegd. Bedenk je je achteraf, dan
+    zet je die terug via
+    <a href="{{ url_for('instellingen.backups') }}">Kopieën</a>. Dat is het
+    enige vangnet: wissen zelf is niet terug te draaien.</p>
+
+  <form method="post" data-bevestig="Dit wist gegevens uit je databank. Er wordt eerst een kopie gelegd, maar zonder die kopie is het definitief. Doorgaan?">
+    <div class="keuzeregel" style="align-items:flex-start;margin-top:10px">
+      <input type="radio" id="omvang_indeling" name="omvang" value="indeling"
+             style="margin-top:4px">
+      <label for="omvang_indeling"><strong>Alleen de categorieën en regels.</strong>
+        De boom, alle regels en alle indelingen gaan weg. Je
+        {{ telling.transacties }} transacties blijven staan, maar zonder
+        categorie. Gebruik dit om met een schone categorieënlijst te
+        herbeginnen op dezelfde gegevens.</label>
+    </div>
+    <div class="keuzeregel" style="align-items:flex-start;margin-top:12px">
+      <input type="radio" id="omvang_tx" name="omvang" value="transacties"
+             style="margin-top:4px">
+      <label for="omvang_tx"><strong>Alleen de transacties.</strong>
+        Alle transacties en de geschiedenis van je ingelezen bestanden gaan weg.
+        Je categorieën en regels blijven staan, klaar voor een nieuwe invoer.</label>
+    </div>
+    <div class="keuzeregel" style="align-items:flex-start;margin-top:12px">
+      <input type="radio" id="omvang_alles" name="omvang" value="alles"
+             style="margin-top:4px">
+      <label for="omvang_alles"><strong>Alles.</strong>
+        Transacties, categorieën, regels en de invoergeschiedenis. Een lege
+        databank, met je gebruikers en instellingen intact.</label>
+    </div>
+
+    <div class="keuzeregel" style="margin-top:14px">
+      <input type="checkbox" id="ook_rekeningen" name="ook_rekeningen" value="1">
+      <label for="ook_rekeningen">Ook mijn {{ telling.rekeningen }} rekeningen
+        wissen <span class="klein-detail">(alleen samen met “alles”)</span></label>
+    </div>
+
+    <div class="veld" style="margin-top:18px;max-width:320px">
+      <label for="woord">Typ <strong>{{ woord }}</strong> om te bevestigen</label>
+      <input type="text" id="woord" name="woord" autocomplete="off"
+             placeholder="{{ woord }}" required>
+    </div>
+
+    <button type="submit" class="gevaar" style="margin-top:14px">Definitief wissen</button>
+  </form>
+</div>
+{% endblock %}

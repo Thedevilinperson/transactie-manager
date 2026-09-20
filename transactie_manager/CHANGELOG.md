@@ -4,6 +4,86 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.12.0] — 2026-09-20
+
+### Erbij
+- **Opnieuw beginnen** onder Instellingen. Drie keuzes: alleen de categorieën en
+  regels (je transacties blijven, zonder categorie), alleen de transacties (je
+  boom en regels blijven klaarstaan), of alles. Bij *alles* kan je er je
+  rekeningen bij nemen. Gebruikers, wachtwoorden en instellingen blijven altijd
+  staan — je hoeft dus niet opnieuw te installeren en niet opnieuw aan te melden.
+- Twee sloten voor het wissen: een bevestigingsvenster én het woord *WISSEN* dat
+  je moet intypen. Een vinkje alleen is te makkelijk aangeklikt. Vooraf wordt er
+  een kopie van de databank gelegd, en die wordt nooit automatisch opgeruimd.
+- **De handleiding staat nu in de toepassing zelf**, met een inhoudstafel die
+  meeschuift. Ze wordt gelezen uit `docs/HANDLEIDING.md`, hetzelfde bestand als
+  in de repository, dus er is maar één versie om bij te houden.
+- Er zit geen markdownbibliotheek achter maar een eigen weergave van een kleine
+  honderd regels, precies passend op de opmaak die de handleiding gebruikt. Dat
+  scheelt een pakket om te bouwen en te onderhouden in de add-on, voor een
+  bestand waarvan wij elke regel zelf typen. Wat er niet in staat, valt terug op
+  gewone tekst.
+
+### Gewijzigd
+- **De zijbalk is korter.** De elf instellingenschermen stonden er allemaal los
+  in; nu is er één regel *Instellingen*, en binnen dat gedeelte kies je het
+  scherm via tabbladen bovenaan. De zijbalk gaat van zeventien naar tien punten
+  en houdt over wat je dagelijks doet. *Handleiding* staat er als nieuwe regel
+  bij.
+- De bestaande adressen veranderen niet: elk instellingenscherm blijft op
+  hetzelfde pad staan, en een bladwijzer blijft dus werken.
+
+
+## [0.11.0] — 2026-09-20
+
+### Opgelost
+- **Een referentielijst integraal vervangen wiste je hele indeling, ook het
+  handwerk.** Koos je daarna niet voor herindelen, dan stond alles zonder
+  categorie. Regels opnieuw toepassen haalt dat niet terug: wat je met de hand
+  had ingedeeld, of wat via een gelijkenis binnenkwam, is dan niet te
+  reconstrueren, en de bron van de toewijzing is hoe dan ook weg.
+- **Herindelen raakt voortaan standaard alleen de transacties zonder
+  categorie.** Dat is het veilige bereik: wat al ergens in zit, is daar meestal
+  met opzet beland. Wie écht alles wil laten herzien, kiest dat uitdrukkelijk.
+  Het nazichtscherm biedt beide, met uitleg erbij.
+
+### Erbij
+- **Kopieën van de databank, met een terugzetknop.** Er komt automatisch een
+  kopie vóór elke ingreep die je indeling in één keer kan herschrijven: een
+  referentielijst, een historiek of een ander bestand inlezen, regels uit je
+  historiek afleiden, een herindeling, en alle regels opnieuw toepassen.
+  Daarnaast één per dag bij de eerste aanmelding. Onder *Instellingen ›
+  Kopieën* zet je er een terug, maak je er zelf een, of gooi je er een weg.
+- Terugzetten gaat via de backup-API van SQLite en niet via een bestandskopie,
+  zodat verbindingen die op dat moment openstaan de nieuwe inhoud zien. Van de
+  huidige toestand wordt eerst een kopie gelegd, dus ook het terugzetten zelf is
+  ongedaan te maken.
+- De laatste 15 automatische kopieën blijven staan. Wat je zelf maakt en wat van
+  vlak vóór een terugzetting komt, wordt nooit opgeruimd.
+- **Bij de referentielijst kan je kiezen wat je overneemt.** *De volledige
+  referentielijst* zoals voordien: categorieën én de koppeling met de
+  beschrijvingen, waaruit regels worden afgeleid. Of *alleen de boomstructuur*:
+  enkel de categorieën en hun onderverdeling, zonder regels, zodat je manier van
+  indelen je eigen werk blijft.
+- Na het inlezen van een referentielijst kan je nu ook kiezen om alleen de
+  transacties zonder categorie te laten herindelen — precies het geval waarvoor
+  deze versie er is.
+
+### Waarschuwingen
+- **Bij een referentielijst op een niet-lege databank** staat bovenaan wat er nu
+  in staat: hoeveel categorieën, regels en transacties, hoeveel daarvan een
+  categorie hebben en hoeveel je met de hand hebt ingedeeld. Bij *integraal
+  vervangen* staat er expliciet bij dat ook dat handwerk sneuvelt.
+- **Bij het herindelen** staat er dat de bron van de toewijzing verloren gaat:
+  een transactie die nu *met de hand* zegt, kan daarna *gelijkenis* of *vaste
+  regel* zeggen. De knop vraagt een bevestiging, en na een referentielijst komt
+  er een apart scherm dat het nog eens uitlegt voor je doorgaat.
+- **Bij het inlezen van een historiek met indeling** staat er dat dit bestand je
+  categorieën opbouwt: elke categorie die erin voorkomt en nog niet bestaat,
+  wordt aangemaakt. Lees je nadien alsnog een referentielijst in met *integraal
+  vervangen*, dan gaat dat werk weer weg.
+
+
 ## [0.10.0] — 2026-09-19
 
 ### Erbij

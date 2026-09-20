@@ -1,0 +1,73 @@
+{% extends "basis.html" %}
+{% from "_instellingentabs.html" import instellingentabs %}
+{% block titel %}Kopieën{% endblock %}
+
+{% block inhoud %}
+{{ instellingentabs(is_beheerder) }}
+<div class="kop">
+  <h1>Kopieën van de databank</h1>
+  <p>Een vangnet voor ingrepen die in één klik veel veranderen.</p>
+  <div class="rechts">
+    <form method="post">
+      <input type="hidden" name="actie" value="maak">
+      <button type="submit" class="stil">Nu een kopie maken</button>
+    </form>
+  </div>
+</div>
+
+<div class="vlak">
+  <h2>Wanneer er automatisch een kopie komt</h2>
+  <p>Vóór elke ingreep die je indeling in één keer kan herschrijven: het inlezen
+    van een referentielijst of een historiek, het afleiden van regels uit je
+    historiek, een herindeling, en het opnieuw toepassen van alle regels.
+    Daarnaast één keer per dag, bij de eerste aanmelding van die dag.</p>
+  <p class="klein-detail">De laatste {{ bewaren }} automatische kopieën blijven
+    staan; oudere verdwijnen vanzelf. Kopieën die je zelf maakt en die van vlak
+    vóór een terugzetting worden nooit opgeruimd.</p>
+  <p class="klein-detail">Een kopie is even versleuteld als het origineel. De
+    sleutel zit niet in de databank maar wordt uit je wachtwoord afgeleid: een
+    kopie van vóór een wachtwoordwijziging valt dus niet meer te openen.</p>
+</div>
+
+<div class="vlak">
+  <h2>Beschikbare kopieën</h2>
+  {% if kopieen %}
+    <div class="tabel-omhulsel">
+      <table>
+        <thead>
+          <tr><th>Tijdstip (UTC)</th><th>Aanleiding</th>
+            <th class="getal">Grootte</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for k in kopieen %}
+            <tr>
+              <td>{{ k.tijdstip.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+              <td>{{ k.omschrijving }}
+                {% if k.blijvend %}<span class="klein-detail">blijft
+                  staan</span>{% endif %}</td>
+              <td class="getal">{{ k.mb }} MB</td>
+              <td>
+                <div class="knoppen">
+                  <form method="post" data-bevestig="De hele databank terugzetten naar deze kopie? Alles wat je sindsdien hebt gedaan — ingelezen bestanden, indelingen, regels — verdwijnt. Van de huidige toestand wordt eerst een kopie gelegd.">
+                    <input type="hidden" name="actie" value="herstel">
+                    <input type="hidden" name="naam" value="{{ k.naam }}">
+                    <button type="submit" class="gevaar klein">Terugzetten</button>
+                  </form>
+                  <form method="post" data-bevestig="Deze kopie verwijderen?">
+                    <input type="hidden" name="actie" value="verwijder">
+                    <input type="hidden" name="naam" value="{{ k.naam }}">
+                    <button type="submit" class="stil klein">Verwijderen</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="leeg"><strong>Nog geen kopieën</strong>
+      Ze komen er vanzelf bij de eerste ingrijpende handeling, of maak er nu een.</div>
+  {% endif %}
+</div>
+{% endblock %}

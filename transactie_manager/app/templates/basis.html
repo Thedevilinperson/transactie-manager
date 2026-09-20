@@ -39,25 +39,12 @@
 
       <div class="groep">Instellingen</div>
       <a href="{{ url_for('instellingen.rekeningen') }}"
-         class="{{ 'actief' if request.endpoint == 'instellingen.rekeningen' }}">Rekeningen</a>
-      <a href="{{ url_for('instellingen.categorieen') }}"
-         class="{{ 'actief' if request.endpoint == 'instellingen.categorieen' }}">Categorieën</a>
-      <a href="{{ url_for('instellingen.regels') }}"
-         class="{{ 'actief' if request.endpoint == 'instellingen.regels' }}">Regels</a>
-      <a href="{{ url_for('bijzonder.referentielijst') }}"
-         class="{{ 'actief' if 'referentielijst' in (request.endpoint or '') }}">Referentielijst</a>
-      <a href="{{ url_for('bijzonder.regels_uit_historiek') }}"
-         class="{{ 'actief' if 'historiek' in (request.endpoint or '') }}">Regels uit historiek</a>
-      <a href="{{ url_for('instellingen.model') }}"
-         class="{{ 'actief' if request.endpoint == 'instellingen.model' }}">Automatisch indelen</a>
-      <a href="{{ url_for('instellingen.herstel') }}"
-         class="{{ 'actief' if request.endpoint == 'instellingen.herstel' }}">Herstel en e-mail</a>
-      {% if is_beheerder %}
-        <a href="{{ url_for('instellingen.gebruikers') }}"
-           class="{{ 'actief' if request.endpoint == 'instellingen.gebruikers' }}">Gebruikers</a>
-        <a href="{{ url_for('instellingen.logboek') }}"
-           class="{{ 'actief' if request.endpoint == 'instellingen.logboek' }}">Logboek</a>
-      {% endif %}
+         class="{{ 'actief' if (request.blueprint == 'instellingen'
+                   and request.endpoint != 'instellingen.handleiding')
+                   or 'referentielijst' in (request.endpoint or '')
+                   or 'historiek' in (request.endpoint or '') }}">Instellingen</a>
+      <a href="{{ url_for('instellingen.handleiding') }}"
+         class="{{ 'actief' if request.endpoint == 'instellingen.handleiding' }}">Handleiding</a>
     </nav>
 
     <div class="voet">

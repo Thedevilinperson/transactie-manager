@@ -1,7 +1,9 @@
 {% extends "basis.html" %}
+{% from "_instellingentabs.html" import instellingentabs %}
 {% block titel %}Referentielijst{% endblock %}
 
 {% block inhoud %}
+{{ instellingentabs(is_beheerder) }}
 <div class="kop">
   <h1>Referentielijst inlezen</h1>
   <p>Je bestaande categorieënbestand omzetten naar categorieën en regels.</p>

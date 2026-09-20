@@ -186,9 +186,18 @@ def analyseer(rijen: list[tuple]) -> Analyse:
 # --------------------------------------------------------------------------
 
 def importeer(conn, crypto, rijen: list[tuple], *, vervang: bool = True,
-              maak_partijregels: bool = True) -> dict:
-    """Zet de referentielijst om in categorieën en regels."""
+              maak_partijregels: bool = True, maak_regels: bool = True) -> dict:
+    """Zet de referentielijst om in categorieën en regels.
+
+    Met `maak_regels=False` wordt alleen de boomstructuur van de categorieën
+    overgenomen en blijft de koppeling met de beschrijvingen buiten beschouwing.
+    Dat is wat je wil wanneer de lijst je categorieën beschrijft maar niet je
+    manier van indelen — bijvoorbeeld een lijst die je elders hebt opgesteld.
+    """
     beschrijvingen = leer_beschrijvingen(rijen)
+
+    if not maak_regels:
+        maak_partijregels = False
 
     if vervang:
         conn.execute("UPDATE transacties SET categorie_id=NULL, subcategorie_id=NULL,"
@@ -276,7 +285,7 @@ def importeer(conn, crypto, rijen: list[tuple], *, vervang: bool = True,
         )
 
     gezien_sleutels: set[str] = set()
-    for rij in rijen:
+    for rij in rijen if maak_regels else []:
         sleutel = _schoon(rij[0])
         hoofd = normalize(_schoon(rij[1]))
         if not hoofd or not sleutel:

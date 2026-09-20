@@ -1,7 +1,9 @@
 {% extends "basis.html" %}
+{% from "_instellingentabs.html" import instellingentabs %}
 {% block titel %}Herstel en e-mail{% endblock %}
 
 {% block inhoud %}
+{{ instellingentabs(is_beheerder) }}
 <div class="kop">
   <h1>Herstel en e-mail</h1>
   <p>Wat er nodig is om weer binnen te raken als je je wachtwoord vergeet.</p>

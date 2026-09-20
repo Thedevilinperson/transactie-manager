@@ -11,6 +11,7 @@ from flask import (Blueprint, flash, g, redirect, render_template, request,
                    send_from_directory, url_for)
 from werkzeug.utils import secure_filename
 
+from .. import backup
 from ..auth import login_vereist
 from ..categorizer.engine import Motor, TransactieKenmerken
 from ..config import UPLOAD_DIR
@@ -84,7 +85,7 @@ def referentielijst_voorbeeld(token: str):
     return render_template(
         "referentielijst_voorbeeld.html",
         token=token, naam=request.args.get("naam", pad.name),
-        analyse=ref.analyseer(rijen),
+        analyse=ref.analyseer(rijen), staat=_huidige_staat(get_db()),
     )
 
 
@@ -98,10 +99,18 @@ def referentielijst_uitvoeren():
 
     conn = get_db()
     crypto = g.crypto
+    vervang = request.form.get("vervang") == "1"
+    maak_regels = request.form.get("omvang", "volledig") != "boom"
+
+    # Een referentielijst kan in één keer je hele indeling herschrijven. Vóór
+    # die ingreep gaat er een kopie van de databank op de plank.
+    kopie = backup.maak("referentielijst")
+
     resultaat = ref.importeer(
         conn, crypto, ref.lees(pad),
-        vervang=request.form.get("vervang") == "1",
+        vervang=vervang,
         maak_partijregels=request.form.get("partijregels") == "1",
+        maak_regels=maak_regels,
     )
     log(conn, crypto, g.gebruiker, "referentielijst_ingelezen", str(resultaat))
     conn.commit()
@@ -111,14 +120,38 @@ def referentielijst_uitvoeren():
     except OSError:
         pass
 
+    gemaakt = resultaat["sleutelregels"] + resultaat["partijregels"]
     flash(
-        f"{resultaat['categorieen']} categorieën en "
-        f"{resultaat['sleutelregels'] + resultaat['partijregels']} regels ingelezen.",
+        f"{resultaat['categorieen']} categorieën"
+        + (f" en {gemaakt} regels" if maak_regels else " ingelezen, zonder regels")
+        + (" ingelezen." if maak_regels else ".")
+        + (" Er staat een kopie van je databank van vlak hiervoor klaar."
+           if kopie else " Let op: er kon geen kopie van de databank gelegd worden."),
         "goed",
     )
-    if request.form.get("herindelen") == "1":
-        return redirect(url_for("tx.herindelen_get"))
+
+    bereik = request.form.get("herindelen", "geen")
+    if bereik in ("zonder_categorie", "onbevestigd"):
+        return render_template("herindelen_bevestigen.html", bereik=bereik,
+                               vanwaar="referentielijst")
     return redirect(url_for("instellingen.categorieen"))
+
+
+def _huidige_staat(conn) -> dict:
+    """Wat er nu in de databank staat, om vooraf te kunnen waarschuwen."""
+    def tel(sql):
+        return conn.execute(sql).fetchone()["n"]
+    return {
+        "categorieen": tel("SELECT COUNT(*) n FROM categorieen"),
+        "regels": tel("SELECT COUNT(*) n FROM regels"),
+        "transacties": tel("SELECT COUNT(*) n FROM transacties"),
+        "ingedeeld": tel("SELECT COUNT(*) n FROM transacties"
+                         " WHERE categorie_id IS NOT NULL"),
+        "handmatig": tel("SELECT COUNT(*) n FROM transacties"
+                         " WHERE methode = 'manueel'"),
+        "bevestigd": tel("SELECT COUNT(*) n FROM transacties"
+                         " WHERE status = 'bevestigd'"),
+    }
 
 
 # ==========================================================================
@@ -320,6 +353,7 @@ def regels_uit_historiek():
     alleen_bevestigd = request.values.get("alleen_bevestigd", "1") == "1"
 
     if request.method == "POST" and request.form.get("actie") == "wegschrijven":
+        backup.maak("regels_uit_historiek")
         analyse = regelbouwer.analyseer(conn, crypto, alleen_bevestigd)
         resultaat = regelbouwer.schrijf(
             conn, crypto, analyse,

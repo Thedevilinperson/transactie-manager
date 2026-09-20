@@ -1,7 +1,9 @@
 {% extends "basis.html" %}
+{% from "_instellingentabs.html" import instellingentabs %}
 {% block titel %}Logboek{% endblock %}
 
 {% block inhoud %}
+{{ instellingentabs(is_beheerder) }}
 <div class="kop">
   <h1>Logboek</h1>
   <p>De laatste 200 handelingen.</p>

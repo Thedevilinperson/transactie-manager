@@ -1,7 +1,9 @@
 {% extends "basis.html" %}
+{% from "_instellingentabs.html" import instellingentabs %}
 {% block titel %}Automatisch indelen{% endblock %}
 
 {% block inhoud %}
+{{ instellingentabs(is_beheerder) }}
 <div class="kop">
   <h1>Automatisch indelen</h1>
   <p>Hoe streng de fuzzy vergelijking is, en of het lokale AI-model mag meedenken.</p>

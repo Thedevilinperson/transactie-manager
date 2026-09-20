@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.10.0
+Versie 0.12.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -159,8 +159,30 @@ Daar kies je ook wat er met je huidige categorieën gebeurt:
 - **Behouden en aanvullen** — wat er al staat blijft; nieuwe categorieën en
   regels komen erbij. De indeling van je transacties blijft ongemoeid.
 - **Integraal vervangen** — alles wordt gewist en vervangen door deze lijst. Je
-  transacties blijven bestaan maar verliezen hun categorie. Zet dan meteen
-  *opnieuw indelen* aan.
+  transacties blijven bestaan maar verliezen hun categorie.
+
+> **Integraal vervangen op een databank waar al werk in zit, is ingrijpender dan
+> het lijkt.** Ook wat je met de hand hebt ingedeeld verliest zijn categorie, en
+> dat is naderhand niet te herstellen door de regels opnieuw toe te passen: een
+> handmatige keuze en een gelijkenis met je historiek laten zich niet
+> reconstrueren, en de bron van de toewijzing is hoe dan ook weg. Staat er al
+> iets, dan toont het scherm bovenaan hoeveel transacties, hoeveel ingedeeld en
+> hoeveel met de hand. Er wordt sowieso een kopie van de databank gelegd voor er
+> iets verandert; zie *Kopieën* in hoofdstuk 10.
+
+Daarnaast kies je **wat je uit de lijst overneemt**:
+
+- **De volledige referentielijst** — categorieën én de koppeling met de
+  beschrijvingen, waaruit regels worden afgeleid. Kies dit wanneer de lijst ook
+  je manier van indelen beschrijft.
+- **Alleen de boomstructuur** — enkel de categorieën, hun onderverdelingen en
+  hun volgorde. Er worden geen regels afgeleid, dus je indeling blijft je eigen
+  werk. Kies dit wanneer de lijst je categorieën beschrijft maar niet hoe je
+  transacties erin terechtkomen.
+
+En tot slot **wat er daarna moet gebeuren**: niets, of opnieuw indelen — alleen
+wat geen categorie heeft, of alles wat nog niet bevestigd is. Het eerste is het
+veilige bereik en de standaard.
 
 Uit zo'n bestand komen twee soorten regels. Voor elke rij komt er een regel die
 exact op die sleutel past. Daarnaast komt er een bredere regel op enkel de
@@ -258,6 +280,14 @@ Herkent de toepassing een kolom Hoofdcategorie, dan verschijnt op het
 controlescherm de keuze **Indeling uit het bestand overnemen**. Die gaat voor op
 het automatisch indelen. Categorieën die nog niet bestaan worden aangemaakt, en
 die transacties komen meteen bevestigd binnen.
+
+> **Hiermee bouwt dit bestand je categorieën op.** Elke hoofd-, sub- en
+> subsubcategorie die erin voorkomt en nog niet bestaat, wordt aangemaakt — je
+> categorieënlijst komt dus uit deze historiek en niet uit een referentielijst.
+> Lees je nadien alsnog een referentielijst in met *integraal vervangen*, dan
+> gaat dit werk weer weg. Doe het dus in de volgorde waarin je wil eindigen:
+> eerst de referentielijst, dan de historiek. Er wordt vooraf een kopie van de
+> databank gelegd; zie *Kopieën* in hoofdstuk 10.
 
 ### 4.3 Een transactie openen
 
@@ -540,11 +570,25 @@ categorieënbestand blijven daarbij staan.
 ### Alles opnieuw laten indelen
 
 Heb je regels toegevoegd of je referentielijst vernieuwd? Klik dan op **Opnieuw
-indelen** bij het nazicht. Alles wat nog niet bevestigd is, gaat opnieuw door de
-motor. Bevestigde transacties blijven staan — en een treffer via een regel geldt
-als bevestigd, dus die worden hier niet herbekeken. Een regel uitzetten of
-verwijderen regelt zichzelf: zie *Een regel bewerken, uitzetten of verwijderen*
-hierboven.
+indelen** bij het nazicht. Daar kies je eerst hoever het gaat:
+
+**Alleen wat nog geen categorie heeft** — de standaard, en het veilige bereik.
+Alles wat al ergens in zit blijft staan zoals het staat, met de bron erbij. Dit
+is wat je wil na het inlezen van een referentielijst of een historiek waarin al
+werk zit.
+
+**Alles wat nog niet bevestigd is** — ook transacties die al een categorie
+hebben worden herbekeken. Bevestigde transacties blijven hoe dan ook staan, en
+een treffer via een regel geldt als bevestigd.
+
+Een regel uitzetten of verwijderen regelt zichzelf: zie *Een regel bewerken,
+uitzetten of verwijderen* hierboven.
+
+**De bron gaat verloren.** Bij een herindeling herschrijft de motor niet alleen
+de categorie maar ook de methode. Een transactie die nu *met de hand* zegt, kan
+daarna *gelijkenis* of *vaste regel* zeggen. De categorie kan dezelfde blijven,
+maar waar ze vandaan kwam niet. Daarom wordt er vooraf een kopie van de databank
+gelegd — zie *Kopieën* verderop.
 
 **Wat die melding betekent.** Achteraf staat er hoeveel transacties er opnieuw
 ingedeeld zijn, uitgesplitst per stap: *via vaste regel*, *via gelijkenis*, *via
@@ -626,7 +670,38 @@ bibliotheken. Ze werken dus ook zonder internet.
 | Referentielijst       | Een categorieënbestand inlezen                              |
 | Automatisch indelen   | Drempels en het AI-model                                    |
 | Gebruikers            | Extra gebruikers, alleen voor beheerders                    |
+| Kopieën               | Kopieën van de databank terugzetten, alleen voor beheerders |
+| Opnieuw beginnen      | De databank leegmaken, alleen voor beheerders               |
 | Logboek               | De laatste tweehonderd handelingen                          |
+
+Je bereikt ze allemaal via de tabbladen bovenaan het instellingengedeelte. In de
+zijbalk staat daarom één regel *Instellingen*; wat je dagelijks doet staat
+daarboven, wat je één keer instelt zit achter die tabbladen.
+
+### Opnieuw beginnen
+
+Wil je van voren af aan, dan hoef je niets opnieuw te installeren. Onder
+**Instellingen › Opnieuw beginnen** kies je wat er weg moet:
+
+- **Alleen de categorieën en regels** — de boom, alle regels en alle indelingen
+  gaan weg. Je transacties blijven staan, maar zonder categorie. Hiermee
+  herbegin je met een schone categorieënlijst op dezelfde gegevens.
+- **Alleen de transacties** — alle transacties en de geschiedenis van je
+  ingelezen bestanden gaan weg. Je categorieën en regels blijven klaarstaan.
+- **Alles** — allebei. Eventueel met je rekeningen erbij.
+
+Je gebruikers, wachtwoorden en instellingen blijven in alle gevallen staan.
+
+Er zitten twee sloten op. Eerst een bevestigingsvenster, en daarna moet je het
+woord `WISSEN` intypen. Vooraf wordt er een kopie van de databank gelegd, die
+nooit automatisch opgeruimd wordt. Dat is het enige vangnet: het wissen zelf is
+niet terug te draaien.
+
+### De handleiding in de toepassing
+
+Deze handleiding staat ook in de toepassing zelf, via **Handleiding** in de
+zijbalk, met een inhoudstafel die meeschuift. Het is hetzelfde bestand als in de
+repository, dus wat je hier leest en wat je daar ziet lopen nooit uiteen.
 
 Een rekening of categorie die al in gebruik is, kan je niet verwijderen. Zet ze
 op niet-actief: bestaande transacties blijven dan kloppen, maar de waarde
@@ -701,6 +776,38 @@ In Home Assistant zit `/data` mee in de gewone back-up.
 Het bestand `secret.key` in dezelfde map ondertekent alleen de sessiecookie. Het
 ontsleutelt niets. Verlies je dat bestand, dan moet iedereen zich gewoon opnieuw
 aanmelden.
+
+### Kopieën en ongedaan maken
+
+Naast die back-up van de hele map houdt de toepassing zelf kopieën van de
+databank bij, onder **Instellingen › Kopieën**. Die zijn er voor iets anders:
+niet voor een kapotte schijf, maar voor een handeling die je liever niet had
+gedaan.
+
+Er komt automatisch een kopie vóór elke ingreep die je indeling in één keer kan
+herschrijven:
+
+- een referentielijst inlezen;
+- een historiek of een ander bestand inlezen;
+- regels afleiden uit je historiek;
+- een herindeling;
+- alle regels opnieuw toepassen.
+
+Daarnaast komt er één per dag, bij de eerste aanmelding van die dag.
+
+Op het scherm zie je per kopie het tijdstip, de aanleiding en de grootte.
+**Terugzetten** maakt die kopie weer de werkende databank. Alles wat je sindsdien
+hebt gedaan verdwijnt daarmee — ingelezen bestanden, indelingen, regels. Van de
+huidige toestand wordt eerst nog een kopie gelegd, dus ook het terugzetten zelf
+is ongedaan te maken.
+
+De laatste vijftien automatische kopieën blijven staan; oudere verdwijnen
+vanzelf. Kopieën die je zelf maakt en die van vlak vóór een terugzetting worden
+nooit opgeruimd.
+
+> Een kopie is even versleuteld als het origineel, en de sleutel wordt uit je
+> wachtwoord afgeleid. Een kopie van vóór een wachtwoordwijziging valt dus niet
+> meer te openen.
 
 ---
 

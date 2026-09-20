@@ -5,11 +5,41 @@
 <div class="kop">
   <h1>Nazicht</h1>
   <p>Wat de motor niet met zekerheid kon indelen.</p>
-  <div class="rechts">
-    <form method="post" action="{{ url_for('tx.herindelen') }}">
-      <button type="submit" class="stil">Opnieuw indelen</button>
-    </form>
-  </div>
+</div>
+
+<div class="vlak">
+  <h2>Opnieuw indelen</h2>
+  <p>Laat de motor nog eens over je transacties gaan — na het toevoegen van
+    regels, of na het inlezen van een referentielijst.</p>
+
+  <form method="post" action="{{ url_for('tx.herindelen') }}"
+        data-bevestig="De motor herschrijft de indeling én de bron ervan. Een transactie die nu 'met de hand' staat, kan daarna 'gelijkenis' of 'vaste regel' zeggen. Er wordt eerst een kopie van de databank gelegd. Doorgaan?">
+    <div class="keuzeregel" style="align-items:flex-start;margin-top:6px">
+      <input type="radio" id="bereik_leeg" name="bereik" value="zonder_categorie"
+             checked style="margin-top:4px">
+      <label for="bereik_leeg"><strong>Alleen wat nog geen categorie heeft.</strong>
+        Alles wat al ergens in zit blijft staan, met de bron erbij. Dit is wat je
+        wil na het inlezen van een referentielijst of een historiek waarin al
+        werk zit.</label>
+    </div>
+    <div class="keuzeregel" style="align-items:flex-start;margin-top:10px">
+      <input type="radio" id="bereik_alles" name="bereik" value="onbevestigd"
+             style="margin-top:4px">
+      <label for="bereik_alles"><strong>Alles wat nog niet bevestigd is.</strong>
+        Ook transacties die al een categorie hebben worden herbekeken. Bevestigde
+        transacties blijven hoe dan ook staan.</label>
+    </div>
+
+    <p class="klein-detail" style="margin-top:12px">Let op: bij een herindeling
+      gaat de bron van de toewijzing verloren. Een transactie die nu <em>met de
+      hand</em> als methode heeft, kan daarna <em>gelijkenis</em> of <em>vaste
+      regel</em> zeggen — de categorie kan dezelfde blijven, maar waar ze vandaan
+      kwam niet. Daarom wordt er vooraf een kopie van de databank gelegd; via
+      <a href="{{ url_for('instellingen.backups') }}">Kopieën</a> zet je die
+      terug.</p>
+
+    <button type="submit" class="stil">Opnieuw indelen</button>
+  </form>
 </div>
 
 <div class="vlak">

@@ -1,9 +1,11 @@
 {% extends "basis.html" %}
+{% from "_instellingentabs.html" import instellingentabs %}
 {% from "_kiezer.html" import categoriekiezer %}
 {% from "_regelvoorwaarden.html" import extra_voorwaarden %}
 {% block titel %}Regel bewerken{% endblock %}
 
 {% block inhoud %}
+{{ instellingentabs(is_beheerder) }}
 <div class="kop">
   <h1>Regel bewerken</h1>
   <p>Bewaren volgt dezelfde weg als verwijderen: de transacties die aan deze

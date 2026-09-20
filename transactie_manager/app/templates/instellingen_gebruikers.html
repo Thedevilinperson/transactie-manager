@@ -1,7 +1,9 @@
 {% extends "basis.html" %}
+{% from "_instellingentabs.html" import instellingentabs %}
 {% block titel %}Gebruikers{% endblock %}
 
 {% block inhoud %}
+{{ instellingentabs(is_beheerder) }}
 <div class="kop">
   <h1>Gebruikers</h1>
   <p>Iedere gebruiker krijgt een eigen kopie van de sleutel, ontgrendeld met het

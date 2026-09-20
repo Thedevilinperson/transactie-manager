@@ -10,6 +10,9 @@ from ..auth import (beheerder_vereist, herstelstatus, login_vereist, maak_gebrui
 from ..categories import boom, keuzelijst, laad_alles
 from ..categorizer.ai import test_verbinding
 from ..crypto import normalize, normalize_iban
+from .. import backup
+from ..config import VERSION
+from .. import handleiding as hl
 from ..database import connect, get_db, instelling, log, now_iso, zet_instelling
 from ..regelonderhoud import (BEWERKT_TOELICHTING, UIT_TOELICHTING, WIS_TOELICHTING,
                               Uitkomst, hangende_transacties, herbekijk, herbekijk_alles,
@@ -423,6 +426,7 @@ def regels():
                 flash("Regel weer aangezet. " + verslag(uit), "goed")
 
         elif actie == "alles":
+            backup.maak("regels_opnieuw")
             uit = herbekijk_alles(conn, crypto)
             conn.commit()
             log(conn, crypto, g.gebruiker, "regels opnieuw toegepast",
@@ -653,3 +657,153 @@ def herstel():
         mailwaarden=mail.instellingen(conn),
         kan_mailen=mail.actief(conn),
     )
+
+
+# --------------------------------------------------------------------------
+# Kopieën van de databank
+# --------------------------------------------------------------------------
+
+@bp.route("/backups", methods=["GET", "POST"])
+@beheerder_vereist
+def backups():
+    if request.method == "POST":
+        actie = request.form.get("actie")
+        naam = request.form.get("naam", "")
+
+        if actie == "maak":
+            kopie = backup.maak("handmatig")
+            if kopie is None:
+                flash("De kopie kon niet gelegd worden.", "fout")
+            else:
+                flash(f"Kopie gemaakt ({kopie.mb} MB).", "goed")
+
+        elif actie in ("herstel", "verwijder"):
+            kopie = backup.zoek(naam)
+            if kopie is None:
+                flash("Die kopie bestaat niet meer.", "fout")
+            elif actie == "verwijder":
+                flash("Kopie verwijderd." if backup.verwijder(kopie)
+                      else "De kopie kon niet verwijderd worden.",
+                      "goed" if backup.zoek(naam) is None else "fout")
+            else:
+                if backup.herstel(kopie):
+                    conn = get_db()
+                    log(conn, g.crypto, g.gebruiker, "databank_teruggezet", naam)
+                    conn.commit()
+                    wanneer = kopie.tijdstip.strftime("%d/%m/%Y %H:%M")
+                    flash(f"De databank is teruggezet naar de kopie van {wanneer} "
+                          "(UTC). Er staat ook een kopie van vlak vóór het "
+                          "terugzetten klaar.", "goed")
+                else:
+                    flash("Terugzetten is niet gelukt.", "fout")
+        return redirect(url_for("instellingen.backups"))
+
+    return render_template("instellingen_backups.html", kopieen=backup.lijst(),
+                           bewaren=backup.AUTO_BEWAREN)
+
+
+# --------------------------------------------------------------------------
+# Opnieuw beginnen
+# --------------------------------------------------------------------------
+
+# Wat elke keuze wist, en in welke volgorde. Kinderen voor ouders, anders
+# struikelt de vreemde sleutel.
+WISOPDRACHTEN = {
+    "indeling": [
+        "UPDATE transacties SET categorie_id=NULL, subcategorie_id=NULL,"
+        " subsub_id=NULL, status='niet_toegewezen', methode='geen', regel_id=NULL,"
+        " zekerheid=0",
+        "DELETE FROM regel_voorwaarden",
+        "DELETE FROM regels",
+        "DELETE FROM categorieen",
+    ],
+    "transacties": [
+        "DELETE FROM import_regels",
+        "DELETE FROM import_batches",
+        "DELETE FROM transacties",
+    ],
+    "alles": [
+        "DELETE FROM import_regels",
+        "DELETE FROM import_batches",
+        "DELETE FROM transacties",
+        "DELETE FROM regel_voorwaarden",
+        "DELETE FROM regels",
+        "DELETE FROM categorieen",
+    ],
+}
+
+WISOMSCHRIJVING = {
+    "indeling": "de categorieën en regels",
+    "transacties": "alle transacties",
+    "alles": "alle transacties, categorieën en regels",
+}
+
+BEVESTIGINGSWOORD = "WISSEN"
+
+
+def _tellingen(conn) -> dict:
+    def tel(tabel, waar=""):
+        return conn.execute(f"SELECT COUNT(*) n FROM {tabel} {waar}").fetchone()["n"]
+    return {
+        "transacties": tel("transacties"),
+        "ingedeeld": tel("transacties", "WHERE categorie_id IS NOT NULL"),
+        "handmatig": tel("transacties", "WHERE methode = 'manueel'"),
+        "categorieen": tel("categorieen"),
+        "regels": tel("regels"),
+        "rekeningen": tel("rekeningen"),
+        "batches": tel("import_batches"),
+    }
+
+
+@bp.route("/opnieuw-beginnen", methods=["GET", "POST"])
+@beheerder_vereist
+def opnieuw_beginnen():
+    conn = get_db()
+
+    if request.method == "POST":
+        omvang = request.form.get("omvang", "")
+        if omvang not in WISOPDRACHTEN:
+            flash("Kies eerst wat er precies weg moet.", "fout")
+            return redirect(url_for("instellingen.opnieuw_beginnen"))
+
+        # Tweede slot: het vinkje alleen is te makkelijk aangeklikt.
+        if request.form.get("woord", "").strip().upper() != BEVESTIGINGSWOORD:
+            flash(f"Er is niets gewist. Typ {BEVESTIGINGSWOORD} in het vakje om te "
+                  "bevestigen.", "fout")
+            return redirect(url_for("instellingen.opnieuw_beginnen"))
+
+        vooraf = _tellingen(conn)
+        kopie = backup.maak("wissen")
+
+        for opdracht in WISOPDRACHTEN[omvang]:
+            conn.execute(opdracht)
+        if omvang == "alles" and request.form.get("ook_rekeningen") == "1":
+            conn.execute("DELETE FROM rekeningen")
+        conn.commit()
+
+        log(conn, g.crypto, g.gebruiker, "databank_gewist",
+            f"omvang={omvang} transacties={vooraf['transacties']}"
+            f" categorieen={vooraf['categorieen']} regels={vooraf['regels']}")
+        conn.commit()
+
+        flash(
+            f"{WISOMSCHRIJVING[omvang].capitalize()} zijn gewist."
+            + (f" Er staat een kopie van vlak hiervoor klaar ({kopie.mb} MB); via "
+               "Kopieën zet je ze terug." if kopie
+               else " Let op: er kon geen kopie van de databank gelegd worden."),
+            "goed")
+        return redirect(url_for("instellingen.opnieuw_beginnen"))
+
+    return render_template("instellingen_opnieuw.html", telling=_tellingen(conn),
+                           woord=BEVESTIGINGSWOORD)
+
+
+# --------------------------------------------------------------------------
+# Handleiding
+# --------------------------------------------------------------------------
+
+@bp.route("/handleiding")
+@login_vereist
+def handleiding():
+    """De handleiding zoals ze in de repository staat, hier leesbaar gemaakt."""
+    return render_template("handleiding.html", doc=hl.lees(), versie=VERSION)

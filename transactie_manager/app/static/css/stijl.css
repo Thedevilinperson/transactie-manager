@@ -6,7 +6,7 @@
 /* Het versienummer staat hier zodat de toepassing kan nagaan of de browser wel
    het juiste stijlblad gebruikt. Bijwerken met scripts/versie.py. */
 :root {
-  --stijl-versie: "0.10.0";
+  --stijl-versie: "0.12.0";
   --inkt: #17202e;
   --inkt-zacht: #5a6675;
   --papier: #f1f3f6;
@@ -549,3 +549,46 @@ tfoot td { font-weight: 600; border-top: 2px solid var(--lijn-sterk); border-bot
 .voorwaarderij input { flex: 1 1 200px; min-width: 0; }
 .voorwaarde { display: block; }
 .voorwaarde.vervolg { padding-left: 10px; color: var(--inkt-zacht); }
+
+/* -------------------------------------------------------- tabbladen en hulp */
+
+.tabs {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  border-bottom: 1px solid var(--lijn); margin-bottom: 18px;
+}
+.tabs a {
+  padding: 7px 12px; font-size: 13.5px; color: var(--inkt-zacht);
+  border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap;
+}
+.tabs a:hover { color: var(--inkt); text-decoration: none; }
+.tabs a.actief {
+  color: var(--actie); border-bottom-color: var(--actie); font-weight: 600;
+}
+
+.handleiding-blad { display: flex; gap: 20px; align-items: flex-start; }
+.handleiding-inhoud {
+  flex: 0 0 240px; position: sticky; top: 16px; max-height: calc(100vh - 40px);
+  overflow-y: auto; font-size: 13px;
+}
+.handleiding-inhoud ul { list-style: none; margin: 8px 0 0; padding: 0; }
+.handleiding-inhoud li.niveau-2 { padding-left: 12px; }
+.handleiding-inhoud li { margin: 3px 0; }
+.handleiding-tekst { flex: 1 1 auto; min-width: 0; max-width: 760px; }
+.handleiding-tekst h1 { font-size: 24px; margin-top: 0; }
+.handleiding-tekst h2 { font-size: 19px; margin-top: 28px; }
+.handleiding-tekst h3 { font-size: 16px; margin-top: 22px; }
+.handleiding-tekst blockquote {
+  border-left: 3px solid var(--lijn-sterk); margin: 14px 0; padding: 2px 0 2px 14px;
+  color: var(--inkt-zacht);
+}
+.handleiding-tekst pre {
+  background: var(--papier); padding: 10px 12px; border-radius: 6px;
+  overflow-x: auto; font-size: 12.5px;
+}
+.handleiding-tekst code { font-size: 12.5px; }
+.handleiding-tekst hr { border: 0; border-top: 1px solid var(--lijn); margin: 26px 0; }
+
+@media (max-width: 900px) {
+  .handleiding-blad { flex-direction: column; }
+  .handleiding-inhoud { position: static; flex: 1 1 auto; max-height: none; }
+}
