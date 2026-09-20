@@ -1,0 +1,49 @@
+{% extends "basis.html" %}
+{% from "_instellingentabs.html" import instellingentabs %}
+{% block titel %}Bezig met wegschrijven{% endblock %}
+
+{% block inhoud %}
+{{ instellingentabs(is_beheerder) }}
+<div class="kop">
+  <h1>Bezig met wegschrijven</h1>
+  <p>{{ taak.omschrijving }}</p>
+</div>
+
+<div class="vlak" data-voortgang
+     data-bron="{{ url_for('bijzonder.historiek_voortgang', token=token) }}"
+     data-eenheid="stappen">
+  <div class="voortgangsfase">Voorbereiden…</div>
+  <div class="voortgangsbalk"><div class="voortgangsvulling" style="width:0%"></div></div>
+  <div class="voortgangsdetail">
+    <span class="teller">0</span>
+    <span class="verstreken"></span>
+  </div>
+  <p class="klein-detail" style="margin-top:14px">Je mag dit venster open laten
+    staan. Sluit je het toch, dan loopt het werk gewoon door — er wordt niets
+    afgebroken.</p>
+</div>
+
+<div class="vlak verborgen" data-uitslag>
+  <h2>Klaar</h2>
+  <div class="balans">
+    <div class="cijfer in"><b data-veld="regels">0</b><span>regels weggeschreven</span></div>
+    <div class="cijfer"><b data-veld="bedragsplitsingen">0</b><span>met een bedragvork</span></div>
+    <div class="cijfer uit"><b data-veld="onzeker">0</b><span>blijven om bevestiging vragen</span></div>
+  </div>
+  <p data-telling style="margin-top:16px"></p>
+  <div class="knoppen" style="margin-top:18px">
+    <a class="knop" href="{{ url_for('instellingen.regels') }}">Naar de regels</a>
+    <a class="knop stil" href="{{ url_for('tx.nazicht') }}">Naar het nazicht</a>
+    <a class="knop stil" href="{{ url_for('tx.lijst') }}">Transacties bekijken</a>
+  </div>
+</div>
+
+<div class="vlak verborgen" data-mislukt
+     data-inleiding="Het wegschrijven is misgelopen: ">
+  <div class="melding fout" data-boodschap></div>
+  <div class="knoppen">
+    <a class="knop stil"
+       href="{{ url_for('bijzonder.regels_uit_historiek') }}">Opnieuw proberen</a>
+  </div>
+</div>
+{% endblock %}

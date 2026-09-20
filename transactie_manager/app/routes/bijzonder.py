@@ -8,15 +8,15 @@ import secrets
 from decimal import Decimal
 from pathlib import Path
 
-from flask import (Blueprint, flash, g, redirect, render_template, request,
+from flask import (Blueprint, flash, g, jsonify, redirect, render_template, request,
                    send_from_directory, url_for)
 from werkzeug.utils import secure_filename
 
-from .. import backup, veilig_terug
+from .. import backup, herindeling, taken, veilig_terug
 from ..auth import login_vereist
 from ..categorizer.engine import Motor, TransactieKenmerken
 from ..config import UPLOAD_DIR
-from ..database import get_db, log, now_iso
+from ..database import connect, get_db, log, now_iso
 from ..importers import kredietkaart as kk
 from ..importers import referentie as ref
 from ..importers import regelbouwer
@@ -436,21 +436,101 @@ def regels_uit_historiek():
     alleen_bevestigd = request.values.get("alleen_bevestigd", "1") == "1"
 
     if request.method == "POST" and request.form.get("actie") == "wegschrijven":
-        backup.maak("regels_uit_historiek")
-        analyse = regelbouwer.analyseer(conn, crypto, alleen_bevestigd)
-        resultaat = regelbouwer.schrijf(
-            conn, crypto, analyse,
-            vervang_geleerd=request.form.get("vervang_geleerd", "1") == "1")
-        log(conn, crypto, g.gebruiker, "regels_uit_historiek", str(resultaat))
-        conn.commit()
-        flash(f"{resultaat['regels']} regels afgeleid uit je historiek, waarvan "
-              f"{resultaat['bedragsplitsingen']} bedragvorken en "
-              f"{resultaat['onzeker']} die om bevestiging blijven vragen.", "goed")
-        if request.form.get("herindelen") == "1":
-            return redirect(url_for("tx.herindelen_get"))
-        return redirect(url_for("instellingen.regels"))
+        # Duizenden regels wegschrijven en daarna herindelen duurt te lang om de
+        # browser op te laten wachten: die toont ondertussen een lege bladzijde
+        # en je weet niet of er iets gebeurt. Het werk loopt daarom in een
+        # aparte draad, met dezelfde voortgangsmeter als een bestandsinvoer.
+        token = secrets.token_hex(8)
+        taken.start(
+            token, "Regels afleiden uit je historiek", _verwerk_historiek, crypto,
+            {
+                "alleen_bevestigd": alleen_bevestigd,
+                "vervang_geleerd": request.form.get("vervang_geleerd", "1") == "1",
+                "bereik": (request.form.get("bereik")
+                           if request.form.get("herindelen") == "1" else None),
+                "gebruiker": g.gebruiker,
+            })
+        return redirect(url_for("bijzonder.historiek_bezig", token=token))
 
     analyse = regelbouwer.analyseer(conn, crypto, alleen_bevestigd)
     return render_template("regels_uit_historiek.html", analyse=analyse,
                            alleen_bevestigd=alleen_bevestigd,
                            veldnaam=regelbouwer.VELDNAAM)
+
+
+def _verwerk_historiek(taak, crypto, inst: dict) -> dict:
+    """Regels afleiden, wegschrijven en desgevraagd meteen herindelen.
+
+    Draait in een aparte draad, dus met een eigen verbinding naar de databank.
+    """
+    conn = connect()
+    try:
+        taak.fase = "Kopie van de databank leggen"
+        backup.maak("regels_uit_historiek")
+
+        taak.fase = "Historiek doorlopen"
+        analyse = regelbouwer.analyseer(conn, crypto, inst["alleen_bevestigd"])
+
+        taak.totaal = len(analyse.regels)
+        taak.vorder(0, "Regels wegschrijven")
+        resultaat = regelbouwer.schrijf(
+            conn, crypto, analyse, vervang_geleerd=inst["vervang_geleerd"], taak=taak)
+        log(conn, crypto, inst["gebruiker"], "regels_uit_historiek", str(resultaat))
+        conn.commit()
+
+        uit = {
+            "regels": resultaat["regels"],
+            "bedragsplitsingen": resultaat["bedragsplitsingen"],
+            "onzeker": resultaat["onzeker"],
+            "heringedeeld": None,
+        }
+
+        if inst["bereik"] is not None:
+            taak.fase = "Opnieuw indelen"
+            taak.stand = 0
+            uitslag = herindeling.voer_uit(conn, crypto, inst["bereik"], taak=taak)
+            log(conn, crypto, inst["gebruiker"], "herindeling",
+                f"bereik={uitslag.bereik} veranderd={uitslag.totaal}")
+            conn.commit()
+            uit["heringedeeld"] = uitslag.totaal
+            uit["ongewijzigd"] = uitslag.ongewijzigd
+            uit["bereik"] = uitslag.omschrijving
+            uit["per_methode"] = dict(uitslag.per_methode)
+
+        uit["samenvatting"] = _samenvatting(uit)
+        return uit
+    finally:
+        conn.close()
+
+
+def _samenvatting(uit: dict) -> str:
+    """De zin onder de cijfers, zodat het scherm niet hoeft te rekenen."""
+    zin = (f"{uit['regels']} regels afgeleid uit je historiek, waarvan "
+           f"{uit['bedragsplitsingen']} met een bedragvork en "
+           f"{uit['onzeker']} die om bevestiging blijven vragen.")
+    if uit["heringedeeld"] is None:
+        return zin + " Er is niets heringedeeld."
+    if not uit["heringedeeld"]:
+        return (zin + f" Bij het herindelen ({uit['bereik']}) viel er niets bij te "
+                f"sturen; {uit['ongewijzigd']} transacties stonden al goed.")
+    return (zin + f" Daarna zijn er {uit['heringedeeld']} transacties opnieuw "
+            f"ingedeeld ({uit['bereik']}).")
+
+
+@bp.route("/instellingen/regels-uit-historiek/bezig/<token>")
+@login_vereist
+def historiek_bezig(token: str):
+    taak = taken.haal(token)
+    if taak is None:
+        flash("Die bewerking is niet meer bekend.", "fout")
+        return redirect(url_for("bijzonder.regels_uit_historiek"))
+    return render_template("regels_uit_historiek_bezig.html", token=token, taak=taak)
+
+
+@bp.route("/instellingen/regels-uit-historiek/voortgang/<token>")
+@login_vereist
+def historiek_voortgang(token: str):
+    taak = taken.haal(token)
+    if taak is None:
+        return jsonify({"fout": "onbekend"}), 404
+    return jsonify(taak.naar_json())

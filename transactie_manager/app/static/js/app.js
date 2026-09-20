@@ -510,7 +510,8 @@
         if (!mislukt) return;
         mislukt.classList.remove("verborgen");
         mislukt.querySelector("[data-boodschap]").textContent =
-          "Het inlezen is misgelopen: " + (gegevens.fout || "onbekende reden");
+          (mislukt.dataset.inleiding || "Het inlezen is misgelopen: ") +
+          (gegevens.fout || "onbekende reden");
         return;
       }
       if (!uitslag) { window.location.reload(); return; }
@@ -519,8 +520,12 @@
       uitslag.querySelectorAll("[data-veld]").forEach(function (el) {
         el.textContent = (r[el.dataset.veld] || 0).toLocaleString("nl-BE");
       });
+      /* De samenvatting komt van de server wanneer die er een meegeeft; anders
+         wordt ze hier opgeteld, zoals bij een bestandsinvoer. */
       var telling = uitslag.querySelector("[data-telling]");
-      if (telling) {
+      if (telling && r.samenvatting) {
+        telling.textContent = r.samenvatting;
+      } else if (telling && r.totaal !== undefined) {
         var som = (r.nieuw || 0) + (r.aangevuld || 0) + (r.ongewijzigd || 0) +
                   (r.overgeslagen || 0);
         telling.textContent = "Van de " + (r.totaal || 0).toLocaleString("nl-BE") +
@@ -560,7 +565,8 @@
           fase.textContent = gegevens.fase;
           if (gegevens.totaal) {
             teller.textContent = gegevens.stand.toLocaleString("nl-BE") + " van " +
-              gegevens.totaal.toLocaleString("nl-BE") + " rijen";
+              gegevens.totaal.toLocaleString("nl-BE") + " " +
+              (vlak.dataset.eenheid || "rijen");
           }
           verstreken.textContent = gegevens.seconden + " seconden";
           if (gegevens.klaar) { toonUitslag(gegevens); return; }

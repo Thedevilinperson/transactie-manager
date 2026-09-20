@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import collections
 import json
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, flash, g, redirect, render_template, request, url_for
 
-from .. import backup, veilig_terug
+from .. import backup, herindeling, veilig_terug
 from ..auth import login_vereist
 from ..categories import boom, keuzelijst, laad_alles, nakomelingen, pad_tekst
 from ..filters import METHODEN, STATUSSEN, Filters, keuzes, rekeningen as alle_rekeningen
@@ -321,13 +320,6 @@ def alles_bevestigen():
     return redirect(url_for("tx.nazicht"))
 
 
-BEREIKEN = {
-    "zonder_categorie": ("alleen transacties zonder categorie",
-                         "categorie_id IS NULL AND status <> 'bevestigd'"),
-    "onbevestigd": ("alles wat nog niet bevestigd is", "status <> 'bevestigd'"),
-}
-
-
 @bp.route("/herindelen", methods=["GET"])
 @login_vereist
 def herindelen_get():
@@ -337,78 +329,47 @@ def herindelen_get():
 @bp.route("/herindelen", methods=["POST"])
 @login_vereist
 def herindelen():
-    """Laat de motor opnieuw los op alles wat nog niet bevestigd is.
+    """Laat de motor opnieuw los op alles binnen het gekozen bereik.
 
-    Er wordt alleen geteld wat er werkelijk verandert. Voordien telde elke rij
-    mee waarvoor de motor íets vond, ook als dat precies was wat er al stond —
-    een tweede herindeling meldde dan weer hetzelfde aantal.
-
-    De telling gaat per stap uiteen, want dat is wat je daarna wil terugvinden:
-    een vaste regel, een gelijkenis met de historiek en het AI-model belanden
-    alle drie onder een andere *methode* in de lijst.
+    Het werk zelf staat in `app/herindeling.py`, zodat het ook achter een
+    voortgangsmeter kan lopen wanneer het vanuit een andere handeling komt.
     """
     conn = get_db()
     crypto = g.crypto
-
-    # Standaard alleen wat nog geen categorie heeft. Dat is het veilige bereik:
-    # een transactie die al ergens in zit, is daar meestal met opzet beland —
-    # met de hand, of via een regel die je toen goed vond. Wie écht alles wil
-    # laten herzien, kiest dat uitdrukkelijk.
-    keuze = request.form.get("bereik", "zonder_categorie")
-    if keuze not in BEREIKEN:
-        keuze = "zonder_categorie"
-    omschrijving, waar = BEREIKEN[keuze]
-
-    motor = Motor(conn, crypto)
     vanaf = now_iso()
-    veranderd: collections.Counter = collections.Counter()
-    ongewijzigd = 0
-    rijen = conn.execute(f"SELECT * FROM transacties WHERE {waar}").fetchall()
-    if rijen:
-        backup.maak("herindeling")
-    from ..transacties import rij_naar_object
-    for row in rijen:
-        tx = rij_naar_object(row, crypto)
-        voorstel = motor.beoordeel(tx.kenmerken)
-        if not voorstel.gevonden:
-            continue
-        if (voorstel.categorie_id == row["categorie_id"]
-                and voorstel.subcategorie_id == row["subcategorie_id"]
-                and voorstel.subsub_id == row["subsub_id"]
-                and voorstel.methode == row["methode"]
-                and voorstel.status == row["status"]):
-            ongewijzigd += 1
-            continue
-        werk_bij(
-            conn, crypto, tx.id,
-            categorie_id=voorstel.categorie_id,
-            subcategorie_id=voorstel.subcategorie_id,
-            subsub_id=voorstel.subsub_id,
-            handelaar=voorstel.handelaar or tx.handelaar,
-            land=voorstel.land or tx.land,
-            zekerheid=voorstel.zekerheid,
-            status=voorstel.status,
-            methode=voorstel.methode,
-            toelichting=voorstel.toelichting,
-            regel_id=voorstel.regel_id,
-        )
-        veranderd[voorstel.methode] += 1
 
-    totaal = sum(veranderd.values())
+    bereik = herindeling.normaliseer(request.form.get("bereik"))
+    hoeveel = conn.execute(
+        "SELECT COUNT(*) n FROM transacties WHERE "
+        + herindeling.BEREIKEN[bereik][1]).fetchone()["n"]
+    if hoeveel:
+        backup.maak("herindeling")
+
+    uitslag = herindeling.voer_uit(conn, crypto, bereik)
+
     log(conn, crypto, g.gebruiker, "herindeling",
-        f"bereik={keuze} veranderd={totaal} ongewijzigd={ongewijzigd} "
-        + " ".join(f"{m}={n}" for m, n in sorted(veranderd.items())))
+        f"bereik={uitslag.bereik} veranderd={uitslag.totaal}"
+        f" ongewijzigd={uitslag.ongewijzigd} "
+        + " ".join(f"{m}={n}" for m, n in sorted(uitslag.per_methode.items())))
     conn.commit()
 
-    if not totaal:
-        flash(f"Er viel niets bij te sturen bij {omschrijving}. {ongewijzigd} "
-              "transacties stonden al zoals de motor ze zou indelen.", "goed")
+    if not uitslag.totaal:
+        flash(f"Er viel niets bij te sturen bij {uitslag.omschrijving}. "
+              f"{uitslag.ongewijzigd} transacties stonden al zoals de motor ze zou "
+              "indelen.", "goed")
         return redirect(url_for("tx.nazicht"))
 
+    flash(herindeling_melding(uitslag), "goed")
+    return redirect(url_for("tx.lijst", gewijzigd_na=vanaf))
+
+
+def herindeling_melding(uitslag) -> str:
+    """Eén zin met de uitsplitsing per stap van de motor."""
     namen = dict(METHODEN)
     uitsplitsing = ", ".join(f"{n} via {namen.get(m, m).lower()}"
-                             for m, n in veranderd.most_common())
-    flash(f"{totaal} transacties opnieuw ingedeeld ({omschrijving}): {uitsplitsing}."
-          + (f" {ongewijzigd} stonden al goed." if ongewijzigd else "")
-          + " Hieronder staan net die transacties.", "goed")
-    return redirect(url_for("tx.lijst", gewijzigd_na=vanaf))
+                             for m, n in uitslag.per_methode.most_common())
+    return (f"{uitslag.totaal} transacties opnieuw ingedeeld "
+            f"({uitslag.omschrijving}): {uitsplitsing}."
+            + (f" {uitslag.ongewijzigd} stonden al goed."
+               if uitslag.ongewijzigd else "")
+            + " Hieronder staan net die transacties.")

@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.13.2
+Versie 0.14.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -615,6 +615,15 @@ een regel die om bevestiging blijft vragen.
 Je krijgt eerst een overzicht van wat eruit zou komen. Pas als je bevestigt,
 wordt er weggeschreven. Regels die je zelf hebt ingevoerd en regels uit een
 categorieënbestand blijven daarbij staan.
+
+Bij het wegschrijven kies je of er daarna meteen opnieuw ingedeeld wordt, en
+hoever dat gaat: alleen wat nog geen categorie heeft, of alles wat nog niet
+bevestigd is. Het eerste is het veilige bereik.
+
+Het wegschrijven loopt in de achtergrond, met een voortgangsmeter. Bij duizenden
+regels duurt dat even, en de balk loopt door twee fasen: eerst de regels, dan de
+herindeling. Je mag het venster gerust open laten staan; sluit je het toch, dan
+loopt het werk gewoon door. Vooraf wordt er een kopie van de databank gelegd.
 
 ### Alles opnieuw laten indelen
 

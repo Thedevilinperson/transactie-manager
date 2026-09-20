@@ -4,6 +4,43 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.14.0] — 2026-09-20
+
+### Opgelost
+- **Regels uit je historiek wegschrijven gaf geen enkel teken van leven.** Bij
+  duizenden regels bleef de browser minutenlang op een lege bladzijde staan,
+  zonder dat je kon zien of er iets gebeurde. Dat werk loopt nu in de
+  achtergrond, met dezelfde voortgangsmeter als een bestandsinvoer: fase, balk,
+  teller en verstreken tijd.
+- Het herindelen dat erachteraan komt zit in dezelfde meter. De balk loopt dus
+  door twee fasen — *Regels wegschrijven* en *Transacties opnieuw beoordelen* —
+  en je weet van begin tot eind waar het zit.
+- Sluit je het venster, dan loopt het werk gewoon door; er wordt niets
+  afgebroken.
+
+### Erbij
+- **Het bereik van de herindeling kies je nu ter plekke**, bij het knopje
+  *Daarna meteen opnieuw indelen*: alleen wat nog geen categorie heeft, of alles
+  wat nog niet bevestigd is. Voordien ging die stap altijd naar het standaard
+  bereik zonder dat je erbij kwam.
+- Achteraf staat er één zin met alles erin: hoeveel regels, hoeveel met een
+  bedragvork, hoeveel die om bevestiging blijven vragen, en hoeveel transacties
+  er daarna opnieuw zijn ingedeeld.
+
+### Technisch
+- De herindeling staat nu in `app/herindeling.py` in plaats van in de route.
+  Ze moest aanroepbaar worden vanuit een aparte draad — met een eigen verbinding
+  en zonder aanvraagcontext — en dat gaat niet vanuit een routefunctie. De knop
+  op het nazichtscherm gebruikt dezelfde functie, dus beide wegen doen
+  gegarandeerd hetzelfde.
+- De voortgangsmeter meldt om de honderdste stap, berekend uit het totaal. Een
+  vaste afstand van honderd liet de balk bij een korte lijst op nul staan en
+  werkte bij een lange lijst honderd keer per seconde bij.
+- De JavaScript van de meter was op de bestandsinvoer geschreven: ze telde altijd
+  *rijen* en sprak van *inlezen*. De eenheid en de foutzin komen nu uit het
+  scherm zelf, en de samenvatting mag de server meegeven.
+
+
 ## [0.13.2] — 2026-09-20
 
 ### Opgelost

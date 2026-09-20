@@ -248,19 +248,28 @@ def analyseer(conn, crypto, alleen_bevestigd: bool = True) -> Analyse:
 # Wegschrijven
 # --------------------------------------------------------------------------
 
-def schrijf(conn, crypto, analyse: Analyse, *, vervang_geleerd: bool = True) -> dict:
+def schrijf(conn, crypto, analyse: Analyse, *, vervang_geleerd: bool = True,
+            taak=None) -> dict:
     """Zet de voorgestelde regels in de databank.
 
     `vervang_geleerd` verwijdert alleen wat een vorige keer uit de historiek is
     afgeleid. Regels die je zelf hebt ingevoerd of die uit een categorieënbestand
     komen, blijven staan.
+
+    `taak` is er voor de voortgangsmeter: bij duizenden regels duurt dit te lang
+    om de browser op te laten wachten.
     """
     if vervang_geleerd:
         conn.execute("DELETE FROM regels WHERE herkomst IN ('historiek', 'historiek_onzeker')")
 
     tijdstip = now_iso()
     geschreven = 0
+    # Om de honderdste regel melden, zodat de balk ook bij een korte lijst
+    # beweegt en bij een lange niet honderd keer per seconde bijgewerkt wordt.
+    stap = max(1, len(analyse.regels) // 100)
     for regel in analyse.regels:
+        if taak is not None and geschreven % stap == 0:
+            taak.vorder(geschreven)
         veld = "tegenpartij_naam" if regel.veld == "tegenpartij_naam_bedrag" else regel.veld
         naam = f"{VELDNAAM.get(regel.veld, regel.veld)}: {regel.waarde[:50]}"
         if regel.uitleg:
