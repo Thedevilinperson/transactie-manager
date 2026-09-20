@@ -9,7 +9,7 @@ from flask import g
 
 from .config import DB_PATH, DEFAULT_SETTINGS
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS app_meta (
@@ -103,6 +103,22 @@ CREATE TABLE IF NOT EXISTS regels (
     aangemaakt_op TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_regel_idx ON regels(waarde_idx);
+
+-- Bijkomende voorwaarden van een regel. De eerste voorwaarde staat in de
+-- regeltabel zelf; wat hier staat komt er met EN bovenop. Zo blijft een regel
+-- met één voorwaarde precies wat ze altijd was, en kost een regel die velden
+-- combineert niets extra aan de bestaande rijen.
+CREATE TABLE IF NOT EXISTS regel_voorwaarden (
+    id         INTEGER PRIMARY KEY,
+    regel_id   INTEGER NOT NULL REFERENCES regels(id) ON DELETE CASCADE,
+    volgorde   INTEGER NOT NULL DEFAULT 0,
+    veld       TEXT NOT NULL,
+    operator   TEXT NOT NULL,   -- gelijk | bevat | bevat_niet | regex
+    waarde_enc TEXT NOT NULL,
+    waarde_idx TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_voorwaarde_regel
+    ON regel_voorwaarden(regel_id, volgorde);
 
 CREATE TABLE IF NOT EXISTS import_batches (
     id            INTEGER PRIMARY KEY,
@@ -260,6 +276,21 @@ def _migreer(conn: sqlite3.Connection) -> None:
     # De index hoort hier en niet in SCHEMA: dat script loopt vóór deze
     # migratie, en op een bestaande databank bestaat de kolom dan nog niet.
     conn.execute("CREATE INDEX IF NOT EXISTS ix_tx_regel ON transacties(regel_id)")
+
+    # Schemaversie 5: een regel kan meer dan één voorwaarde hebben. Bestaande
+    # regels houden hun ene voorwaarde in de regeltabel en krijgen hier niets.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS regel_voorwaarden (
+            id         INTEGER PRIMARY KEY,
+            regel_id   INTEGER NOT NULL REFERENCES regels(id) ON DELETE CASCADE,
+            volgorde   INTEGER NOT NULL DEFAULT 0,
+            veld       TEXT NOT NULL,
+            operator   TEXT NOT NULL,
+            waarde_enc TEXT NOT NULL,
+            waarde_idx TEXT
+        )""")
+    conn.execute("CREATE INDEX IF NOT EXISTS ix_voorwaarde_regel"
+                 " ON regel_voorwaarden(regel_id, volgorde)")
 
     conn.execute(
         "INSERT INTO app_meta (sleutel, waarde) VALUES ('schema_versie', ?) "

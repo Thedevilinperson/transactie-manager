@@ -1,0 +1,63 @@
+{# Rijen voor de bijkomende voorwaarden van een regel.
+
+   De eerste voorwaarde staat in het hoofdformulier; wat hier staat komt er met
+   EN bovenop. Lege rijen worden bij het bewaren overgeslagen, dus er staan er
+   altijd een paar klaar. #}
+
+{% macro extra_voorwaarden(veldnamen, extra_operatoren, bestaande=[], vrij=3) %}
+  <fieldset class="voorwaarden">
+    <legend>En ook</legend>
+    <p class="klein-detail">Elke ingevulde rij moet óók kloppen. Laat ze leeg en
+      de regel kijkt alleen naar de voorwaarde hierboven. Met <em>bevat niet</em>
+      sluit je net iets uit: alles van Total, behalve wanneer er CARWASH in de
+      mededeling staat.</p>
+
+    {% for vw in bestaande %}
+      <div class="voorwaarderij">
+        <select name="extra_veld" aria-label="Veld">
+          {% for sleutel, label in veldnamen.items() %}
+            <option value="{{ sleutel }}" {{ 'selected' if vw.veld == sleutel }}>
+              {{ label }}</option>
+          {% endfor %}
+        </select>
+        <select name="extra_operator" aria-label="Vergelijking">
+          {% for sleutel, label in extra_operatoren.items() %}
+            <option value="{{ sleutel }}" {{ 'selected' if vw.operator == sleutel }}>
+              {{ label }}</option>
+          {% endfor %}
+        </select>
+        <input type="text" name="extra_waarde" value="{{ vw.waarde }}"
+               aria-label="Waarde" placeholder="laat leeg om te verwijderen">
+      </div>
+    {% endfor %}
+
+    {% for _ in range(vrij) %}
+      <div class="voorwaarderij">
+        <select name="extra_veld" aria-label="Veld">
+          {% for sleutel, label in veldnamen.items() %}
+            <option value="{{ sleutel }}"
+              {{ 'selected' if sleutel == 'mededeling' }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <select name="extra_operator" aria-label="Vergelijking">
+          {% for sleutel, label in extra_operatoren.items() %}
+            <option value="{{ sleutel }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+        <input type="text" name="extra_waarde" value="" aria-label="Waarde"
+               placeholder="nog een voorwaarde">
+      </div>
+    {% endfor %}
+  </fieldset>
+{% endmacro %}
+
+{# Eén regel voorwaarden in leesbare vorm, voor de tabel. #}
+{% macro toon_voorwaarden(r, veldnamen, operatoren, extra_operatoren) %}
+  <span class="voorwaarde">{{ veldnamen.get(r.veld, r.veld.replace('_', ' ')) }}
+    {{ operatoren.get(r.operator, r.operator) }} “{{ r.waarde }}”</span>
+  {% for vw in r.extra %}
+    <span class="voorwaarde vervolg"><strong>en</strong>
+      {{ veldnamen.get(vw.veld, vw.veld.replace('_', ' ')) }}
+      {{ extra_operatoren.get(vw.operator, vw.operator) }} “{{ vw.waarde }}”</span>
+  {% endfor %}
+{% endmacro %}

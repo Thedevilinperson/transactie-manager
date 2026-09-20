@@ -6,7 +6,7 @@
 /* Het versienummer staat hier zodat de toepassing kan nagaan of de browser wel
    het juiste stijlblad gebruikt. Bijwerken met scripts/versie.py. */
 :root {
-  --stijl-versie: "0.9.10";
+  --stijl-versie: "0.10.0";
   --inkt: #17202e;
   --inkt-zacht: #5a6675;
   --papier: #f1f3f6;
@@ -534,3 +534,18 @@ tfoot td { font-weight: 600; border-top: 2px solid var(--lijn-sterk); border-bot
 
 .paneel.breed.drie { min-width: 700px; }
 .paneel.breed.drie .paneelkolommen { grid-template-columns: repeat(3, 1fr); }
+
+/* ------------------------------------------------- voorwaarden van een regel */
+
+.voorwaarden {
+  border: 1px solid var(--lijn); border-radius: 8px;
+  padding: 10px 14px 14px; margin: 14px 0 0;
+}
+.voorwaarden legend { font-size: 12px; font-weight: 600; padding: 0 6px; }
+.voorwaarderij {
+  display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;
+}
+.voorwaarderij select { flex: 0 1 190px; min-width: 0; }
+.voorwaarderij input { flex: 1 1 200px; min-width: 0; }
+.voorwaarde { display: block; }
+.voorwaarde.vervolg { padding-left: 10px; color: var(--inkt-zacht); }

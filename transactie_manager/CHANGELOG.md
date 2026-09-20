@@ -4,6 +4,38 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.10.0] — 2026-09-19
+
+### Erbij
+- **Regels kunnen velden combineren.** Onder *En ook* zet je bijkomende
+  voorwaarden; ze moeten dan allemaal kloppen. Zo krijg je bijvoorbeeld "naam
+  bevat TOTAL én mededeling bevat CARWASH" naar *Autowas*, en met een tweede
+  regel "naam bevat TOTAL én mededeling bevat **niet** CARWASH" naar *Tanken*.
+  Daarvoor moest je voordien uitwijken naar een reguliere expressie, en dan nog
+  alleen binnen één veld.
+- **Nieuwe vergelijking *bevat niet*.** Alleen bruikbaar als bijkomende
+  voorwaarde: een regel waarvan de énige voorwaarde "bevat niet" is, zou op
+  zowat elke transactie passen.
+- Er staan altijd drie lege rijen klaar. Een lege rij wordt overgeslagen, en een
+  bestaande voorwaarde wis je door haar waarde leeg te maken.
+- **Filter *Voorwaarden*** op het regelscherm: alle regels, alleen de
+  gecombineerde, of alleen die op één veld.
+- Zoeken doorzoekt ook de bijkomende waarden, en het filter op *Kijkt naar*
+  vindt een regel zodra één van haar voorwaarden naar dat veld kijkt.
+
+### Gewijzigd
+- **Schemaversie 5: een nieuwe tabel `regel_voorwaarden`.** De eerste voorwaarde
+  blijft in de regeltabel zelf staan, wat erbij komt staat in die tabel. Zo
+  verandert er niets aan bestaande regels en kost een gecombineerde regel niets
+  aan de rest. Bestaande databanken krijgen de tabel bij het opstarten; er is
+  niets voor te doen.
+- De regeltabel toont alle voorwaarden onder elkaar, met *en* ervoor.
+- Een gecombineerde regel gaat niet door het snelle woordenboek van de motor,
+  want daar wordt maar één veld opgezocht. Ze wordt volledig nagegaan, net als
+  regels met een bedragvork. Aan de volgorde waarin regels gekozen worden,
+  verandert niets: prioriteit blijft beslissen.
+
+
 ## [0.9.10] — 2026-09-19
 
 ### Erbij

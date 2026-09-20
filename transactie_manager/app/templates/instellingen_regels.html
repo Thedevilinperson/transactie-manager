@@ -1,5 +1,6 @@
 {% extends "basis.html" %}
 {% from "_kiezer.html" import categoriekiezer %}
+{% from "_regelvoorwaarden.html" import extra_voorwaarden, toon_voorwaarden %}
 {% block titel %}Regels{% endblock %}
 
 {% macro kop(sleutel, label, klasse='') %}
@@ -27,7 +28,9 @@
 <div class="vlak">
   <h2>Regel toevoegen</h2>
   <p>Een bedragvork laat toe dezelfde tegenpartij anders in te delen: onder
-    10 euro bij Total is een winkelaankoop, vanaf 10 euro is het tanken.</p>
+    10 euro bij Total is een winkelaankoop, vanaf 10 euro is het tanken. Wil je
+    velden combineren, vul dan onder <em>En ook</em> bijkomende voorwaarden in;
+    ze moeten dan allemaal kloppen.</p>
 
   <form method="post" data-categoriekiezer style="margin-top:14px">
     <input type="hidden" name="actie" value="toevoegen">
@@ -93,6 +96,8 @@
       </div>
     </div>
 
+    {{ extra_voorwaarden(veldnamen, extra_operatoren) }}
+
     {{ categoriekiezer(keuzes) }}
 
     <button type="submit">Regel toevoegen</button>
@@ -146,6 +151,16 @@
             <option value="{{ sleutel }}" {{ 'selected' if filters.veld == sleutel }}>
               {{ label }}</option>
           {% endfor %}
+        </select>
+      </div>
+      <div class="fveld">
+        <label for="combi_f">Voorwaarden</label>
+        <select id="combi_f" name="combi_f">
+          <option value="">Alle regels</option>
+          <option value="ja" {{ 'selected' if filters.combi == 'ja' }}>
+            Alleen gecombineerde</option>
+          <option value="nee" {{ 'selected' if filters.combi == 'nee' }}>
+            Alleen op één veld</option>
         </select>
       </div>
       <div class="fveld">
@@ -209,8 +224,7 @@
               <td class="getal">{{ r.prioriteit }}</td>
               <td>{{ r.naam }}</td>
               <td>
-                {{ veldnamen.get(r.veld, r.veld.replace('_', ' ')) }}
-                {{ r.operator }} “{{ r.waarde }}”
+                {{ toon_voorwaarden(r, veldnamen, operatoren, extra_operatoren) }}
                 {% if r.richting %}<span class="klein-detail">enkel
                   {{ 'uitgaven' if r.richting == 'uit' else 'inkomsten' }}</span>{% endif %}
               </td>

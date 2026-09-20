@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.9.10
+Versie 0.10.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -377,6 +377,29 @@ dezelfde tegenpartij verschillende dingen betekent:
 De ondergrens telt mee, de bovengrens niet. `tot 10` betekent dus alles onder
 tien euro. Deze twee regels staan als voorbeeld klaar.
 
+**Velden combineren.** Onder *En ook* zet je bijkomende voorwaarden. Ze moeten
+dan allemaal kloppen. Daarmee deel je één tegenpartij op naar wat er in de
+mededeling staat:
+
+| Regel         | Voorwaarden                                                      | Indeling             |
+|---------------|------------------------------------------------------------------|----------------------|
+| Total carwash | naam bevat `total` **en** mededeling bevat `carwash`              | Auto › Autowas       |
+| Total tanken  | naam bevat `total` **en** mededeling bevat niet `carwash`         | Auto › Brandstof     |
+
+*Bevat niet* is er speciaal voor dat tweede geval: alles van die tegenpartij,
+behalve wat je er net uit wil houden. Het kan alleen als bijkomende voorwaarde,
+niet als de enige — een regel die enkel zegt wat er níet in staat, zou op zowat
+elke transactie passen.
+
+Er staan altijd drie lege rijen klaar; een lege rij wordt overgeslagen. Een
+bestaande voorwaarde wis je door haar waarde leeg te maken en te bewaren. Wil je
+er meer dan drie bij, bewaar dan tussendoor: bij het heropenen staan er weer
+drie klaar.
+
+Combineren en een bedragvork kan samen, en de prioriteit beslist nog altijd
+welke regel voorgaat als er meer dan één past. Zet de nauwkeurigste regel dus
+op een lager getal.
+
 Een treffer via een regel is zeker en wordt meteen bevestigd. Behalve wanneer de
 regel als onzeker gemarkeerd staat: dat gebeurt bij tegenpartijen die in je
 referentielijst onder meer dan één categorie voorkomen.
@@ -399,6 +422,10 @@ een regel dus tijdelijk uitzetten zonder je indeling kwijt te spelen.
 **Zoeken en sorteren in de regels.** Boven de tabel staat een filterbalk. Je
 kan zoeken op naam, waarde, categorie of winkel, en filteren op hoofdcategorie,
 op het veld waar de regel naar kijkt, en op actief of uitgezet.
+
+*Voorwaarden* houdt alleen de gecombineerde regels over, of net alleen die op
+één veld. Zoeken kijkt ook in de bijkomende waarden, en *Kijkt naar* vindt een
+regel zodra één van haar voorwaarden naar dat veld kijkt.
 
 Twee filters gaan over het bedrag en doen elk iets anders. *Bedragvork* houdt
 alleen de regels over die een onder- of bovengrens hebben, of net alleen die

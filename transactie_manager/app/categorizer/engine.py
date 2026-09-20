@@ -15,7 +15,7 @@ Volgorde van toewijzing:
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 
 from ..crypto import normalize, normalize_iban
@@ -101,6 +101,14 @@ class TransactieKenmerken:
 # --------------------------------------------------------------------------
 
 @dataclass
+class Voorwaarde:
+    """Eén vergelijking op één veld."""
+    veld: str
+    operator: str
+    waarde: str
+
+
+@dataclass
 class Regel:
     id: int
     naam: str
@@ -117,12 +125,32 @@ class Regel:
     handelaar: str | None
     land: str | None
     herkomst: str = "handmatig"
+    # Bijkomende voorwaarden, met EN bovenop de eerste. Leeg bij een gewone
+    # regel op één veld.
+    extra: list[Voorwaarde] = field(default_factory=list)
+
+    @property
+    def voorwaarden(self) -> list[Voorwaarde]:
+        """Alle voorwaarden samen, de eerste voorop."""
+        return [Voorwaarde(self.veld, self.operator, self.waarde)] + self.extra
+
+    @property
+    def gecombineerd(self) -> bool:
+        return bool(self.extra)
 
 
 def laad_regels(conn, crypto, alleen_actief: bool = True) -> list[Regel]:
     """De regels op prioriteit. Met `alleen_actief=False` komen de
     uitgeschakelde er ook bij — nodig om te weten wat een regel deed voordat
     hij uitgezet werd."""
+    extra: dict[int, list[Voorwaarde]] = {}
+    for rij in conn.execute("SELECT * FROM regel_voorwaarden"
+                            " ORDER BY regel_id, volgorde, id"):
+        extra.setdefault(rij["regel_id"], []).append(Voorwaarde(
+            veld=rij["veld"], operator=rij["operator"],
+            waarde=crypto.dec(rij["waarde_enc"]) or "",
+        ))
+
     regels = []
     sql = "SELECT * FROM regels"
     if alleen_actief:
@@ -144,6 +172,7 @@ def laad_regels(conn, crypto, alleen_actief: bool = True) -> list[Regel]:
             handelaar=crypto.dec(row["handelaar_enc"]),
             land=crypto.dec(row["land_enc"]),
             herkomst=row["herkomst"] if "herkomst" in row.keys() else "handmatig",
+            extra=extra.get(row["id"], []),
         ))
     return regels
 
@@ -162,7 +191,41 @@ def _veldwaarde(k: TransactieKenmerken, veld: str) -> str:
     return k.tekst() + " " + normalize_iban(k.tegenpartij_rekening)
 
 
+def _voorwaarde_past(vw: Voorwaarde, k: TransactieKenmerken) -> bool:
+    """Eén vergelijking op één veld.
+
+    `bevat_niet` is er omdat een combinatie pas nuttig wordt als je ook iets kan
+    uitsluiten: "alles van Total, behalve wanneer er CARWASH in de mededeling
+    staat". Een leeg veld telt daarbij als "bevat het niet", want dan staat het
+    er inderdaad niet.
+    """
+    doel = _veldwaarde(k, vw.veld)
+    naald = (normalize_iban(vw.waarde) if vw.veld == "tegenpartij_rekening"
+             else normalize(vw.waarde))
+
+    if vw.operator == "regex":
+        try:
+            return re.search(vw.waarde, doel, re.IGNORECASE) is not None
+        except re.error:
+            return False
+    if not naald:
+        return False
+    if vw.operator == "bevat_niet":
+        return naald not in doel
+    if not doel:
+        return False
+    if vw.operator == "gelijk":
+        return doel == naald
+    if vw.operator == "bevat":
+        return naald in doel
+    return False
+
+
 def regel_past(regel: Regel, k: TransactieKenmerken) -> bool:
+    """Past de regel op deze transactie?
+
+    Alle voorwaarden moeten kloppen, en de bedragvork en de richting erbovenop.
+    """
     if regel.richting and regel.richting != k.richting:
         return False
     bedrag = abs(k.bedrag)
@@ -171,26 +234,7 @@ def regel_past(regel: Regel, k: TransactieKenmerken) -> bool:
     if regel.bedrag_max is not None and bedrag >= Decimal(str(regel.bedrag_max)):
         return False
 
-    doel = _veldwaarde(k, regel.veld)
-    if not doel:
-        return False
-    if regel.veld == "tegenpartij_rekening":
-        naald = normalize_iban(regel.waarde)
-    else:
-        naald = normalize(regel.waarde)
-    if not naald:
-        return False
-
-    if regel.operator == "gelijk":
-        return doel == naald
-    if regel.operator == "bevat":
-        return bool(naald) and naald in doel
-    if regel.operator == "regex":
-        try:
-            return re.search(regel.waarde, doel, re.IGNORECASE) is not None
-        except re.error:
-            return False
-    return False
+    return all(_voorwaarde_past(vw, k) for vw in regel.voorwaarden)
 
 
 def eerste_passende(regels: list[Regel], k: TransactieKenmerken) -> Regel | None:
@@ -382,8 +426,8 @@ class Regelboek:
         self.exact: dict[tuple[str, str], Regel] = {}
         self.los: list[Regel] = []
         for regel in self.regels:
-            if regel.operator == "gelijk" and regel.bedrag_min is None \
-                    and regel.bedrag_max is None:
+            if regel.operator == "gelijk" and not regel.extra \
+                    and regel.bedrag_min is None and regel.bedrag_max is None:
                 sleutel = (regel.veld,
                            normalize_iban(regel.waarde)
                            if regel.veld == "tegenpartij_rekening"

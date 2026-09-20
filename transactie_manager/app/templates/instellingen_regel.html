@@ -1,5 +1,6 @@
 {% extends "basis.html" %}
 {% from "_kiezer.html" import categoriekiezer %}
+{% from "_regelvoorwaarden.html" import extra_voorwaarden %}
 {% block titel %}Regel bewerken{% endblock %}
 
 {% block inhoud %}
@@ -34,11 +35,10 @@
       <div class="veld">
         <label for="operator">Vergelijking</label>
         <select id="operator" name="operator">
-          <option value="bevat" {{ 'selected' if regel.operator == 'bevat' }}>Bevat</option>
-          <option value="gelijk" {{ 'selected' if regel.operator == 'gelijk' }}>
-            Is precies gelijk aan</option>
-          <option value="regex" {{ 'selected' if regel.operator == 'regex' }}>
-            Reguliere expressie</option>
+          {% for sleutel, label in operatoren.items() %}
+            <option value="{{ sleutel }}" {{ 'selected' if regel.operator == sleutel }}>
+              {{ label|capitalize }}</option>
+          {% endfor %}
         </select>
       </div>
       <div class="veld">
@@ -88,6 +88,8 @@
         <input type="number" id="prioriteit" name="prioriteit" value="{{ regel.prioriteit }}">
       </div>
     </div>
+
+    {{ extra_voorwaarden(veldnamen, extra_operatoren, regel.extra) }}
 
     {{ categoriekiezer(keuzes, regel.categorie_id, regel.subcategorie_id, regel.subsub_id) }}
 

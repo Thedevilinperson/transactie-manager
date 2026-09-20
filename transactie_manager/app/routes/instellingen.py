@@ -195,6 +195,16 @@ def categorieen():
 # --------------------------------------------------------------------------
 # Regels
 
+OPERATOREN = {
+    "bevat": "bevat",
+    "gelijk": "is precies gelijk aan",
+    "regex": "reguliere expressie",
+}
+
+# Alleen bruikbaar als bijkomende voorwaarde. Een regel waarvan de énige
+# voorwaarde "bevat niet" is, zou op zowat elke transactie passen.
+EXTRA_OPERATOREN = dict(OPERATOREN, bevat_niet="bevat niet")
+
 VELDNAMEN = {
     "tegenpartij_naam": "Naam tegenpartij",
     "tegenpartij_rekening": "Rekening tegenpartij",
@@ -207,7 +217,7 @@ VELDNAMEN = {
 SORTEERSLEUTELS = {
     "prioriteit": lambda r: (r["prioriteit"], r["id"]),
     "naam": lambda r: (normalize(r["naam"]), r["prioriteit"]),
-    "voorwaarde": lambda r: (r["veld"], normalize(r["waarde"])),
+    "voorwaarde": lambda r: (r["veld"], normalize(r["waarde"]), len(r["extra"])),
     # Regels zonder ondergrens vooraan, daarna oplopend.
     "bedrag": lambda r: (r["bedrag_min"] is None and r["bedrag_max"] is None,
                          r["bedrag_min"] if r["bedrag_min"] is not None else -1e18,
@@ -221,15 +231,17 @@ SORTEERSLEUTELS = {
 def _regelvelden(form, crypto):
     """De velden van het formulier, klaar om weg te schrijven.
 
-    Geeft None terug wanneer er geen waarde is ingevuld; zonder waarde kan een
-    regel nergens op passen.
+    Geeft (velden, extra) terug, of (None, None) wanneer de eerste voorwaarde
+    leeg is; zonder waarde kan een regel nergens op passen. Lege extra
+    voorwaarden worden stilzwijgend overgeslagen — dat zijn de ongebruikte
+    rijen van het formulier.
     """
     waarde = form.get("waarde", "").strip()
     if not waarde:
-        return None
+        return None, None
     handelaar = form.get("handelaar", "").strip()
     land = form.get("land", "").strip()
-    return {
+    velden = {
         "naam_enc": crypto.enc(form.get("naam", "").strip() or waarde),
         "prioriteit": form.get("prioriteit", 100, type=int),
         "veld": form.get("veld", "tegenpartij_naam"),
@@ -246,6 +258,39 @@ def _regelvelden(form, crypto):
         "land_enc": crypto.enc(land) if land else None,
     }
 
+    extra = []
+    velden_lijst = form.getlist("extra_veld")
+    operatoren = form.getlist("extra_operator")
+    waarden = form.getlist("extra_waarde")
+    for i, rauw in enumerate(waarden):
+        w = rauw.strip()
+        if not w:
+            continue
+        extra.append({
+            "volgorde": len(extra),
+            "veld": velden_lijst[i] if i < len(velden_lijst) else "mededeling",
+            "operator": (operatoren[i] if i < len(operatoren)
+                         and operatoren[i] in EXTRA_OPERATOREN else "bevat"),
+            "waarde_enc": crypto.enc(w),
+            "waarde_idx": crypto.blind(normalize(w)),
+        })
+    return velden, extra
+
+
+def _schrijf_voorwaarden(conn, regel_id: int, extra: list[dict]) -> None:
+    """Vervangt de bijkomende voorwaarden van een regel.
+
+    Ze horen bij de regel en hebben geen eigen leven: bij het bewaren worden ze
+    in hun geheel opnieuw gezet, zodat een verwijderde rij ook echt weg is.
+    """
+    conn.execute("DELETE FROM regel_voorwaarden WHERE regel_id = ?", (regel_id,))
+    for vw in extra:
+        conn.execute(
+            "INSERT INTO regel_voorwaarden (regel_id, volgorde, veld, operator,"
+            " waarde_enc, waarde_idx) VALUES (?,?,?,?,?,?)",
+            (regel_id, vw["volgorde"], vw["veld"], vw["operator"],
+             vw["waarde_enc"], vw["waarde_idx"]))
+
 
 def _regelfilters(args):
     return {
@@ -255,6 +300,7 @@ def _regelfilters(args):
         "actief": args.get("actief_f", ""),
         "bedrag": args.get("bedrag_f", type=float),
         "vork": args.get("vork_f", ""),
+        "combi": args.get("combi_f", ""),
         "sorteer": args.get("sorteer", "prioriteit"),
         "omgekeerd": args.get("omgekeerd") == "1",
     }
@@ -264,12 +310,14 @@ def _past_op_filter(rij, f) -> bool:
     if f["q"]:
         naald = normalize(f["q"])
         hooi = normalize(" ".join([rij["naam"], rij["waarde"], rij["pad"],
-                                   rij["handelaar"]]))
+                                   rij["handelaar"]]
+                                  + [vw["waarde"] for vw in rij["extra"]]))
         if naald not in hooi:
             return False
     if f["categorie"] and f["categorie"] not in rij["cat_ids"]:
         return False
-    if f["veld"] and rij["veld"] != f["veld"]:
+    if f["veld"] and f["veld"] not in (
+            [rij["veld"]] + [vw["veld"] for vw in rij["extra"]]):
         return False
     if f["actief"] == "ja" and not rij["actief"]:
         return False
@@ -278,6 +326,10 @@ def _past_op_filter(rij, f) -> bool:
     # Een regel "gebruikt een bedragvork" zodra ze een onder- of een bovengrens
     # heeft. Eén grens volstaat: het paar "tot 10" en "vanaf 10" is juist de
     # gewone vorm van zo'n vork.
+    if f["combi"] == "ja" and not rij["extra"]:
+        return False
+    if f["combi"] == "nee" and rij["extra"]:
+        return False
     heeft_vork = rij["bedrag_min"] is not None or rij["bedrag_max"] is not None
     if f["vork"] == "ja" and not heeft_vork:
         return False
@@ -306,22 +358,25 @@ def regels():
         bestemming = request.form.get("terug") or url_for("instellingen.regels")
 
         if actie == "toevoegen":
-            velden = _regelvelden(request.form, crypto)
+            velden, extra = _regelvelden(request.form, crypto)
             if velden is None:
                 flash("Geef aan waarop de regel moet passen.", "fout")
             else:
                 kolommen = list(velden) + ["aangemaakt_op"]
-                conn.execute(
+                cur = conn.execute(
                     f"INSERT INTO regels ({', '.join(kolommen)})"
                     f" VALUES ({', '.join('?' * len(kolommen))})",
                     tuple(velden.values()) + (now_iso(),),
                 )
+                _schrijf_voorwaarden(conn, cur.lastrowid, extra)
                 conn.commit()
-                flash("Regel toegevoegd.", "goed")
+                flash("Regel toegevoegd." + (
+                    f" Ze combineert {len(extra) + 1} voorwaarden." if extra else ""),
+                    "goed")
 
         elif actie == "bewerken":
             regel_id = request.form.get("id", type=int)
-            velden = _regelvelden(request.form, crypto)
+            velden, extra = _regelvelden(request.form, crypto)
             if velden is None:
                 flash("Geef aan waarop de regel moet passen.", "fout")
                 return redirect(url_for("instellingen.regel_bewerken", regel_id=regel_id))
@@ -332,6 +387,7 @@ def regels():
                 f"UPDATE regels SET {', '.join(k + ' = ?' for k in velden)} WHERE id = ?",
                 tuple(velden.values()) + (regel_id,),
             )
+            _schrijf_voorwaarden(conn, regel_id, extra)
             uit = herbekijk(conn, crypto, hingen, toelichting=BEWERKT_TOELICHTING)
             uit.erbij = pas_toe(conn, crypto, regel_id)
             conn.commit()
@@ -383,7 +439,8 @@ def regels():
 
     return render_template(
         "instellingen_regels.html", rijen=getoond, totaal=len(rijen),
-        filters=filters, veldnamen=VELDNAMEN,
+        filters=filters, veldnamen=VELDNAMEN, operatoren=OPERATOREN,
+        extra_operatoren=EXTRA_OPERATOREN,
         hoofdcategorieen=[k for k in keuzelijst(boom(conn, crypto))
                           if k["niveau"] == 0],
         keuzes=keuzelijst(boom(conn, crypto, alleen_actief=True)),
@@ -396,6 +453,14 @@ def _regelrijen(conn, crypto) -> list[dict]:
     def pad(*ids):
         namen = [platte[i].naam for i in ids if i and i in platte]
         return " › ".join(namen) if namen else "—"
+
+    extra: dict[int, list[dict]] = {}
+    for vw in conn.execute("SELECT * FROM regel_voorwaarden"
+                           " ORDER BY regel_id, volgorde, id"):
+        extra.setdefault(vw["regel_id"], []).append({
+            "veld": vw["veld"], "operator": vw["operator"],
+            "waarde": crypto.dec(vw["waarde_enc"]) or "",
+        })
 
     rijen = []
     for r in conn.execute("SELECT * FROM regels ORDER BY prioriteit, id"):
@@ -413,6 +478,7 @@ def _regelrijen(conn, crypto) -> list[dict]:
             "handelaar": crypto.dec(r["handelaar_enc"]) or "",
             "land": crypto.dec(r["land_enc"]) or "",
             "treffers": r["treffers"], "herkomst": r["herkomst"],
+            "extra": extra.get(r["id"], []),
         })
     return rijen
 
@@ -428,6 +494,7 @@ def regel_bewerken(regel_id: int):
         return redirect(url_for("instellingen.regels"))
     return render_template(
         "instellingen_regel.html", regel=regel, veldnamen=VELDNAMEN,
+        operatoren=OPERATOREN, extra_operatoren=EXTRA_OPERATOREN,
         keuzes=keuzelijst(boom(conn, crypto, alleen_actief=True)),
     )
 
