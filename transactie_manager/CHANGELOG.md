@@ -4,6 +4,24 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.13.1] — 2026-09-20
+
+### Opgelost
+- **De handleiding was in de add-on niet te openen** — "Het bestand
+  docs/HANDLEIDING.md hoort naast de toepassing te staan". Ze stond aan de wortel
+  van de repository, buiten het bouwpad van Docker. Dat bouwpad is de add-on-map
+  zelf, en `COPY` kan niet buiten dat pad kijken, dus het bestand zat nooit in
+  het image. In een uitgecheckte repository viel dat niet op, want daar staat het
+  er wel.
+- De handleiding staat nu in `transactie_manager/docs/HANDLEIDING.md`, binnen dat
+  bouwpad, en de `Dockerfile` neemt de map mee. Het blijft één bestand: wat je in
+  de repository leest en wat de toepassing toont, kan niet uiteenlopen.
+- De module kijkt op beide plaatsen, de nieuwe eerst. Een oudere uitgecheckte
+  repository blijft dus gewoon werken.
+- De verwijzingen in `README.md`, `DOCS.md` en `scripts/versie.py` wijzen mee naar
+  de nieuwe plek, zodat het versienummer bovenaan de handleiding meebumpt.
+
+
 ## [0.13.0] — 2026-09-20
 
 ### Erbij

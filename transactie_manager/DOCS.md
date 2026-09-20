@@ -107,4 +107,5 @@ binnen de add-on naar de add-on zelf.
 **Het bouwen stopt op het basisimage.** Zet in de `FROM`-regel bovenaan de
 `Dockerfile` een recentere combinatie van Python en Alpine.
 
-De volledige handleiding staat in `docs/HANDLEIDING.md` in de repository.
+De volledige handleiding staat onder **Handleiding** in de toepassing zelf,
+en als bestand in `transactie_manager/docs/HANDLEIDING.md`.

@@ -27,6 +27,8 @@ RUN set -eux; \
     fi
 
 COPY app ./app
+# De handleiding wordt in de toepassing zelf getoond, dus ze moet mee.
+COPY docs ./docs
 COPY wsgi.py start.py ./
 COPY run.sh /run.sh
 RUN chmod a+x /run.sh

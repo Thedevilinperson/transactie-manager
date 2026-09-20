@@ -6,7 +6,7 @@ opsommingen, tabellen, citaten, code en links. Daar een afhankelijkheid voor
 binnenhalen betekent een pakket meer om te bouwen en te onderhouden in de Home
 Assistant add-on, voor een bestand waarvan wij elke regel zelf typen.
 
-Wat hier staat dekt dus precies wat `docs/HANDLEIDING.md` gebruikt, en niet meer.
+Wat hier staat dekt dus precies wat de handleiding gebruikt, en niet meer.
 Komt er ooit opmaak bij die hier niet in staat, dan valt ze terug op gewone
 tekst — lelijk, maar leesbaar, en nooit stuk.
 """
@@ -20,7 +20,22 @@ from pathlib import Path
 
 from .config import BASE_DIR
 
-HANDLEIDING = BASE_DIR.parent / "docs" / "HANDLEIDING.md"
+# Twee plaatsen, in deze volgorde. In het add-on-image staat de handleiding
+# naast de toepassing, want het bouwpad van Docker is de add-on-map zelf en
+# `COPY` kan niet buiten dat pad kijken. In een oudere uitgecheckte repository
+# stond ze een niveau hoger; die blijft werken.
+PADEN = [
+    BASE_DIR / "docs" / "HANDLEIDING.md",
+    BASE_DIR.parent / "docs" / "HANDLEIDING.md",
+]
+
+
+def zoek_pad() -> Path | None:
+    for pad in PADEN:
+        if pad.exists():
+            return pad
+    return None
+
 
 _VET = re.compile(r"\*\*(.+?)\*\*")
 _CURSIEF = re.compile(r"(?<!\*)\*([^*]+?)\*(?!\*)")
@@ -48,7 +63,9 @@ class Handleiding:
 
 
 def lees(pad: Path | None = None) -> Handleiding:
-    bestand = pad or HANDLEIDING
+    bestand = pad or zoek_pad()
+    if bestand is None:
+        return Handleiding(gevonden=False)
     try:
         tekst = bestand.read_text(encoding="utf-8")
     except OSError:

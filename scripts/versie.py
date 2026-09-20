@@ -25,7 +25,7 @@ PLAATSEN = [
     ("transactie_manager/app/static/css/stijl.css",
      r'^  --stijl-versie: ".*";$', '  --stijl-versie: "{versie}";'),
     ("README.md", r"^\*\*Versie .*\*\*", "**Versie {versie}**"),
-    ("docs/HANDLEIDING.md", r"^Versie .*$", "Versie {versie}"),
+    ("transactie_manager/docs/HANDLEIDING.md", r"^Versie .*$", "Versie {versie}"),
 ]
 
 
