@@ -13,8 +13,11 @@ from ..auth import login_vereist
 from ..categories import boom, keuzelijst, laad_alles, nakomelingen, pad_tekst
 from ..filters import METHODEN, STATUSSEN, Filters, keuzes, rekeningen as alle_rekeningen
 from ..categorizer.ai import maak_regel_van_voorstel
-from ..categorizer.engine import Motor, TransactieKenmerken, Voorstel
+from ..categorizer.engine import (ONZEKERE_HERKOMSTEN, Motor,
+                                  TransactieKenmerken, Voorstel)
 from ..database import get_db, instelling, log, now_iso
+from ..regelonderhoud import (WIS_TOELICHTING, hangende_transacties,
+                              herbekijk, verslag)
 from ..transacties import bewaar, haal, tel, werk_bij, zoek
 
 bp = Blueprint("tx", __name__, url_prefix="/transacties")
@@ -373,3 +376,75 @@ def herindeling_melding(uitslag) -> str:
             + (f" {uitslag.ongewijzigd} stonden al goed."
                if uitslag.ongewijzigd else "")
             + " Hieronder staan net die transacties.")
+
+
+# --------------------------------------------------------------------------
+# Oordelen over de regel die een transactie indeelde
+# --------------------------------------------------------------------------
+
+@bp.route("/<int:tx_id>/regel", methods=["GET", "POST"])
+@login_vereist
+def regel_oordeel(tx_id: int):
+    """Klopt de regel die deze transactie indeelde, of niet?
+
+    Een regel die uit je historiek is afgeleid en naar meer dan één categorie
+    wees, deelt wel in maar vraagt om bevestiging. Je zag dan wel *regel* als
+    bron, maar nergens wélke regel — en dus ook niet waar je ze moest gaan
+    rechtzetten. Hier kan dat in één handeling.
+    """
+    conn = get_db()
+    crypto = g.crypto
+    tx = haal(conn, crypto, tx_id)
+    if tx is None:
+        flash("Die transactie bestaat niet meer.", "fout")
+        return redirect(url_for("tx.nazicht"))
+    if not tx.regel_id:
+        flash("Deze transactie is niet door een regel ingedeeld.", "fout")
+        return redirect(url_for("tx.bewerken", tx_id=tx_id))
+
+    regel = conn.execute("SELECT * FROM regels WHERE id = ?", (tx.regel_id,)).fetchone()
+    if regel is None:
+        flash("De regel die deze transactie indeelde, bestaat niet meer.", "fout")
+        return redirect(url_for("tx.bewerken", tx_id=tx_id))
+
+    if request.method == "POST":
+        actie = request.form.get("actie")
+        terug = veilig_terug(request.form.get("terug"), url_for("tx.nazicht"))
+
+        if actie == "klopt":
+            # De transactie is akkoord, en een regel die om bevestiging vroeg
+            # hoeft dat niet meer te doen: ze is nu één keer goedgekeurd.
+            werk_bij(conn, crypto, tx_id, status="bevestigd", zekerheid=1.0,
+                     toelichting="Regel bevestigd.")
+            gepromoveerd = regel["herkomst"] in ONZEKERE_HERKOMSTEN
+            if gepromoveerd:
+                conn.execute("UPDATE regels SET herkomst = ? WHERE id = ?",
+                             (regel["herkomst"].replace("_onzeker", ""), regel["id"]))
+            log(conn, crypto, g.gebruiker, "regel_bevestigd",
+                f"tx={tx_id} regel={regel['id']}")
+            conn.commit()
+            flash("Bevestigd." + (" Deze regel vraagt voortaan niet meer om nazicht."
+                                  if gepromoveerd else ""), "goed")
+            return redirect(terug)
+
+        if actie == "verwijderen":
+            hingen = hangende_transacties(conn, crypto, regel["id"])
+            conn.execute("DELETE FROM regels WHERE id = ?", (regel["id"],))
+            uit = herbekijk(conn, crypto, hingen, toelichting=WIS_TOELICHTING)
+            log(conn, crypto, g.gebruiker, "regel_verwijderd_vanuit_transactie",
+                f"tx={tx_id} regel={regel['id']}")
+            conn.commit()
+            flash("Regel verwijderd. " + verslag(uit), "goed")
+            return redirect(terug)
+
+    return render_template(
+        "transactie_regel.html", tx=tx,
+        regel={"id": regel["id"], "naam": crypto.dec(regel["naam_enc"]) or "",
+               "veld": regel["veld"], "operator": regel["operator"],
+               "waarde": crypto.dec(regel["waarde_enc"]) or "",
+               "herkomst": regel["herkomst"],
+               "onzeker": regel["herkomst"] in ONZEKERE_HERKOMSTEN},
+        treffers=conn.execute("SELECT COUNT(*) n FROM transacties WHERE regel_id = ?",
+                              (regel["id"],)).fetchone()["n"],
+        terug=veilig_terug(request.args.get("terug"), url_for("tx.nazicht")),
+    )

@@ -4,6 +4,44 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.15.0] — 2026-09-20
+
+### Opgelost
+- **Een regel verwijderen gaf een 404, terwijl ze wel verdwenen was.** Het
+  terugadres kwam uit `request.full_path`, en dat is het pad zoals de toepassing
+  het ziet — zonder het voorvoegsel dat de ingress van Home Assistant ervoor
+  zet. De omleiding wees daardoor buiten de add-on. Het adres wordt nu met
+  `url_for` opgebouwd en door `veilig_terug` gehaald, net als elders.
+- **De kolom *Treffers* stond altijd op nul.** Ze werd uit een kolom in de
+  regeltabel gelezen die nergens werd opgeteld. Sinds een transactie onthoudt
+  wélke regel haar indeelde, valt het echte aantal gewoon te tellen; dat gebeurt
+  nu, en het getal is doorklikbaar naar die transacties.
+- **Een rekeningnummer alleen deelt niets meer in.** Betaalverwerkers innen voor
+  tientallen handelaars vanaf één IBAN. Dat nummer wees dan naar evenveel
+  categorieën en leverde enkel een regel op die om nazicht bleef vragen — en die
+  was nergens terug te vinden, want zoeken op de winkelnaam gaf niets. Het IBAN
+  telt nu alleen mee samen met de beschrijving, als gecombineerde regel.
+
+### Erbij
+- **Vanuit een transactie doorklikken naar de regel die haar indeelde.** Het
+  merkje *regel* in de transactielijst is een link geworden; in het nazicht staat
+  er een knop *Naar de regel* bij.
+- **Oordelen over die regel, in één handeling.** *Ze klopt* bevestigt de
+  transactie, en een regel die om nazicht vroeg doet dat voortaan niet meer.
+  *Ze klopt niet* geeft de keuze: de regel bewerken, de regel verwijderen, of
+  alleen deze ene transactie aanpassen. Verwijderen volgt dezelfde weg als
+  elders: wat eraan hing wordt opnieuw beoordeeld.
+- **Filter *van één regel*** in de transactielijst, zodat je ziet wat een regel
+  in de praktijk doet. Het getal in de kolom *Treffers* brengt je er rechtstreeks
+  naartoe.
+
+### Ter verduidelijking
+- Een transactie met bron *regel* die tóch op nazicht staat met 60% zekerheid is
+  geen tegenspraak. Dat is een regel die uit je historiek is afgeleid en daar
+  naar meer dan één categorie wees: ze deelt wel in, maar vraagt telkens om
+  bevestiging. Wat ontbrak was de weg ernaartoe — die is er nu.
+
+
 ## [0.14.0] — 2026-09-20
 
 ### Opgelost

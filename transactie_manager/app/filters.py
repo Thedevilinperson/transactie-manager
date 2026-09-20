@@ -59,6 +59,9 @@ class Filters:
     # Alleen rijen die sinds dit tijdstip zijn aangepast. Wordt gezet door een
     # herindeling, zodat je meteen ziet wát die precies veranderd heeft.
     gewijzigd_na: str = ""
+    # Alleen de transacties die deze regel heeft ingedeeld. Zo kan je vanuit een
+    # regel zien wat ze in de praktijk doet.
+    regel_id: int | None = None
     # Uitsluiten, alleen gebruikt bij de grafieken.
     uit_winkels: list[str] = field(default_factory=list)
     uit_landen: list[str] = field(default_factory=list)
@@ -85,6 +88,7 @@ class Filters:
             zoekterm=arg.get("q", "").strip(),
             alleen_bevestigd=arg.get("alleen_bevestigd") == "1",
             gewijzigd_na=arg.get("gewijzigd_na", "").strip(),
+            regel_id=arg.get("regel", type=int),
             uit_winkels=[w for w in arg.getlist("uit_winkel") if w],
             uit_landen=[w for w in arg.getlist("uit_land") if w],
             uit_categorieen=[int(c) for c in arg.getlist("uit_categorie") if c.isdigit()],
@@ -129,6 +133,9 @@ class Filters:
         if self.gewijzigd_na:
             stukken.append("gewijzigd_op >= ?")
             params.append(self.gewijzigd_na)
+        if self.regel_id:
+            stukken.append("regel_id = ?")
+            params.append(self.regel_id)
         return " AND ".join(stukken), params
 
     # -- gedeelte dat ontsleuteling vraagt ----------------------------------

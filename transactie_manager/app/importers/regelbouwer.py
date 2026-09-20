@@ -36,7 +36,7 @@ from ..transacties import rij_naar_object
 
 # Lage prioriteit gaat voor. De volgorde weerspiegelt hoe hard het signaal is.
 PRIORITEIT = {
-    "tegenpartij_rekening": 20,
+    "rekening_en_beschrijving": 20,
     "mededeling": 30,
     "sleutel": 40,
     "tegenpartij_naam_bedrag": 50,
@@ -45,7 +45,7 @@ PRIORITEIT = {
 }
 
 VELDNAAM = {
-    "tegenpartij_rekening": "rekeningnummer tegenpartij",
+    "rekening_en_beschrijving": "rekeningnummer tegenpartij én beschrijving",
     "mededeling": "gestructureerde mededeling",
     "sleutel": "beschrijving en tegenpartij",
     "tegenpartij_naam_bedrag": "tegenpartij met bedragvork",
@@ -77,6 +77,9 @@ class Voorstelregel:
     pad: tuple
     prioriteit: int
     aantal: int
+    # Bijkomende voorwaarde, als (veld, waarde). Een rekeningnummer alleen deelt
+    # niets in: zie de opmerking bij het verzamelen.
+    extra: tuple | None = None
     bedrag_min: float | None = None
     bedrag_max: float | None = None
     richting: str | None = None
@@ -116,10 +119,15 @@ def _aanwijzingen(conn, crypto, alleen_bevestigd: bool = True) -> dict:
         bedrag = abs(tx.bedrag)
 
         kandidaten: list[tuple[str, str]] = []
-        if tx.tegenpartij_rekening:
+        # Een rekeningnummer alleen deelt niets in. Betaalverwerkers innen voor
+        # tientallen handelaars vanaf één IBAN; dat nummer wijst dan naar evenveel
+        # categorieën en levert enkel een regel op die om nazicht blijft vragen.
+        # Het telt daarom alleen mee in combinatie met de beschrijving.
+        if tx.tegenpartij_rekening and tx.beschrijving:
             iban = normalize_iban(tx.tegenpartij_rekening)
             if len(iban) >= 8:
-                kandidaten.append(("tegenpartij_rekening", iban))
+                kandidaten.append(("rekening_en_beschrijving",
+                                   f"{iban}|{tx.beschrijving}"))
         gestructureerd = GESTRUCTUREERD.search(tx.mededeling or "")
         if gestructureerd:
             kandidaten.append(("mededeling", gestructureerd.group(0)))
@@ -129,7 +137,8 @@ def _aanwijzingen(conn, crypto, alleen_bevestigd: bool = True) -> dict:
             kandidaten.append(("tegenpartij_naam", tx.tegenpartij_naam))
 
         for veld, waarde in kandidaten:
-            sleutel = (veld, normalize(waarde) if veld != "tegenpartij_rekening" else waarde)
+            sleutel = (veld, waarde if veld == "rekening_en_beschrijving"
+                       else normalize(waarde))
             aanwijzing = verzameld.get(sleutel)
             if aanwijzing is None:
                 aanwijzing = Aanwijzing(veld=veld, waarde=waarde, richting=tx.richting)
@@ -271,19 +280,26 @@ def schrijf(conn, crypto, analyse: Analyse, *, vervang_geleerd: bool = True,
         if taak is not None and geschreven % stap == 0:
             taak.vorder(geschreven)
         veld = "tegenpartij_naam" if regel.veld == "tegenpartij_naam_bedrag" else regel.veld
+        waarde = regel.waarde
+        extra = None
+        if regel.veld == "rekening_en_beschrijving":
+            # Het IBAN is de hoofdvoorwaarde, de beschrijving komt er met EN bij.
+            iban, _, beschrijving = regel.waarde.partition("|")
+            veld, waarde = "tegenpartij_rekening", iban
+            extra = ("beschrijving", beschrijving)
+
         naam = f"{VELDNAAM.get(regel.veld, regel.veld)}: {regel.waarde[:50]}"
         if regel.uitleg:
             naam += f" ({regel.uitleg})"
-        waarde_idx = (regel.waarde if veld == "tegenpartij_rekening"
-                      else normalize(regel.waarde))
-        conn.execute(
+        waarde_idx = (waarde if veld == "tegenpartij_rekening" else normalize(waarde))
+        cursor = conn.execute(
             "INSERT INTO regels (naam_enc, prioriteit, veld, operator, waarde_enc,"
             " waarde_idx, bedrag_min, bedrag_max, richting, categorie_id,"
             " subcategorie_id, subsub_id, handelaar_enc, land_enc, herkomst,"
             " aangemaakt_op) VALUES (?,?,?,'gelijk',?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 crypto.enc(naam), regel.prioriteit, veld,
-                crypto.enc(regel.waarde), crypto.blind(waarde_idx),
+                crypto.enc(waarde), crypto.blind(waarde_idx),
                 regel.bedrag_min, regel.bedrag_max, regel.richting,
                 regel.pad[0], regel.pad[1], regel.pad[2],
                 crypto.enc(regel.handelaar) if regel.handelaar else None,
@@ -292,6 +308,12 @@ def schrijf(conn, crypto, analyse: Analyse, *, vervang_geleerd: bool = True,
                 tijdstip,
             ),
         )
+        if extra is not None:
+            conn.execute(
+                "INSERT INTO regel_voorwaarden (regel_id, volgorde, veld, operator,"
+                " waarde_enc, waarde_idx) VALUES (?,0,?,'gelijk',?,?)",
+                (cursor.lastrowid, extra[0], crypto.enc(extra[1]),
+                 crypto.blind(normalize(extra[1]))))
         geschreven += 1
 
     return {"regels": geschreven, "onzeker": analyse.onzeker,

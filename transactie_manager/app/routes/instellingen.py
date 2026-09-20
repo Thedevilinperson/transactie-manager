@@ -10,7 +10,7 @@ from ..auth import (beheerder_vereist, herstelstatus, login_vereist, maak_gebrui
 from ..categories import boom, keuzelijst, laad_alles
 from ..categorizer.ai import test_verbinding
 from ..crypto import normalize, normalize_iban
-from .. import backup
+from .. import backup, veilig_terug
 from ..config import VERSION
 from .. import handleiding as hl
 from ..database import connect, get_db, instelling, log, now_iso, zet_instelling
@@ -358,7 +358,10 @@ def regels():
 
     if request.method == "POST":
         actie = request.form.get("actie")
-        bestemming = request.form.get("terug") or url_for("instellingen.regels")
+        # Via veilig_terug, anders valt achter de ingress van Home Assistant
+        # het voorvoegsel weg en kom je op een 404 uit.
+        bestemming = veilig_terug(request.form.get("terug"),
+                                  url_for("instellingen.regels"))
 
         if actie == "toevoegen":
             velden, extra = _regelvelden(request.form, crypto)
@@ -466,6 +469,13 @@ def _regelrijen(conn, crypto) -> list[dict]:
             "waarde": crypto.dec(vw["waarde_enc"]) or "",
         })
 
+    # Het aantal treffers werd in een kolom bijgehouden die nooit werd
+    # opgeteld: overal stond nul. Sinds een transactie onthoudt wélke regel
+    # haar indeelde, valt het echte aantal gewoon te tellen.
+    treffers = {rij["regel_id"]: rij["n"] for rij in conn.execute(
+        "SELECT regel_id, COUNT(*) n FROM transacties"
+        " WHERE regel_id IS NOT NULL GROUP BY regel_id")}
+
     rijen = []
     for r in conn.execute("SELECT * FROM regels ORDER BY prioriteit, id"):
         rijen.append({
@@ -481,7 +491,7 @@ def _regelrijen(conn, crypto) -> list[dict]:
             "subsub_id": r["subsub_id"],
             "handelaar": crypto.dec(r["handelaar_enc"]) or "",
             "land": crypto.dec(r["land_enc"]) or "",
-            "treffers": r["treffers"], "herkomst": r["herkomst"],
+            "treffers": treffers.get(r["id"], 0), "herkomst": r["herkomst"],
             "extra": extra.get(r["id"], []),
         })
     return rijen

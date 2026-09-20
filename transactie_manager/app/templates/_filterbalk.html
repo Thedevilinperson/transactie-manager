@@ -14,6 +14,9 @@
   {% if filters.gewijzigd_na %}
     <input type="hidden" name="{{ p }}gewijzigd_na" value="{{ filters.gewijzigd_na }}">
   {% endif %}
+  {% if filters.regel_id %}
+    <input type="hidden" name="{{ p }}regel" value="{{ filters.regel_id }}">
+  {% endif %}
   <div class="filterlijn">
 
     {% if toon_zoeken %}
@@ -250,7 +253,7 @@
                   or filters.methoden or filters.uit_winkels or filters.uit_landen
                   or filters.uit_categorieen or filters.hoofd_id or filters.rekening_id
                   or filters.status or filters.alleen_bevestigd or filters.zoekterm
-                  or filters.gewijzigd_na %}
+                  or filters.gewijzigd_na or filters.regel_id %}
   {% if actief %}
     <div class="gekozenfilters">
       <span class="filterlabel">Actief:</span>
@@ -281,6 +284,8 @@
         {{ merk('zonder ' ~ l, p ~ 'uit_land', l, anker) }}{% endfor %}
       {% if filters.alleen_bevestigd %}
         {{ merk('alleen bevestigd', p ~ 'alleen_bevestigd', none, anker) }}{% endif %}
+      {% if filters.regel_id %}
+        {{ merk('van één regel', p ~ 'regel', none, anker) }}{% endif %}
       {% if filters.gewijzigd_na %}
         {{ merk('aangepast sinds ' ~ filters.gewijzigd_na[11:16],
                 p ~ 'gewijzigd_na', none, anker) }}{% endif %}

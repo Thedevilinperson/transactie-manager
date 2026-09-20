@@ -1,0 +1,57 @@
+{% extends "basis.html" %}
+{% block titel %}Klopt deze regel?{% endblock %}
+
+{% block inhoud %}
+<div class="kop">
+  <h1>Klopt deze regel?</h1>
+  <p>Voor de transactie van {{ tx.boekdatum|datum }} van {{ tx.bedrag|euro }}
+    bij {{ tx.tegenpartij_naam or 'onbekende tegenpartij' }}.</p>
+</div>
+
+<div class="vlak">
+  <h2>De regel die haar indeelde</h2>
+  <p><strong>{{ regel.naam }}</strong></p>
+  <p class="klein-detail">{{ regel.veld.replace('_', ' ') }} {{ regel.operator }}
+    “{{ regel.waarde }}” — hangt nu aan
+    <a href="{{ url_for('tx.lijst', regel=regel.id) }}">{{ treffers }}
+      {{ 'transactie' if treffers == 1 else 'transacties' }}</a>.</p>
+  {% if regel.onzeker %}
+    <p>Deze regel is uit je historiek afgeleid en wees daar naar meer dan één
+      categorie. Daarom deelt ze wel in, maar vraagt ze telkens om nazicht.
+      Bevestig je ze hier, dan doet ze dat voortaan niet meer.</p>
+  {% endif %}
+</div>
+
+<div class="vlak">
+  <h2>Wat wil je doen</h2>
+  <form method="post" style="display:inline-block">
+    <input type="hidden" name="actie" value="klopt">
+    <input type="hidden" name="terug" value="{{ terug }}">
+    <button type="submit">Ze klopt</button>
+  </form>
+  <p class="klein-detail" style="margin:8px 0 18px">De transactie wordt
+    bevestigd{% if regel.onzeker %}, en de regel vraagt voortaan niet meer om
+    nazicht{% endif %}.</p>
+
+  <div class="knoppen">
+    <a class="knop stil"
+       href="{{ url_for('instellingen.regel_bewerken', regel_id=regel.id) }}">
+      Ze klopt niet — regel bewerken</a>
+    <form method="post" data-bevestig="Deze regel verwijderen? De transacties die eraan hangen komen op nazicht te staan zonder categorie, tenzij een andere regel ze overneemt.">
+      <input type="hidden" name="actie" value="verwijderen">
+      <input type="hidden" name="terug" value="{{ terug }}">
+      <button type="submit" class="gevaar">Ze klopt niet — regel verwijderen</button>
+    </form>
+  </div>
+  <p class="klein-detail" style="margin-top:10px">Bewerken past de regel aan en
+    beoordeelt meteen de transacties die eraan hingen opnieuw. Verwijderen haalt
+    ze weg; wat eraan hing komt op nazicht te staan, tenzij een andere regel het
+    overneemt.</p>
+
+  <div class="knoppen" style="margin-top:18px">
+    <a class="knop stil" href="{{ url_for('tx.bewerken', tx_id=tx.id) }}">
+      Alleen deze transactie aanpassen</a>
+    <a class="knop stil" href="{{ terug }}">Terug</a>
+  </div>
+</div>
+{% endblock %}

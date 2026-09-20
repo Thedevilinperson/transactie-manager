@@ -117,7 +117,7 @@
   <div class="knoppen" style="margin-bottom:14px">
     <form method="post" data-bevestig="Alle regels opnieuw toepassen op je hele boekhouding? Elke transactie die door een regel is ingedeeld, wordt opnieuw beoordeeld. Transacties waar geen enkele regel meer op past, komen op nazicht te staan zonder categorie.">
       <input type="hidden" name="actie" value="alles">
-      <input type="hidden" name="terug" value="{{ request.full_path }}">
+      <input type="hidden" name="terug" value="{{ url_for('instellingen.regels', **request.args) }}">
       <button type="submit" class="stil">Alle regels opnieuw toepassen</button>
     </form>
   </div>
@@ -243,7 +243,11 @@
                 {{ r.pad }}
                 {% if r.handelaar %}<span class="klein-detail">zaak: {{ r.handelaar }}</span>{% endif %}
               </td>
-              <td class="getal">{{ r.treffers }}</td>
+              <td class="getal">
+                {% if r.treffers %}
+                  <a href="{{ url_for('tx.lijst', regel=r.id) }}">{{ r.treffers }}</a>
+                {% else %}0{% endif %}
+              </td>
               <td>{% if r.actief %}ja
                 {% else %}<span class="merkje geen">uitgezet</span>{% endif %}</td>
               <td>
@@ -253,14 +257,14 @@
                   <form method="post">
                     <input type="hidden" name="actie" value="actief">
                     <input type="hidden" name="id" value="{{ r.id }}">
-                    <input type="hidden" name="terug" value="{{ request.full_path }}">
+                    <input type="hidden" name="terug" value="{{ url_for('instellingen.regels', **request.args) }}">
                     <button type="submit" class="stil klein">
                       {{ 'Uitzetten' if r.actief else 'Aanzetten' }}</button>
                   </form>
                   <form method="post" data-bevestig="Deze regel verwijderen? De transacties die hij indeelde, komen op nazicht te staan zonder categorie, tenzij een andere regel ze overneemt.">
                     <input type="hidden" name="actie" value="verwijderen">
                     <input type="hidden" name="id" value="{{ r.id }}">
-                    <input type="hidden" name="terug" value="{{ request.full_path }}">
+                    <input type="hidden" name="terug" value="{{ url_for('instellingen.regels', **request.args) }}">
                     <button type="submit" class="gevaar klein">Verwijderen</button>
                   </form>
                 </div>

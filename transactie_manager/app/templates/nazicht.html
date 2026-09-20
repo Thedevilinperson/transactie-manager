@@ -86,6 +86,12 @@
                   <a class="knop stil klein"
                      href="{{ url_for('tx.bewerken', tx_id=tx.id, terug=url_for('tx.nazicht')) }}">
                     Aanpassen</a>
+                  {% if tx.regel_id %}
+                    <a class="knop stil klein"
+                       href="{{ url_for('tx.regel_oordeel', tx_id=tx.id,
+                                        terug=url_for('tx.nazicht')) }}">
+                      Naar de regel</a>
+                  {% endif %}
                 </div>
               </td>
             </tr>

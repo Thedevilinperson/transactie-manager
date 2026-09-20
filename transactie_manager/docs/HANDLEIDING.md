@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.14.0
+Versie 0.15.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -483,6 +483,27 @@ Een treffer via een regel is zeker en wordt meteen bevestigd. Behalve wanneer de
 regel als onzeker gemarkeerd staat: dat gebeurt bij tegenpartijen die in je
 referentielijst onder meer dan één categorie voorkomen.
 
+**Welke regel heeft dit gedaan?** Het merkje *regel* in de transactielijst is een
+link. Klik erop en je komt op een scherm met de regel die deze transactie
+indeelde, hoeveel transacties er nu aan hangen, en drie keuzes:
+
+- **Ze klopt** — de transactie wordt bevestigd. Vroeg de regel telkens om
+  nazicht, dan doet ze dat voortaan niet meer.
+- **Ze klopt niet, regel bewerken** — je komt op het bewerkscherm. Bewaren
+  beoordeelt meteen de transacties die eraan hingen opnieuw.
+- **Ze klopt niet, regel verwijderen** — wat eraan hing komt op nazicht te staan
+  zonder categorie, tenzij een andere regel het overneemt.
+
+Daarnaast kan je altijd nog *alleen deze transactie aanpassen* en de regel laten
+staan.
+
+Zie je een transactie met bron *regel* die tóch op nazicht staat met een
+zekerheid van 60%, dan is dat geen tegenspraak: dat is zo'n onzekere regel. Ze
+deelt in, maar vraagt om bevestiging.
+
+In de regeltabel staat bij elke regel hoeveel transacties er nu aan hangen. Dat
+getal is doorklikbaar, zodat je ziet wat een regel in de praktijk doet.
+
 **Een regel bewerken, uitzetten of verwijderen.** In alle drie de gevallen
 laten de transacties die hij had ingedeeld die categorie los. Past er nog een
 andere regel op, dan neemt die het over; is er geen, dan komen ze op *nazicht*
@@ -601,10 +622,15 @@ aanwijzingen doen mee, in volgorde van hoe hard ze zijn:
 
 | Aanwijzing                        | Waarom ze werkt |
 |-----------------------------------|-----------------|
-| Rekeningnummer van de tegenpartij | Een IBAN hoort bij één partij en verandert niet |
+| Rekeningnummer én beschrijving    | Het IBAN alleen volstaat niet; samen met de beschrijving wel |
 | Gestructureerde mededeling        | Het `+++...+++`-nummer hoort bij één schuldeiser |
 | Beschrijving plus tegenpartij     | Onderscheidt een aankoop van een overschrijving aan dezelfde naam |
 | Tegenpartij alleen                | Breed inzetbaar, maar botst het vaakst |
+
+> **Een rekeningnummer alleen deelt niets in.** Betaalverwerkers innen voor
+> tientallen handelaars vanaf één IBAN. Dat nummer wijst dan naar evenveel
+> categorieën en levert enkel een regel op die om nazicht blijft vragen. Het
+> telt daarom alleen mee samen met de beschrijving, als gecombineerde regel.
 
 Verwijst een aanwijzing naar meerdere categorieën, dan wordt eerst geprobeerd of
 het **bedrag** de gevallen scheidt. Zijn alle broodjes bij het tankstation onder
