@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import collections
 import secrets
-import traceback
 from decimal import Decimal
 from pathlib import Path
 
@@ -181,30 +180,25 @@ def kredietkaart():
 
     hangend = conn.execute(
         "SELECT COUNT(*) n FROM transacties WHERE is_afrekening=1").fetchone()["n"]
-    jaren = kk.afrekeningsjaren(conn, crypto)
     jaar = request.args.get("jaar", type=int)
     status = request.args.get("status_f", "")
 
-    alles = kk.zoek_afrekeningen(conn, crypto, jaar)
+    # Eén doorloop voor alles: de lijst, de jaren en de tellingen. Het waren er
+    # twee, plus een zoekopdracht per open afrekening — op tienduizenden rijen
+    # liep dat op tot seconden.
+    alles = kk.zoek_afrekeningen(conn, crypto)
     for a in alles:
         a["status"] = _afrekeningsstatus(a)
-    getoond = [a for a in alles if not status or a["status"] == status]
+    jaren = kk.afrekeningsjaren(alles)
 
-    # Hoeveel open afrekeningen zouden met één klik afgevinkt kunnen worden?
-    # Loopt dit mis, dan mag het de pagina niet meenemen: het is een suggestie,
-    # geen onderdeel van het overzicht.
-    try:
-        koppelbaar = sum(
-            1 for a in alles if a["status"] == "open"
-            and len(kk.zoek_tegenboekingen(conn, crypto, a["id"])) == 1)
-    except Exception:  # noqa: BLE001
-        traceback.print_exc()
-        koppelbaar = 0
+    getoond = [a for a in alles
+               if (not jaar or a["boekdatum"][:4] == str(jaar))
+               and (not status or a["status"] == status)]
 
     return render_template(
         "kredietkaart.html", afrekeningen=getoond, totaal=len(alles),
-        jaren=jaren, gekozen_jaar=jaar, verwerkt=hangend,
-        status=status, koppelbaar=koppelbaar,
+        jaren=jaren, gekozen_jaar=jaar, verwerkt=hangend, status=status,
+        open_aantal=sum(1 for a in alles if a["status"] == "open"),
         tellingen=collections.Counter(a["status"] for a in alles),
     )
 

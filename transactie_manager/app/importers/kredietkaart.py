@@ -347,25 +347,36 @@ def is_afrekeningsregel(beschrijving: str, tegenpartij: str) -> bool:
     return bool(AFREKENING.search(tekst))
 
 
-def afrekeningsjaren(conn, crypto) -> list[int]:
-    """De jaren waarin er kaartafrekeningen staan."""
-    return sorted({int(a["boekdatum"][:4]) for a in zoek_afrekeningen(conn, crypto)},
-                  reverse=True)
+def afrekeningsjaren(afrekeningen: list[dict]) -> list[int]:
+    """De jaren waarin er kaartafrekeningen staan.
+
+    Neemt de lijst die je toch al hebt. Vroeger deed deze functie er een eigen
+    zoekopdracht voor, waardoor het scherm alles twee keer doorliep.
+    """
+    return sorted({int(a["boekdatum"][:4]) for a in afrekeningen}, reverse=True)
 
 
 def zoek_afrekeningen(conn, crypto, jaar: int | None = None,
-                      limiet: int = 400) -> list[dict]:
+                      limiet: int = 2000) -> list[dict]:
     """Kandidaat-afrekeningen om een PDF aan te hangen.
 
     Of een regel een afrekening is, blijkt uit de beschrijving en de naam van de
-    tegenpartij, en die staan versleuteld. Daar valt niet met SQL op te
-    voorselecteren, dus alle uitgaven worden overlopen. Er worden bewust maar
-    twee velden ontsleuteld in plaats van de hele transactie; op tienduizenden
-    rijen scheelt dat een veelvoud.
+    tegenpartij, en die staan versleuteld. Daar valt niet met SQL op voor te
+    selecteren. Vroeger werd daarom bij elk bezoek élke uitgave ontsleuteld; op
+    tienduizenden rijen liep dat op tot seconden, en het scherm deed dat twee
+    keer per keer.
+
+    Het oordeel wordt nu bewaard in de kolom `kaartafrekening`: NULL is "nog
+    niet bekeken", 0 en 1 zijn het antwoord. Alleen wat nog op NULL staat wordt
+    ontsleuteld, dus de eerste keer duurt het één keer zo lang als vroeger en
+    daarna niet meer. Nieuwe transacties komen als NULL binnen en worden bij het
+    volgende bezoek meegenomen.
     """
     sql = ("SELECT id, boekdatum, bedrag_enc, beschrijving_enc,"
-           " tegenpartij_naam_enc, is_afrekening, tegenboeking_tx_id FROM transacties"
-           " WHERE richting = 'uit' AND ouder_tx_id IS NULL")
+           " tegenpartij_naam_enc, is_afrekening, tegenboeking_tx_id,"
+           " kaartafrekening FROM transacties"
+           " WHERE richting = 'uit' AND ouder_tx_id IS NULL"
+           " AND (kaartafrekening IS NULL OR kaartafrekening = 1)")
     params: list = []
     if jaar:
         sql += " AND substr(boekdatum, 1, 4) = ?"
@@ -379,10 +390,14 @@ def zoek_afrekeningen(conn, crypto, jaar: int | None = None,
     }
 
     kandidaten: list[dict] = []
+    geoordeeld: list[tuple] = []
     for row in conn.execute(sql, params):
         beschrijving = crypto.dec(row["beschrijving_enc"]) or ""
         tegenpartij = crypto.dec(row["tegenpartij_naam_enc"]) or ""
-        if not is_afrekeningsregel(beschrijving, tegenpartij):
+        afrekening = is_afrekeningsregel(beschrijving, tegenpartij)
+        if row["kaartafrekening"] is None:
+            geoordeeld.append((1 if afrekening else 0, row["id"]))
+        if not afrekening:
             continue
         kandidaten.append({
             "id": row["id"],
@@ -395,6 +410,11 @@ def zoek_afrekeningen(conn, crypto, jaar: int | None = None,
         })
         if len(kandidaten) >= limiet:
             break
+
+    if geoordeeld:
+        conn.executemany("UPDATE transacties SET kaartafrekening = ? WHERE id = ?",
+                         geoordeeld)
+        conn.commit()
     return kandidaten
 
 

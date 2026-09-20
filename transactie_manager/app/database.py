@@ -9,7 +9,7 @@ from flask import g
 
 from .config import DB_PATH, DEFAULT_SETTINGS
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS app_meta (
@@ -182,6 +182,7 @@ CREATE TABLE IF NOT EXISTS transacties (
     bron                     TEXT NOT NULL DEFAULT 'bank',
     regel_id                 INTEGER REFERENCES regels(id) ON DELETE SET NULL,
     tegenboeking_tx_id       INTEGER REFERENCES transacties(id) ON DELETE SET NULL,
+    kaartafrekening          INTEGER,
     aangemaakt_op            TEXT NOT NULL,
     gewijzigd_op             TEXT NOT NULL
 );
@@ -294,6 +295,17 @@ def _migreer(conn: sqlite3.Connection) -> None:
     for naam, soort in (("bevestigd_op", "TEXT"), ("bevestigd_door", "TEXT")):
         if naam not in regelkolommen:
             conn.execute(f"ALTER TABLE regels ADD COLUMN {naam} {soort}")
+
+    # Schemaversie 8: onthouden of een transactie een kaartafrekening is.
+    # Dat blijkt uit de beschrijving, en die staat versleuteld — er valt dus
+    # niet met SQL op voor te selecteren. Zonder dit moest elke uitgave bij elk
+    # bezoek aan het kredietkaartscherm ontsleuteld worden, en dat duurde op
+    # tienduizenden rijen seconden. NULL betekent "nog niet bekeken"; het
+    # scherm vult dat zelf aan, want daar is de sleutel wel beschikbaar.
+    if "kaartafrekening" not in tx_kolommen:
+        conn.execute("ALTER TABLE transacties ADD COLUMN kaartafrekening INTEGER")
+    conn.execute("CREATE INDEX IF NOT EXISTS ix_tx_kaartafrekening"
+                 " ON transacties(kaartafrekening)")
 
     # Schemaversie 5: een regel kan meer dan één voorwaarde hebben. Bestaande
     # regels houden hun ene voorwaarde in de regeltabel en krijgen hier niets.

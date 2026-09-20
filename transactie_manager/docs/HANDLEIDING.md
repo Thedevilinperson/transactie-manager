@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.16.1
+Versie 0.17.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -372,10 +372,14 @@ afrekening hoef je niet uit te splitsen: samen met haar tegenboeking komt ze op
 nul uit. Wijs je de tegenboeking aan, dan verdwijnt ze uit je werklijst zonder
 dat er iets aan je cijfers verandert.
 
-**Automatisch afvinken.** Staat er boven het overzicht hoeveel open afrekeningen
-een eenduidige tegenboeking hebben, met een knop om ze in één keer te koppelen.
-Dat gebeurt alleen wanneer er précies één kandidaat is. Zijn er meerdere, dan is
-het een keuze en geen vaststelling, en die laat de toepassing aan jou.
+**Tegenboekingen zoeken.** Boven het overzicht staat hoeveel afrekeningen er op
+*nog te doen* staan, met een knop ernaast. Die zoekt bij elk van hen een
+passende tegenboeking en hangt ze eraan. Dat gebeurt alleen wanneer er précies
+één kandidaat is. Zijn er meerdere, dan is het een keuze en geen vaststelling,
+en die laat de toepassing aan jou.
+
+Het zoeken zit achter een knop en niet in de pagina zelf: het kost een
+zoekopdracht per afrekening, en dat maakte het scherm traag.
 
 Een tegenboeking is een boeking op dezelfde rekening, met hetzelfde bedrag maar
 het tegengestelde teken, binnen tien dagen, die nog nergens aan hangt. Dat

@@ -4,6 +4,41 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.17.0] — 2026-09-20
+
+### Opgelost
+- **Het kredietkaartscherm deed er seconden over.** Op een databank van
+  twintigduizend transacties liep het scherm alles twee keer door en deed het
+  daarbovenop een zoekopdracht per openstaande afrekening. Of een regel een
+  kaartafrekening is, blijkt uit de beschrijving, en die staat versleuteld — er
+  valt dus niet met SQL op voor te selecteren, en elke uitgave moest ontsleuteld
+  worden. Bij elk bezoek opnieuw.
+- **Dat oordeel wordt nu bewaard** in de kolom `kaartafrekening`. Alleen wat nog
+  niet bekeken is, wordt ontsleuteld. De eerste keer duurt het dus één keer zo
+  lang als vroeger, daarna niet meer. Nieuwe transacties komen als onbekend
+  binnen en worden bij het volgende bezoek meegenomen; je hoeft niets te doen.
+- **Eén doorloop in plaats van twee.** De lijst, de jaren en de tellingen komen
+  nu uit dezelfde ronde. Het jaarfilter werkt op die lijst en niet met een
+  tweede zoekopdracht.
+- **Het zoeken naar tegenboekingen zit achter een knop.** Dat gebeurde bij elk
+  bezoek voor elke openstaande afrekening, en dat was het duurste stuk. Er staat
+  nu hoeveel afrekeningen op *nog te doen* staan, met *Tegenboekingen zoeken*
+  ernaast.
+
+Gemeten op 21 180 transacties met 180 afrekeningen:
+
+| | eerst | nu |
+|---|---|---|
+| eerste bezoek | 1,6 s | 0,28 s |
+| elk volgend bezoek | 1,6 s | 0,02 s |
+
+### Gewijzigd
+- **Schemaversie 8**: de kolom `kaartafrekening` op de transactietabel, met een
+  index. Bestaande databanken krijgen ze bij het opstarten.
+- De bovengrens op het aantal getoonde afrekeningen gaat van 400 naar 2000. Die
+  grens was er om niet te veel te hoeven ontsleutelen; dat argument is weg.
+
+
 ## [0.16.1] — 2026-09-20
 
 ### Opgelost

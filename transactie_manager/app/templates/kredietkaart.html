@@ -74,15 +74,16 @@
       laat oplopen.</p>
   </form>
 
-  {% if koppelbaar %}
-    <div class="melding goed" style="margin-bottom:14px">
-      {{ koppelbaar }} open
-      {{ 'afrekening heeft' if koppelbaar == 1 else 'afrekeningen hebben' }}
-      precies één passende tegenboeking.
+  {% if open_aantal %}
+    <div class="melding" style="margin-bottom:14px">
+      {{ open_aantal }} afrekening{{ '' if open_aantal == 1 else 'en' }} staat
+      {{ '' if open_aantal == 1 else 'nog ' }}op <em>nog te doen</em>. Is er
+      voor sommige een terugstorting of een rechtzetting geboekt, dan kan je ze
+      in één keer laten afvinken.
       <form method="post" style="display:inline-block;margin-left:8px"
             action="{{ url_for('bijzonder.tegenboekingen_koppelen') }}">
         <input type="hidden" name="terug" value="{{ url_for('bijzonder.kredietkaart', **request.args) }}">
-        <button type="submit" class="stil klein">Automatisch afvinken</button>
+        <button type="submit" class="stil klein">Tegenboekingen zoeken</button>
       </form>
     </div>
   {% endif %}
