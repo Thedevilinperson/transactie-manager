@@ -254,6 +254,7 @@ def _regelfilters(args):
         "veld": args.get("veld_f", ""),
         "actief": args.get("actief_f", ""),
         "bedrag": args.get("bedrag_f", type=float),
+        "vork": args.get("vork_f", ""),
         "sorteer": args.get("sorteer", "prioriteit"),
         "omgekeerd": args.get("omgekeerd") == "1",
     }
@@ -274,8 +275,18 @@ def _past_op_filter(rij, f) -> bool:
         return False
     if f["actief"] == "nee" and rij["actief"]:
         return False
+    # Een regel "gebruikt een bedragvork" zodra ze een onder- of een bovengrens
+    # heeft. Eén grens volstaat: het paar "tot 10" en "vanaf 10" is juist de
+    # gewone vorm van zo'n vork.
+    heeft_vork = rij["bedrag_min"] is not None or rij["bedrag_max"] is not None
+    if f["vork"] == "ja" and not heeft_vork:
+        return False
+    if f["vork"] == "nee" and heeft_vork:
+        return False
     if f["bedrag"] is not None:
         # Welke regels zou dit bedrag halen? Ondergrens telt mee, bovengrens niet.
+        # Een regel zonder vork vangt elk bedrag en hoort er dus bij; wil je die
+        # er niet bij, zet dan de vorkfilter op "alleen met bedragvork".
         bedrag = abs(f["bedrag"])
         if rij["bedrag_min"] is not None and bedrag < rij["bedrag_min"]:
             return False

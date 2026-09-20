@@ -149,6 +149,16 @@
         </select>
       </div>
       <div class="fveld">
+        <label for="vork_f">Bedragvork</label>
+        <select id="vork_f" name="vork_f">
+          <option value="">Alle regels</option>
+          <option value="ja" {{ 'selected' if filters.vork == 'ja' }}>
+            Alleen met bedragvork</option>
+          <option value="nee" {{ 'selected' if filters.vork == 'nee' }}>
+            Alleen zonder bedragvork</option>
+        </select>
+      </div>
+      <div class="fveld">
         <label for="bedrag_f">Vangt bedrag</label>
         <input type="number" step="0.01" id="bedrag_f" name="bedrag_f" data-traag
                value="{{ filters.bedrag if filters.bedrag is not none else '' }}"
@@ -172,8 +182,10 @@
     <p class="klein-detail">
       {% if rijen|length == totaal %}{{ totaal }} regels.
       {% else %}{{ rijen|length }} van {{ totaal }} regels.{% endif %}
-      <em>Vangt bedrag</em> toont de regels waarvan de bedragvork dat bedrag
-      bevat; regels zonder vork vangen alles.</p>
+      <em>Bedragvork</em> houdt alleen de regels over die een onder- of
+      bovengrens hebben. <em>Vangt bedrag</em> toont welke regels dat bedrag
+      zouden halen; regels zonder vork vangen elk bedrag en staan er dus altijd
+      bij — zet de vorkfilter erbij om net die weg te laten.</p>
   </form>
 
   {% if rijen %}

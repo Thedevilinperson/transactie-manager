@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.9.9
+Versie 0.9.10
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -398,10 +398,17 @@ een regel dus tijdelijk uitzetten zonder je indeling kwijt te spelen.
 
 **Zoeken en sorteren in de regels.** Boven de tabel staat een filterbalk. Je
 kan zoeken op naam, waarde, categorie of winkel, en filteren op hoofdcategorie,
-op het veld waar de regel naar kijkt, en op actief of uitgezet. *Vangt bedrag*
-is de nuttigste: vul een bedrag in en je ziet welke regels dat bedrag zouden
-vangen. Bij bedragvorken is dat net de vraag — welke regel krijgt een aankoop
-van 12,50 te pakken? Regels zonder vork vangen alles en staan er dus altijd bij.
+op het veld waar de regel naar kijkt, en op actief of uitgezet.
+
+Twee filters gaan over het bedrag en doen elk iets anders. *Bedragvork* houdt
+alleen de regels over die een onder- of bovengrens hebben, of net alleen die
+zonder. Gebruik die als je je vorken wil nakijken. *Vangt bedrag* toont welke
+regels een bepaald bedrag zouden halen: vul 12,50 in en je ziet wie die aankoop
+te pakken krijgt.
+
+Regels zonder vork vangen elk bedrag en staan bij *Vangt bedrag* dus altijd in de
+lijst. Zet er *Alleen met bedragvork* bij om net die weg te laten; dan blijven
+alleen de regels over die het bedrag werkelijk verdelen.
 
 Klikken op een kolomkop sorteert; nog eens klikken draait de richting om. De
 kolom *Treffers* laat zien welke regels werk doen en welke nooit aanslaan.

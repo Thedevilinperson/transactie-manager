@@ -4,6 +4,22 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.9.10] — 2026-09-19
+
+### Erbij
+- **Filter *Bedragvork* op het regelscherm.** Drie keuzes: alle regels, alleen
+  die met een bedragvork, alleen die zonder. Een regel telt als "met vork" zodra
+  ze een onder- óf een bovengrens heeft; het paar *tot 10* en *vanaf 10* is juist
+  de gewone vorm van zo'n vork.
+
+### Gewijzigd
+- *Vangt bedrag* toonde de regels zonder bedragvork mee. Dat is op zich juist —
+  die vangen elk bedrag — maar het was niet wat je wil zien als je je vorken
+  nakijkt. De twee filters staan nu naast elkaar en zijn te combineren: *vangt
+  7,50* geeft vijf regels, met *alleen met bedragvork* erbij blijven de twee over
+  die dat bedrag werkelijk verdelen. De tekst onder de filterbalk legt dat uit.
+
+
 ## [0.9.9] — 2026-09-19
 
 ### Opgelost
