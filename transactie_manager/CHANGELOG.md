@@ -4,6 +4,19 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.16.1] — 2026-09-20
+
+### Opgelost
+- **Op het kredietkaartscherm gooide een wissel van jaar je statuskeuze weg.**
+  Er stonden twee filterformulieren onder elkaar, elk met hun eigen velden; wie
+  het jaar veranderde, verloor de status. Het is nu één balk met jaar, status,
+  de aantallen en een knop om te wissen.
+- Loopt de suggestie *automatisch afvinken* mis, dan haalt ze de pagina niet
+  meer mee. Het is een voorstel bovenaan het overzicht, geen onderdeel ervan —
+  een fout daarin mag het scherm niet onbereikbaar maken. De fout komt wel in
+  het logboek van de add-on terecht.
+
+
 ## [0.16.0] — 2026-09-20
 
 ### Erbij

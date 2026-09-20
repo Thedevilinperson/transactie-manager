@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import collections
 import secrets
+import traceback
 from decimal import Decimal
 from pathlib import Path
 
@@ -190,9 +191,15 @@ def kredietkaart():
     getoond = [a for a in alles if not status or a["status"] == status]
 
     # Hoeveel open afrekeningen zouden met één klik afgevinkt kunnen worden?
-    koppelbaar = sum(
-        1 for a in alles if a["status"] == "open"
-        and len(kk.zoek_tegenboekingen(conn, crypto, a["id"])) == 1)
+    # Loopt dit mis, dan mag het de pagina niet meenemen: het is een suggestie,
+    # geen onderdeel van het overzicht.
+    try:
+        koppelbaar = sum(
+            1 for a in alles if a["status"] == "open"
+            and len(kk.zoek_tegenboekingen(conn, crypto, a["id"])) == 1)
+    except Exception:  # noqa: BLE001
+        traceback.print_exc()
+        koppelbaar = 0
 
     return render_template(
         "kredietkaart.html", afrekeningen=getoond, totaal=len(alles),
