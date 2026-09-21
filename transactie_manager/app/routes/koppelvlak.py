@@ -8,8 +8,8 @@ from flask import Blueprint, g, jsonify, request
 from ..auth import login_vereist
 from ..categories import laad_alles
 from ..categorizer import ai
-from ..database import get_db
-from ..transacties import haal
+from ..database import get_db, log
+from ..transacties import haal, werk_bij
 
 bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -44,9 +44,31 @@ def ai_voorstel(tx_id: int):
         return jsonify({"fout": "Die transactie bestaat niet."}), 404
 
     try:
-        voorstel = ai.stel_voor(conn, crypto, tx.kenmerken)
+        voorstel = ai.stel_voor(conn, crypto, tx.kenmerken, gebruiker=g.gebruiker)
     except ai.AIFout as exc:
+        # De bevraging zelf is al in het logboek gezet, ook al gaf ze geen
+        # bruikbaar voorstel; dat moet wel bewaard blijven.
+        conn.commit()
         return jsonify({"fout": str(exc)}), 502
+
+    # Het voorstel meteen vastleggen — net als bij een automatische fuzzy- of
+    # regelsuggestie — zodat het klaarstaat wanneer de transactie geopend
+    # wordt. Bevestigen moet de gebruiker nog altijd zelf.
+    werk_bij(
+        conn, crypto, tx_id,
+        categorie_id=voorstel.categorie_id,
+        subcategorie_id=voorstel.subcategorie_id,
+        subsub_id=voorstel.subsub_id,
+        handelaar=voorstel.handelaar or tx.handelaar,
+        land=voorstel.land or tx.land,
+        zekerheid=voorstel.zekerheid,
+        methode="ai",
+        status="nazicht",
+        toelichting=voorstel.toelichting,
+        regel_id=None,
+    )
+    log(conn, crypto, g.gebruiker, "ai_voorstel_opgeslagen", f"tx={tx_id}")
+    conn.commit()
 
     platte = laad_alles(conn, crypto)
 

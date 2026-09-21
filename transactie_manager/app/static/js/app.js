@@ -265,7 +265,8 @@
             if (doel) {
               doel.innerHTML = "Voorstel: <strong>" + antwoord.d.pad + "</strong> (" +
                 Math.round(antwoord.d.zekerheid * 100) + "% zeker). " +
-                (antwoord.d.toelichting || "Nakijken en opslaan blijft nodig.");
+                (antwoord.d.toelichting || "") +
+                " Opgeslagen als voorstel — open de transactie om te bevestigen.";
             }
             vulAiVoorstelIn(knop, antwoord.d);
           })

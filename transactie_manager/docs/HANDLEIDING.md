@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.18.0
+Versie 0.19.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -618,16 +618,54 @@ hebt.
 
 Een voorstel van het model moet je altijd bevestigen. Je vraagt het aan per
 transactie, met de knop **Vraag het model** in het nazicht, of met **Vraag het
-AI-model** in het bewerkscherm van een transactie zonder categorie — die knop
-vult de categoriekiezer meteen in met het voorstel, plus de handelaar en het
-land als die nog leeg staan. In beide gevallen moet je het resultaat nog
-nakijken en opslaan; er wordt niets automatisch toegewezen.
+AI-model** in het bewerkscherm van een transactie zonder categorie. In beide
+gevallen wordt het voorstel meteen op de transactie gezet — categorie,
+subcategorie, sub-subcategorie, en de handelaar en het land als die nog leeg
+staan — met status *nazicht*, net als bij een fuzzy suggestie. Open (of
+open opnieuw) de transactie en de categoriekiezer staat al ingevuld; er wordt
+alleen niets *bevestigd* zonder dat jij daarop klikt.
+
+Is het model niet redelijk zeker — bijvoorbeeld omdat de naam van de
+tegenpartij niets zegt over wat voor zaak het is — dan mag het dat zelf
+aangeven in plaats van de minst slechte categorie te raden. Je krijgt dan een
+melding dat het model twijfelt, en de transactie blijft *zonder categorie*
+staan.
 
 Staat **Het model mag bevraagd worden** uit, dan zie je nergens een knop om het
 te bevragen — dat is bewust: zo verlaat er nooit ongemerkt transactiedata je
 netwerk. Zet de schakelaar aan bij **Instellingen › Automatisch indelen** om de
 knop overal te laten verschijnen; het nazicht en het bewerkscherm wijzen daar
 ook zelf naartoe zolang hij uitstaat.
+
+#### Wat er precies verstuurd en teruggekregen wordt
+
+Elke bevraging komt in het logboek terecht (**Instellingen › Logboek**, onder
+**ai bevraagd**): de volledige systeeminstructie en vraag zoals ze naar het
+model gingen — inclusief de genummerde lijst met toegelaten categorieën — het
+ruwe antwoord van het model, en het uiteindelijke resultaat. Dat geldt ook
+wanneer het model twijfelde of geen bruikbaar antwoord gaf. Zo kan je precies
+nagaan waarom een voorstel fout zat.
+
+#### De kwaliteit van de voorstellen verbeteren
+
+Een lokaal model van een paar miljard parameters (zoals `qwen2.5:7b`) is
+handig en gratis, maar raadt geregeld mis bij een tegenpartijnaam die niets
+over de aard van de zaak zegt — de naam van een winkel of dienstverlener zegt
+een taalmodel vaak niets. Wat helpt:
+
+- **Zet de webopzoeking aan** (hierboven) als de tegenpartijnaam op zich niet
+  duidelijk maakt wat voor zaak het is. Het model krijgt er dan een stukje
+  zoekresultaat bij.
+- **Corrigeer een fout voorstel en vink "Deze keuze onthouden als vaste
+  regel" aan.** Daarna herkent de fuzzy stap dezelfde tegenpartij meteen goed,
+  zonder het AI-model nog te hoeven bevragen — hoe meer je op deze manier
+  corrigeert, hoe minder je het model nodig hebt.
+- **Probeer een groter of specifieker model** in **Instellingen › Automatisch
+  indelen**, als je Ollama-server dat aankan; grotere modellen kennen meer
+  Belgische en Nederlandse handelsnamen.
+- **Kijk de logboekregel na** van een fout voorstel: staat de reden die het
+  model gaf ergens naast, dan zie je vaak meteen waarop het misging (bijvoorbeeld
+  een woord in de mededeling dat toevallig op een andere categorie lijkt).
 
 ### Stap 4: met de hand
 
@@ -739,8 +777,9 @@ een grote invoer, maar kijk het toch even door.
 **Indelen** om ze zelf in te delen — daar kan je, als het AI-model aanstaat,
 ook meteen **Vraag het AI-model** klikken om de categoriekiezer te laten
 invullen. Of vraag rechtstreeks vanuit deze lijst een voorstel met **Vraag het
-model**; dat toont enkel de tekst, je moet dan nog naar **Indelen** om het over
-te nemen.
+model**: dat voorstel wordt meteen bewaard, en verschijnt na een herlading
+van deze bladzijde bovenaan bij *Voorgesteld, nog te bevestigen*. Twijfelde
+het model te veel, dan blijft de transactie hier staan.
 
 ---
 
@@ -956,6 +995,12 @@ in.
 Automatisch indelen*. Draait de add-on in Home Assistant en Ollama op dezelfde
 machine, gebruik dan `http://homeassistant.local:11434` of het IP-adres; niet
 `localhost`, want dat wijst binnen de add-on naar de add-on zelf.
+
+**Het AI-model kiest een verkeerde categorie.** Zie [Stap 3: het lokale
+AI-model](#stap-3-het-lokale-ai-model) → *De kwaliteit van de voorstellen
+verbeteren*. Kijk bij **Instellingen › Logboek** onder **ai bevraagd** na wat
+er precies verstuurd en teruggekregen is; vaak verklaart de reden die het
+model opgaf meteen waarom het misging.
 
 **Geen aankopen herkend in een PDF-uittreksel.** Klap onderaan de ruwe tekst
 open. Zie je daar leesbare regels staan, kies dan een ander patroon. Zie je

@@ -2,11 +2,14 @@
 
 Er wordt gepraat met een Ollama-server (of een compatibele server met hetzelfde
 `/api/chat`-eindpunt). Het model krijgt de transactiegegevens en de lijst met
-toegelaten categoriepaden, en moet één pad kiezen. Optioneel wordt eerst een
-korte webopzoeking gedaan om te achterhalen wat voor zaak de tegenpartij is.
+toegelaten categoriepaden, en moet één pad kiezen — of aangeven dat het te
+onzeker is. Optioneel wordt eerst een korte webopzoeking gedaan om te
+achterhalen wat voor zaak de tegenpartij is.
 
 Een voorstel uit deze stap komt altijd op status "nazicht": de gebruiker moet
-het bevestigen, net zoals bij een fuzzy suggestie.
+het bevestigen, net zoals bij een fuzzy suggestie. Elke bevraging — vraag,
+ruw antwoord en resultaat — wordt in het logboek gezet (versleuteld, net als
+de rest van dat logboek), zodat je kan nakijken wat er precies gebeurd is.
 """
 
 from __future__ import annotations
@@ -19,10 +22,14 @@ import urllib.request
 
 from ..categories import boom, keuzelijst
 from ..crypto import normalize
-from ..database import instelling
+from ..database import instelling, log
 from .engine import TransactieKenmerken, Voorstel
 
 TIMEOUT = 60
+
+# Nummer waarmee het model kan aangeven dat geen enkele categorie goed genoeg
+# past, in plaats van de minst slechte te raden.
+TWIJFEL_NUMMER = 0
 
 
 class AIFout(RuntimeError):
@@ -96,14 +103,57 @@ def _paden(conn, crypto, richting: str) -> list[tuple[str, tuple]]:
 SYSTEEM = (
     "Je bent een boekhoudkundige assistent. Je krijgt één banktransactie en een "
     "genummerde lijst met toegelaten categoriepaden. Kies het pad dat het best past. "
-    "Antwoord uitsluitend met JSON, zonder uitleg errond, in de vorm: "
+    f"Ben je daar niet redelijk zeker van — bijvoorbeeld omdat de naam van de "
+    f"tegenpartij niets zegt over wat voor zaak het is — kies dan nummer "
+    f"{TWIJFEL_NUMMER} in plaats van te raden. Antwoord uitsluitend met JSON, "
+    "zonder uitleg errond, in de vorm: "
     '{"nummer": <getal>, "handelaar": "<naam van de zaak of leeg>", '
     '"land": "<landcode bij vakantie-uitgave, anders leeg>", '
     '"zekerheid": <0.0 tot 1.0>, "reden": "<één korte zin>"}'
 )
 
 
-def stel_voor(conn, crypto, k: TransactieKenmerken) -> Voorstel:
+def _log_bevraging(conn, crypto, gebruiker: str | None, model: str,
+                    k: TransactieKenmerken, vraag: str, ruw_antwoord: str,
+                    voorstel: Voorstel | None, fout: str | None = None) -> None:
+    """Zet de volledige bevraging in het logboek: wat er verstuurd werd, wat er
+    terugkwam, en wat daaruit volgde. Net als de rest van het logboek wordt dit
+    versleuteld opgeslagen."""
+    if not gebruiker:
+        return
+    naam = k.tegenpartij_naam or k.beschrijving or "onbekend"
+    stukken = [
+        f"Tegenpartij: {naam}",
+        f"Bedrag: {abs(k.bedrag)} EUR ({'inkomst' if k.richting == 'in' else 'uitgave'})",
+        f"Model: {model}",
+        "",
+        "Verzonden vraag (systeeminstructie + gebruikersbericht):",
+        SYSTEEM,
+        "---",
+        vraag.strip(),
+        "",
+        "Ruw antwoord van het model:",
+        (ruw_antwoord or "(geen antwoord ontvangen)").strip(),
+    ]
+    if voorstel is not None:
+        stukken += [
+            "",
+            f"Resultaat: Voorstel: {voorstel.toelichting} "
+            f"({round(voorstel.zekerheid * 100)}% zeker).",
+        ]
+    if fout:
+        stukken += ["", f"Resultaat: geen voorstel — {fout}"]
+    log(conn, crypto, gebruiker, "ai_bevraagd", "\n".join(stukken))
+
+
+def stel_voor(conn, crypto, k: TransactieKenmerken, gebruiker: str | None = None) -> Voorstel:
+    """Vraagt het model om een voorstel.
+
+    Met `gebruiker` wordt de volledige bevraging — vraag, ruw antwoord en
+    resultaat — in het logboek gezet, ook als het model geen bruikbaar
+    antwoord geeft. Zonder `gebruiker` (bijvoorbeeld bij een automatische
+    aanroep zonder ingelogde context) gebeurt dat niet.
+    """
     if not beschikbaar(conn):
         raise AIFout("Het AI-model staat uitgeschakeld in de instellingen.")
 
@@ -111,7 +161,8 @@ def stel_voor(conn, crypto, k: TransactieKenmerken) -> Voorstel:
     if not paden:
         raise AIFout("Er zijn nog geen categorieën ingesteld.")
 
-    lijst = "\n".join(f"{i + 1}. {label}" for i, (label, _) in enumerate(paden))
+    lijst = f"{TWIJFEL_NUMMER}. Geen van deze past goed genoeg — twijfel te groot\n"
+    lijst += "\n".join(f"{i + 1}. {label}" for i, (label, _) in enumerate(paden))
     context = _webcontext(conn, k.tegenpartij_naam)
 
     vraag = (
@@ -128,55 +179,72 @@ def stel_voor(conn, crypto, k: TransactieKenmerken) -> Voorstel:
 
     basis = instelling(conn, "ai_basis_url").rstrip("/")
     model = instelling(conn, "ai_model")
-    antwoord = _http_json(f"{basis}/api/chat", {
-        "model": model,
-        "stream": False,
-        "format": "json",
-        "options": {"temperature": 0.1},
-        "messages": [
-            {"role": "system", "content": SYSTEEM},
-            {"role": "user", "content": vraag},
-        ],
-    })
 
-    inhoud = (antwoord.get("message") or {}).get("content", "")
+    inhoud = ""
     try:
-        data = json.loads(inhoud)
-    except json.JSONDecodeError:
-        gevonden = re.search(r"\{.*\}", inhoud, re.S)
-        if not gevonden:
-            raise AIFout("Het model gaf geen bruikbaar antwoord.")
-        data = json.loads(gevonden.group(0))
+        antwoord = _http_json(f"{basis}/api/chat", {
+            "model": model,
+            "stream": False,
+            "format": "json",
+            "options": {"temperature": 0.1},
+            "messages": [
+                {"role": "system", "content": SYSTEEM},
+                {"role": "user", "content": vraag},
+            ],
+        })
 
-    try:
-        index = int(data.get("nummer", 0)) - 1
-    except (TypeError, ValueError):
-        index = -1
-    if not 0 <= index < len(paden):
-        raise AIFout("Het model koos geen geldige categorie.")
+        inhoud = (antwoord.get("message") or {}).get("content", "")
+        try:
+            data = json.loads(inhoud)
+        except json.JSONDecodeError:
+            gevonden = re.search(r"\{.*\}", inhoud, re.S)
+            if not gevonden:
+                raise AIFout("Het model gaf geen bruikbaar antwoord.")
+            data = json.loads(gevonden.group(0))
 
-    label, ids = paden[index]
-    zekerheid = data.get("zekerheid", 0.6)
-    try:
-        zekerheid = max(0.0, min(1.0, float(zekerheid)))
-    except (TypeError, ValueError):
-        zekerheid = 0.6
+        try:
+            nummer = int(data.get("nummer", TWIJFEL_NUMMER))
+        except (TypeError, ValueError):
+            nummer = -1
+        if nummer == TWIJFEL_NUMMER:
+            reden = str(data.get("reden", "")).strip()
+            raise AIFout(
+                "Het model geeft zelf aan te twijfelen en durft geen categorie "
+                "te kiezen." + (f" ({reden})" if reden else "") +
+                " Deel deze transactie liever handmatig in."
+            )
+        index = nummer - 1
+        if not 0 <= index < len(paden):
+            raise AIFout("Het model koos geen geldige categorie.")
 
-    reden = str(data.get("reden", "")).strip()
-    handelaar = str(data.get("handelaar", "")).strip() or None
-    land = str(data.get("land", "")).strip() or None
+        label, ids = paden[index]
+        zekerheid = data.get("zekerheid", 0.6)
+        try:
+            zekerheid = max(0.0, min(1.0, float(zekerheid)))
+        except (TypeError, ValueError):
+            zekerheid = 0.6
 
-    return Voorstel(
-        categorie_id=ids[0],
-        subcategorie_id=ids[1],
-        subsub_id=ids[2],
-        handelaar=handelaar,
-        land=land,
-        zekerheid=round(zekerheid, 3),
-        methode="ai",
-        status="nazicht",
-        toelichting=f"Voorstel van {model}: {label}." + (f" {reden}" if reden else ""),
-    )
+        reden = str(data.get("reden", "")).strip()
+        handelaar = str(data.get("handelaar", "")).strip() or None
+        land = str(data.get("land", "")).strip() or None
+
+        voorstel = Voorstel(
+            categorie_id=ids[0],
+            subcategorie_id=ids[1],
+            subsub_id=ids[2],
+            handelaar=handelaar,
+            land=land,
+            zekerheid=round(zekerheid, 3),
+            methode="ai",
+            status="nazicht",
+            toelichting=f"Voorstel van {model}: {label}." + (f" {reden}" if reden else ""),
+        )
+    except AIFout as exc:
+        _log_bevraging(conn, crypto, gebruiker, model, k, vraag, inhoud, None, fout=str(exc))
+        raise
+
+    _log_bevraging(conn, crypto, gebruiker, model, k, vraag, inhoud, voorstel)
+    return voorstel
 
 
 def maak_regel_van_voorstel(conn, crypto, k: TransactieKenmerken, voorstel: Voorstel) -> None:

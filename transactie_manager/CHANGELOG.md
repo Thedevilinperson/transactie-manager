@@ -4,6 +4,32 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.19.0] — 2026-09-21
+
+### Toegevoegd
+- **De AI-bevraging wordt nu volledig in het logboek gezet**: de verzonden
+  systeeminstructie en vraag (met de tegenpartij, het bedrag, de mededeling en
+  de volledige lijst toegelaten categorieën), het ruwe antwoord van het model,
+  en het resultaat. Te vinden bij **Instellingen › Logboek** onder de handeling
+  **ai bevraagd**. Dat geldt ook wanneer het model geen bruikbaar antwoord gaf
+  of te onzeker was — ook dan staat vastgelegd wat er verstuurd en
+  teruggekregen werd.
+- **Het model mag nu aangeven dat het twijfelt** in plaats van de minst
+  slechte categorie te raden: naast de genummerde lijst met categorieën krijgt
+  het een uitdrukkelijke optie "geen van deze past goed genoeg". Kiest het
+  daarvoor, dan krijg je een duidelijke melding in plaats van een foute
+  toewijzing met een hoog zekerheidspercentage.
+- **Een AI-voorstel wordt meteen vastgelegd** op de transactie (status
+  *nazicht*, methode *ai*), zowel via de knop in het nazicht als via de nieuwe
+  knop in het bewerkscherm. Open je de transactie nadien, dan staat het
+  voorstel er al in — voorheen bleven de categorieën leeg tot je opnieuw op
+  **Vraag het model** klikte.
+
+### Gewijzigd
+- De detailkolom van het logboek toont meerdere regels nu ook echt als
+  meerdere regels, in plaats van als één lange regel.
+
+
 ## [0.18.0] — 2026-09-21
 
 ### Toegevoegd

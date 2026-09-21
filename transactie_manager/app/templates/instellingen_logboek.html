@@ -6,7 +6,9 @@
 {{ instellingentabs(is_beheerder) }}
 <div class="kop">
   <h1>Logboek</h1>
-  <p>De laatste 200 handelingen.</p>
+  <p>De laatste 200 handelingen. Bij <strong>ai bevraagd</strong> staat de volledige
+    vraag aan het model, het ruwe antwoord en het resultaat — handig om na te gaan
+    waarom een voorstel fout zat.</p>
 </div>
 
 <div class="vlak">
@@ -22,7 +24,7 @@
               <td>{{ r.tijdstip[:19].replace('T', ' ') }}</td>
               <td>{{ r.gebruiker }}</td>
               <td>{{ r.actie.replace('_', ' ') }}</td>
-              <td>{{ r.detail }}</td>
+              <td class="log-detail">{{ r.detail }}</td>
             </tr>
           {% endfor %}
         </tbody>
