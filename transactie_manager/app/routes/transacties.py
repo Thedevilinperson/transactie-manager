@@ -213,6 +213,7 @@ def bewerken(tx_id: int):
         "transactie_bewerken.html",
         tx=tx, rekeningen=_rekeningen(conn, crypto),
         terug=veilig_terug(request.args.get("terug"), url_for("tx.lijst")),
+        ai_actief=instelling(conn, "ai_actief", "0") == "1",
         **_herkomst(conn, crypto, tx), **_cat_context(conn, crypto),
     )
 

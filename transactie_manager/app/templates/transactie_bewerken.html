@@ -134,6 +134,21 @@
 
   <div class="vlak">
     <h2>Indeling</h2>
+    {% if not tx.categorie_id %}
+      {% if ai_actief %}
+        <p class="klein-detail">
+          <button type="button" class="stil klein" data-ai-voor="{{ tx.id }}">
+            Vraag het AI-model</button>
+          Vult de categorie hieronder in met een voorstel; nakijken en opslaan
+          blijft nodig.
+          <span class="klein-detail" data-ai-uitvoer="{{ tx.id }}"></span>
+        </p>
+      {% else %}
+        <p class="klein-detail">Wil je hier het lokale AI-model om een voorstel
+          vragen? Zet het aan bij
+          <a href="{{ url_for('instellingen.model') }}">Automatisch indelen</a>.</p>
+      {% endif %}
+    {% endif %}
     {{ categoriekiezer(alle_keuzes, tx.categorie_id, tx.subcategorie_id, tx.subsub_id) }}
     <div class="veld">
       <label for="land">Land van bestemming (bij vakantie-uitgaven)</label>

@@ -215,6 +215,35 @@
 
   /* ------------------------------------------------------------ AI-voorstel */
 
+  /* Zet een AI-voorstel meteen in de keuzelijsten van het bewerkscherm, als
+     de knop daar staat. Op het nazicht-overzicht staat geen keuzelijst naast
+     de knop; daar blijft het bij de tekst in koppelAiKnoppen hieronder. */
+  function vulAiVoorstelIn(knop, voorstel) {
+    var formulier = knop.closest("[data-categoriekiezer]");
+    if (!formulier || !voorstel.categorie_id) return;
+
+    var hoofd = formulier.querySelector("[data-cat-niveau='0']");
+    var sub = formulier.querySelector("[data-cat-niveau='1']");
+    var subsub = formulier.querySelector("[data-cat-niveau='2']");
+    if (!hoofd) return;
+
+    hoofd.value = voorstel.categorie_id;
+    if (sub) sub.dataset.gekozen = voorstel.subcategorie_id || "";
+    if (subsub) subsub.dataset.gekozen = voorstel.subsub_id || "";
+    // Laat de bestaande cascade (koppelKeuzelijsten) de sub- en
+    // sub-subcategorie ophalen en voorselecteren.
+    hoofd.dispatchEvent(new Event("change"));
+
+    var handelaarVeld = formulier.querySelector("#handelaar");
+    if (handelaarVeld && !handelaarVeld.value && voorstel.handelaar) {
+      handelaarVeld.value = voorstel.handelaar;
+    }
+    var landVeld = formulier.querySelector("#land");
+    if (landVeld && !landVeld.value && voorstel.land) {
+      landVeld.value = voorstel.land;
+    }
+  }
+
   function koppelAiKnoppen() {
     document.querySelectorAll("[data-ai-voor]").forEach(function (knop) {
       knop.addEventListener("click", function () {
@@ -226,15 +255,19 @@
         fetch(basis() + "api/ai-voorstel/" + txId, { method: "POST" })
           .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
           .then(function (antwoord) {
-            if (!doel) return;
             if (!antwoord.ok) {
-              doel.textContent = antwoord.d.fout || "Het model gaf geen antwoord.";
-              doel.className = "klein-detail";
+              if (doel) {
+                doel.textContent = antwoord.d.fout || "Het model gaf geen antwoord.";
+                doel.className = "klein-detail";
+              }
               return;
             }
-            doel.innerHTML = "Voorstel: <strong>" + antwoord.d.pad + "</strong> (" +
-              Math.round(antwoord.d.zekerheid * 100) + "% zeker). " +
-              "Open de transactie om dit te bevestigen.";
+            if (doel) {
+              doel.innerHTML = "Voorstel: <strong>" + antwoord.d.pad + "</strong> (" +
+                Math.round(antwoord.d.zekerheid * 100) + "% zeker). " +
+                (antwoord.d.toelichting || "Nakijken en opslaan blijft nodig.");
+            }
+            vulAiVoorstelIn(knop, antwoord.d);
           })
           .catch(function () {
             if (doel) doel.textContent = "Het model is niet bereikbaar.";

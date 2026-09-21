@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.17.0
+Versie 0.18.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -617,7 +617,17 @@ de tegenpartij daarbij je netwerk verlaat; laat dit uit als je dat liever niet
 hebt.
 
 Een voorstel van het model moet je altijd bevestigen. Je vraagt het aan per
-transactie, met de knop **Vraag het model** in het nazicht.
+transactie, met de knop **Vraag het model** in het nazicht, of met **Vraag het
+AI-model** in het bewerkscherm van een transactie zonder categorie — die knop
+vult de categoriekiezer meteen in met het voorstel, plus de handelaar en het
+land als die nog leeg staan. In beide gevallen moet je het resultaat nog
+nakijken en opslaan; er wordt niets automatisch toegewezen.
+
+Staat **Het model mag bevraagd worden** uit, dan zie je nergens een knop om het
+te bevragen — dat is bewust: zo verlaat er nooit ongemerkt transactiedata je
+netwerk. Zet de schakelaar aan bij **Instellingen › Automatisch indelen** om de
+knop overal te laten verschijnen; het nazicht en het bewerkscherm wijzen daar
+ook zelf naartoe zolang hij uitstaat.
 
 ### Stap 4: met de hand
 
@@ -725,8 +735,12 @@ klik **Aanpassen**.
 Met **Alle voorstellen bevestigen** neem je alles in één keer over. Handig na
 een grote invoer, maar kijk het toch even door.
 
-**Zonder categorie.** Transacties waar niets voor gevonden is. Deel ze zelf in,
-of vraag het AI-model om een voorstel.
+**Zonder categorie.** Transacties waar niets voor gevonden is. Klik
+**Indelen** om ze zelf in te delen — daar kan je, als het AI-model aanstaat,
+ook meteen **Vraag het AI-model** klikken om de categoriekiezer te laten
+invullen. Of vraag rechtstreeks vanuit deze lijst een voorstel met **Vraag het
+model**; dat toont enkel de tekst, je moet dan nog naar **Indelen** om het over
+te nemen.
 
 ---
 

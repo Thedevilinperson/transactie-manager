@@ -4,6 +4,24 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.18.0] — 2026-09-21
+
+### Toegevoegd
+- **Het AI-model manueel bevragen kan nu ook vanuit het bewerkscherm**, niet
+  meer alleen vanuit het nazicht. Bij een transactie zonder categorie staat
+  onder **Indeling** de knop **Vraag het AI-model**. Het voorstel wordt meteen
+  in de categoriekiezer gezet — hoofdcategorie, subcategorie en
+  sub-subcategorie — en vult ook de handelaar en het land in als die nog leeg
+  staan. Nakijken en op **Opslaan en bevestigen** klikken blijft nodig.
+- Staat **Het model mag bevraagd worden** nog uit, dan toont het bewerkscherm
+  nu een link naar **Instellingen › Automatisch indelen** om dat aan te zetten,
+  net zoals het nazicht dat al deed.
+
+### Gewijzigd
+- De knop **Vraag het model** in het nazicht toont voortaan ook de toelichting
+  van het model bij het voorstel, niet enkel het gekozen pad en de zekerheid.
+
+
 ## [0.17.0] — 2026-09-20
 
 ### Opgelost
