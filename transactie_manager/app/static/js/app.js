@@ -263,8 +263,7 @@
               return;
             }
             if (doel) {
-              doel.innerHTML = "Voorstel: <strong>" + antwoord.d.pad + "</strong> (" +
-                Math.round(antwoord.d.zekerheid * 100) + "% zeker). " +
+              doel.innerHTML = "Voorstel: <strong>" + antwoord.d.pad + "</strong>. " +
                 (antwoord.d.toelichting || "") +
                 " Opgeslagen als voorstel — open de transactie om te bevestigen.";
             }
@@ -642,6 +641,22 @@
     if (inhoud) inhoud.insertBefore(balk, inhoud.firstChild);
   }
 
+  /* ------------------------------------------- omschrijving van categorie */
+  /* Bij het kiezen van een categorie de huidige omschrijving invullen, zodat
+     je ze aanpast in plaats van opnieuw te typen. */
+
+  function koppelOmschrijving(formulier) {
+    var keuze = formulier.querySelector("select[name='id']");
+    var veld = formulier.querySelector("input[name='omschrijving']");
+    if (!keuze || !veld) return;
+    function vul() {
+      var optie = keuze.options[keuze.selectedIndex];
+      veld.value = (optie && optie.dataset.omschrijving) || "";
+    }
+    keuze.addEventListener("change", vul);
+    vul();
+  }
+
   /* ------------------------------------------------------------------ start */
 
   document.addEventListener("DOMContentLoaded", function () {
@@ -663,6 +678,7 @@
     document.querySelectorAll(".zoekinlijst").forEach(koppelLijstzoeker);
     document.querySelectorAll("[data-voortgang]").forEach(koppelVoortgang);
     koppelAiKnoppen();
+    document.querySelectorAll("[data-omschrijvingkiezer]").forEach(koppelOmschrijving);
 
     document.querySelectorAll("[data-bevestig]").forEach(function (formulier) {
       formulier.addEventListener("submit", function (gebeurtenis) {

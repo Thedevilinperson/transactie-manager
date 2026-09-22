@@ -52,7 +52,7 @@
     <p>
       <span class="merkje {{ tx.methode }}">{{ tx.methode }}</span>
       {{ tx.toelichting }}
-      {% if tx.methode in ('fuzzy', 'ai') %}
+      {% if tx.methode == 'fuzzy' %}
         <span class="klein-detail">zekerheid: {{ tx.zekerheid|procent }}</span>
       {% endif %}
     </p>

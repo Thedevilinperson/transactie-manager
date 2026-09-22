@@ -150,6 +150,13 @@ def categorieen():
                 )
                 conn.commit()
                 flash("Naam aangepast.", "goed")
+        elif actie == "omschrijving":
+            cat_id = request.form.get("id", type=int)
+            tekst = " ".join(request.form.get("omschrijving", "").split())[:300]
+            conn.execute("UPDATE categorieen SET omschrijving_enc=? WHERE id=?",
+                         (crypto.enc(tekst) if tekst else None, cat_id))
+            conn.commit()
+            flash("Omschrijving bewaard." if tekst else "Omschrijving gewist.", "goed")
         elif actie == "verplaatsen":
             cat_id = request.form.get("id", type=int)
             richting = request.form.get("richting")
@@ -562,6 +569,9 @@ def model():
                         "fuzzy_auto_drempel", "fuzzy_suggestie_drempel"):
             if sleutel in request.form:
                 zet_instelling(conn, sleutel, request.form[sleutel].strip())
+        venster = request.form.get("ai_contextvenster", type=int)
+        if venster:
+            zet_instelling(conn, "ai_contextvenster", str(max(2048, min(131072, venster))))
         for schakelaar in ("ai_actief", "ai_zoeken_actief", "leer_van_bevestiging"):
             zet_instelling(conn, schakelaar, "1" if request.form.get(schakelaar) else "0")
         # Een leeg sleutelveld laat de bestaande Brave API-sleutel staan.
@@ -575,8 +585,8 @@ def model():
     waarden = {
         sleutel: instelling(conn, sleutel)
         for sleutel in ("ai_actief", "ai_basis_url", "ai_model", "ai_zoeken_actief",
-                        "fuzzy_auto_drempel", "fuzzy_suggestie_drempel",
-                        "leer_van_bevestiging")
+                        "ai_contextvenster", "fuzzy_auto_drempel",
+                        "fuzzy_suggestie_drempel", "leer_van_bevestiging")
     }
     waarden["brave_api_key"] = lokaal.lees(conn, "brave_api_key")
     return render_template("instellingen_model.html", waarden=waarden, boodschap=boodschap)

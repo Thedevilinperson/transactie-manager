@@ -30,7 +30,7 @@
 
 {% macro bron(tx) %}
   <span class="merkje {{ tx.methode }}">{{ bronnamen.get(tx.methode, tx.methode) }}</span>
-  {% if tx.methode in ('fuzzy', 'ai') %}
+  {% if tx.methode == 'fuzzy' %}
     <span class="klein-detail">{{ tx.zekerheid|procent }} zeker</span>
   {% elif tx.methode == 'regel' and tx.zekerheid < 1 %}
     <span class="klein-detail">vraagt bevestiging</span>

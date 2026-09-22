@@ -54,7 +54,18 @@
         <label for="ai_model">Model</label>
         <input type="text" id="ai_model" name="ai_model" value="{{ waarden.ai_model }}">
       </div>
+      <div class="veld">
+        <label for="ai_contextvenster">Contextvenster (tokens)</label>
+        <input type="number" id="ai_contextvenster" name="ai_contextvenster"
+               min="2048" max="131072" step="1024" value="{{ waarden.ai_contextvenster }}">
+      </div>
     </div>
+    <p class="klein-detail">Hoeveel tekst het model in één keer mag lezen. De vraag
+      bevat je volledige indeling met voorbeelden; 8192 volstaat meestal. Het
+      logboek toont bij elke bevraging hoeveel tokens ze telde. Een groter venster
+      vraagt meer geheugen op de Ollama-server.
+      <a href="{{ url_for('instellingen.categorieen') }}#omschrijving">Omschrijvingen
+      per categorie</a> helpen het model jouw indeling te begrijpen.</p>
     <div class="keuzeregel">
       <input type="checkbox" id="ai_zoeken_actief" name="ai_zoeken_actief" value="1"
              {{ 'checked' if waarden.ai_zoeken_actief == '1' }}>

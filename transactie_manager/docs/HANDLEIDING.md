@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.23.0
+Versie 0.24.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -217,6 +217,13 @@ posten. Pas die aan bij **Instellingen › Categorieën**.
 > "beide". Uit de lijst valt namelijk niet af te leiden of het om inkomsten of
 > uitgaven gaat. Zet de soort juist bij Instellingen › Categorieën als je wil
 > dat de keuzelijsten korter worden.
+
+**Omschrijving voor het AI-model.** Onderaan het scherm *Categorieën* kan je bij
+elke categorie een omschrijving in trefwoorden zetten: wat jij eronder
+verstaat. Bijvoorbeeld *café, bar, frituur* bij *Hobby › restaurant*. In de
+boom staat ze achter de naam. Ze wordt alleen gebruikt door het lokale
+AI-model; zie [Stap 3](#stap-3-het-lokale-ai-model).
+
 
 ---
 
@@ -653,54 +660,70 @@ staan — met status *nazicht*, net als bij een fuzzy suggestie. Open (of
 open opnieuw) de transactie en de categoriekiezer staat al ingevuld; er wordt
 alleen niets *bevestigd* zonder dat jij daarop klikt.
 
-Het model kiest altijd een categorie uit de lijst, ook als het twijfelt. Hoe
-zeker het is, zie je aan het percentage: rond 90% past het duidelijk, rond 60%
-is het aannemelijk, 30% of minder is een gok — dan staat er ook *Het model
-twijfelt* bij de uitleg. Je beslist zelf of je het overneemt; bevestigd wordt
-er nooit iets zonder jou.
+Het model kiest altijd een pad uit de lijst, ook als het twijfelt. Je beslist
+zelf of je het overneemt; bevestigd wordt er nooit iets zonder jou.
 
-Hoe het model tot een keuze komt — in twee korte stappen in plaats van één
-lange lijst:
+**Wat het model te zien krijgt.** Een klein lokaal model kent jouw indeling
+niet en weet weinig van Vlaamse begrippen, maar het kan wel goed vergelijken
+met voorbeelden. De vraag bestaat daarom uit:
 
-1. **Hoofdcategorie.** Het model krijgt de transactie, met de webinformatie
-   bovenaan als belangrijkste bron, en een lijst met je hoofdcategorieën. Achter
-   elke hoofdcategorie staat wat eronder valt, zodat het ziet dat bijvoorbeeld
-   *Elektriciteit & Verlichting* onder *Huis › verbouwingen* hangt. Het
-   beschrijft eerst wat voor zaak de tegenpartij is en wat er vermoedelijk
-   betaald werd, en kiest dan de hoofdcategorie.
-2. **Pad.** Daarna krijgt het alleen de paden binnen die hoofdcategorie te zien,
-   samen met zijn eigen beschrijving uit stap 1, en kiest het het volledige pad.
-   Heeft de hoofdcategorie maar één pad, dan valt deze stap weg.
+1. **Jouw indeling, zoals je ze gebruikt.** Niet elk uiteinde van de boom, maar
+   de paden waarin je in deze richting (inkomst of uitgave) al transacties hebt
+   bevestigd — ook tussenniveaus zoals *Hobby › restaurant*, waar je
+   rechtstreeks in indeelt terwijl er subcategorieën onder hangen. Daarbij komen
+   de paden onder een categorie met een omschrijving. Bij elk pad staan je
+   **omschrijving** en tot drie **tegenpartijen** die je er eerder in zette,
+   bijvoorbeeld *Hobby › restaurant — omschrijving: café, bar, frituur; o.a.
+   Frituur De Roma, Café De Kroon*. Heb je in een richting nog nauwelijks iets
+   bevestigd, dan krijgt het model de volledige boom.
+2. **De transactie**, met de **mededeling** voorop: die schreef een mens en zegt
+   meestal letterlijk waarvoor betaald werd.
+3. **Gelijkaardige eerdere transacties** uit je historiek, gezocht op de woorden
+   in tegenpartij en mededeling. Zeldzame woorden (*chiro*, *donkere toren*)
+   wegen zwaar, alledaagse (*betaling*, *gent*) nauwelijks. Er wordt in beide
+   richtingen gezocht: een uitgave "lidgeld chiro" zegt ook iets over een
+   inkomst "chiro rokje".
+4. **Webinformatie**, alleen bij een betaling aan een zaak (kaart, Bancontact,
+   eCommerce, domiciliëring). Bij een overschrijving kan de tegenpartij een
+   persoon zijn, en dan leverde Brave vooral naamgenoten, merken en
+   LinkedIn-profielen op — "Anita Bauweraerts" werd zo een lingeriemerk. Dan
+   wordt er niet gezocht; het logboek zegt waarom.
 
-Waarom zo: een klein model begrijpt vaak prima wat voor zaak het is, maar kiest
-in een lijst van honderden paden dan toch op een toevallig woord — "online
-winkel" werd zo *Vakantie › Shopping* in plaats van *Huis › verbouwingen ›
-Elektriciteit & Verlichting*. Twee korte lijsten houden het bij de les. Geeft
-stap 1 geen bruikbaar antwoord, dan kiest het model in stap 2 uit de volledige
-lijst, zoals vroeger.
+**De spelregels** die het model meekrijgt: de bronnen in de volgorde hierboven,
+van sterk naar zwak; indelen volgens *wát* er betaald werd en niet hoe of waar
+(*online*, *webshop*, *Bancontact*, *overschrijving* zeggen niets); een paar
+Vlaamse begrippen (Chiro, KSA, scouts zijn jeugdbewegingen, een frituur is een
+snackbar); bij een inkomst betaalt iemand jou (terugbetaling, verkoop, loon,
+cadeau); een vakantiecategorie alleen bij een echte reis; en altijd precies
+één pad, met nummer én tekst.
 
-De spelregels die het model meekrijgt:
+**Zekerheid.** Het model wordt niet meer naar zijn eigen zekerheid gevraagd:
+een klein model gaf "90%" bij drie foute antwoorden op drie. Een AI-voorstel
+toont daarom geen percentage meer. Wel vergelijkt de toepassing de keuze met
+de gelijkaardige eerdere transacties, en dat zie je in de uitleg:
 
-- de **webinformatie** is de belangrijkste bron over wat voor zaak het is;
-- deel in volgens **wát** er gekocht werd, niet hoe of waar: *online*,
-  *webshop*, *shopping*, *eCommerce* of *betaalkaart* zeggen niets over de
-  categorie. De soort verrichting gaat daarom mee met de vermelding dat ze
-  zegt hoe er betaald werd, niet waarvoor;
-- een **vakantie**categorie alleen als de transactie zelf op een reis wijst
-  (hotel, camping, tol onderweg…). Een buitenlandse webshop is geen vakantie;
-- altijd één keuze, met een eerlijke zekerheid. De zekerheid van het voorstel
-  is de laagste van de twee stappen;
-- nummer én tekst van de keuze. Een klein model verspringt al eens een nummer
-  terwijl de tekst wel klopt; staat de tekst letterlijk in de lijst, dan gaat
-  die voor.
+- *Zelfde indeling als een eerdere transactie bij …* — de keuze klopt met een
+  sterk gelijkende eerdere transactie;
+- *Let op: een gelijkaardige eerdere transactie bij … staat onder …* — het model
+  wijkt af van wat je vroeger deed. Kijk dan extra goed.
+
+**Het contextvenster.** Ollama leest standaard maar een beperkt stuk tekst in
+één keer en kort een te lange vraag stil in, waarbij een deel van de
+instructies of je indeling wegvalt. De toepassing geeft het venster daarom
+expliciet mee: **Contextvenster (tokens)** bij **Instellingen › Automatisch
+indelen**, standaard 8192. Past de vraag er niet in, dan worden eerst de
+voorbeeldnamen per pad ingekort en in het uiterste geval alleen de meest
+gebruikte paden meegegeven; het logboek meldt dat. Een groter venster vraagt
+meer geheugen op de Ollama-server. De indeling staat in de systeeminstructie
+en is voor elke vraag in dezelfde richting gelijk, zodat Ollama dat stuk bij
+een volgende vraag kan hergebruiken; de eerste vraag duurt daardoor het langst.
 
 Verder:
 
 - een **land** wordt alleen overgenomen als het gekozen pad onder een
   vakantie- of reiscategorie valt;
 - namen die in het bankbestand met spaties zijn opgevuld (`LedLoket      Denekamp`)
-  worden eerst opgekuist, zowel in de vraag aan het model als in de
-  zoekopdracht naar Brave;
+  worden eerst opgekuist;
 - een categorie die letterlijk *Hoofdcategorie* heet — de kopregel van een
   ingelezen categorieënbestand — wordt niet aan het model voorgelegd. Je kan ze
   zelf verwijderen bij **Instellingen › Categorieën**.
@@ -714,32 +737,45 @@ ook zelf naartoe zolang hij uitstaat.
 #### Wat er precies verstuurd en teruggekregen wordt
 
 Elke bevraging komt in het logboek terecht (**Instellingen › Logboek**, onder
-**ai bevraagd**): de volledige systeeminstructie en vraag zoals ze naar het
-model gingen — per stap, met de lijst die het model op dat moment te zien
-kreeg — het ruwe antwoord van het model, en het uiteindelijke resultaat. Dat geldt ook
-wanneer het model geen bruikbaar antwoord gaf. Zo kan je precies
-nagaan waarom een voorstel fout zat.
+**ai bevraagd**). Bovenaan staat of er op het web gezocht werd en zo niet
+waarom, hoeveel paden en gelijkaardige transacties meegingen, en hoeveel
+**tokens** de vraag volgens Ollama telde, met de duur. Daaronder de volledige
+systeeminstructie met je indeling, het gebruikersbericht, het ruwe antwoord en
+het resultaat. Dat geldt ook wanneer het model geen bruikbaar antwoord gaf.
+
+Vult de vraag het hele venster, dan staat er een waarschuwing bij: ze is dan
+vermoedelijk ingekort. Vergroot in dat geval het contextvenster.
 
 #### De kwaliteit van de voorstellen verbeteren
 
 Een lokaal model van een paar miljard parameters (zoals `qwen2.5:7b`) is
-handig en gratis, maar raadt geregeld mis bij een tegenpartijnaam die niets
-over de aard van de zaak zegt — de naam van een winkel of dienstverlener zegt
-een taalmodel vaak niets. Wat helpt:
+handig en gratis, maar het kent je indeling alleen via wat je het laat zien.
+Wat het meest helpt, van groot naar klein:
 
-- **Zet de Brave-webopzoeking aan** (hierboven, met een API-sleutel) als de
-  tegenpartijnaam op zich niet duidelijk maakt wat voor zaak het is. Het
-  model krijgt er dan een stukje zoekresultaat bij.
-- **Corrigeer een fout voorstel en vink "Deze keuze onthouden als vaste
-  regel" aan.** Daarna herkent de fuzzy stap dezelfde tegenpartij meteen goed,
-  zonder het AI-model nog te hoeven bevragen — hoe meer je op deze manier
-  corrigeert, hoe minder je het model nodig hebt.
-- **Probeer een groter of specifieker model** in **Instellingen › Automatisch
-  indelen**, als je Ollama-server dat aankan; grotere modellen kennen meer
-  Belgische en Nederlandse handelsnamen.
-- **Kijk de logboekregel na** van een fout voorstel: staat de reden die het
-  model gaf ergens naast, dan zie je vaak meteen waarop het misging (bijvoorbeeld
-  een woord in de mededeling dat toevallig op een andere categorie lijkt).
+- **Schrijf omschrijvingen bij je categorieën** (**Instellingen › Categorieën**,
+  onderaan), vooral waar de naam het niet zegt of waar een categorie op een
+  onverwachte plaats hangt: *Hobby › restaurant — restaurant, café, bar,
+  frituur, afhaal*; *Kinderen › Kinderhobbies — chiro, scouts, jeugdbeweging,
+  muziekschool*; *Kledij › kleren › 2dehands verkoop — Vinted, 2dehands.be,
+  kleren verkocht*. Het model krijgt die omschrijving te zien bij elk pad dat
+  door die categorie loopt.
+- **Bevestig en corrigeer.** Elke bevestigde transactie wordt een voorbeeld:
+  haar tegenpartij verschijnt bij het pad, en ze kan als gelijkaardige
+  transactie opduiken. Vink bij een correctie ook *Deze keuze onthouden als
+  vaste regel* aan; dan hoeft het model er de volgende keer niet meer aan te
+  pas te komen.
+- **Laat de Brave-webopzoeking aanstaan** voor betalingen aan zaken met een
+  nietszeggende naam.
+- **Een groter model**, als je Ollama-server het aankan: `qwen2.5:14b` is
+  merkbaar sterker in Nederlands (ruwweg 9 GB geheugen, trager zonder
+  grafische kaart). Ook dan blijven omschrijvingen en voorbeelden de grootste
+  hefboom.
+- **Kijk de logboekregel na** van een fout voorstel: je ziet welke voorbeelden
+  en welke webinformatie het model had, en vaak meteen waarop het misging.
+
+Realistisch: wat bij het AI-model terechtkomt, is de moeilijkste rest — wat je
+regels en de gelijkenisstap niet konden indelen. Eenmalige overschrijvingen van
+particulieren zonder duidelijke mededeling blijven raden, voor elk model.
 
 ### Stap 4: met de hand
 

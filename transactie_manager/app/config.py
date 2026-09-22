@@ -7,7 +7,7 @@ import secrets
 from pathlib import Path
 
 APP_NAME = "Transactie Manager"
-VERSION = "0.23.0"
+VERSION = "0.24.0"
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -51,6 +51,7 @@ DEFAULT_SETTINGS = {
     "ai_actief": "0",
     "ai_basis_url": "http://homeassistant.local:11434",
     "ai_model": "llama3.1:8b",
+    "ai_contextvenster": "8192",
     "ai_zoeken_actief": "0",
     "munt": "EUR",
     "leer_van_bevestiging": "1",

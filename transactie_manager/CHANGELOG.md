@@ -4,6 +4,66 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.24.0] — 2026-09-22
+
+### Gewijzigd
+- **Het AI-model deelt nu in aan de hand van je eigen historiek.** Analyse van
+  drie foute voorstellen toonde telkens hetzelfde: het model kende jouw
+  indeling niet (restaurants staan onder *Hobby*, tweedehandsverkoop onder
+  *Kledij*), niet de Vlaamse context (*chiro* werd een chiropractor), en de
+  webopzoeking vond bij personen naamgenoten en merken. De vraag bestaat nu uit:
+  - **de paden die je in deze richting echt gebruikt**, alfabetisch, elk met
+    jouw omschrijving en tot drie tegenpartijen die je er eerder in zette. Voor
+    een inkomst dus geen *Dokter* of *Apotheek* meer, tenzij je daar ooit een
+    inkomst boekte. Heb je in een richting nog nauwelijks iets bevestigd, dan
+    de volledige boom;
+  - **de transactie, met de mededeling voorop**;
+  - **tot zes gelijkaardige eerdere transacties** uit je historiek, gezocht op
+    zeldzame woorden in tegenpartij en mededeling, in beide richtingen;
+  - **webinformatie alleen bij betalingen aan een zaak.** Bij overschrijvingen
+    wordt niet meer gezocht; het logboek zegt waarom.
+- **De bronnen hebben een vaste volgorde**: mededeling, gelijkaardige eerdere
+  transacties, webinformatie, naam. De regel uit 0.23.0 dat webinformatie de
+  belangrijkste bron was, is terug weg: ze liet het model een duidelijke
+  mededeling ("boekenreeks stephen king") negeren ten voordele van een
+  lingeriemerk met dezelfde voornaam.
+- **Weer één vraag in plaats van twee.** Een fout in de eerste stap
+  (*Gezondheid*) kon de tweede niet meer rechtzetten. Met de kortere,
+  verklaarde lijst is één stap weer haalbaar.
+- **De zekerheid komt niet meer van het model** (dat gaf "90%" bij drie foute
+  antwoorden op drie). Een AI-voorstel toont geen percentage meer. De uitleg
+  zegt wel of de keuze overeenkomt met een sterk gelijkende eerdere
+  transactie, of er juist van afwijkt.
+- **Een paar Vlaamse begrippen** in de spelregels: Chiro, KSA, KLJ en scouts zijn
+  jeugdbewegingen, een frituur is een snackbar. En: bij een inkomst betaalt
+  iemand jou.
+- De time-out voor een antwoord van het model gaat van 60 naar 300 seconden;
+  op een processor zonder grafische kaart duurt een grote vraag lang.
+
+### Toegevoegd
+- **Omschrijving per categorie** voor het AI-model (*Instellingen ›
+  Categorieën*, onderaan): trefwoorden die zeggen wat jij onder een categorie
+  verstaat. Ze staan in de boom achter de naam en gaan mee bij elk pad dat door
+  die categorie loopt. Versleuteld opgeslagen, zoals de naam. **Schemaversie
+  9**: kolom `omschrijving_enc` op de categorietabel; bestaande databanken
+  krijgen ze bij het opstarten.
+- **Contextvenster (tokens)** bij *Instellingen › Automatisch indelen*,
+  standaard 8192. Ollama gebruikt anders een klein standaardvenster en kort een
+  te lange vraag **stil** in — bij de lijst van bijna tweehonderd paden uit
+  0.22.0 viel er vermoedelijk een deel van de instructies weg. Past de vraag
+  niet, dan worden eerst de voorbeeldnamen ingekort en in het uiterste geval
+  alleen de meest gebruikte paden meegegeven.
+- **Het logboek toont per bevraging** of er op het web gezocht werd (en zo niet
+  waarom), hoeveel paden en voorbeelden meegingen, en hoeveel tokens de vraag
+  volgens Ollama telde, met de duur. Vult de vraag het venster, dan staat er een
+  waarschuwing bij.
+
+### Opgelost
+- **Tussenniveaus waarin je rechtstreeks indeelt, ontbraken in de keuzelijst.**
+  *Hobby › restaurant* heeft subcategorieën, en alleen de uiteinden werden
+  aangeboden. Een bar kon dus nooit bij *Hobby › restaurant* uitkomen.
+
+
 ## [0.23.0] — 2026-09-22
 
 ### Gewijzigd

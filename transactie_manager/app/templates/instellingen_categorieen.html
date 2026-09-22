@@ -5,7 +5,9 @@
 {% macro tak(cat) %}
   <li>
     <div class="catrij {{ 'uit-gebruik' if not cat.actief }}">
-      <span class="naam">{{ cat.naam }}</span>
+      <span class="naam">{{ cat.naam }}{% if cat.omschrijving %}
+        <span class="klein-detail" style="display:inline"> — {{ cat.omschrijving }}</span>
+      {% endif %}</span>
       <span class="gereedschap">
         <form method="post" style="display:inline">
           <input type="hidden" name="actie" value="verplaatsen">
@@ -112,6 +114,36 @@
       </div>
     </div>
     <button type="submit" class="stil">Naam aanpassen</button>
+  </form>
+</div>
+
+<div class="vlak" id="omschrijving">
+  <h2>Omschrijving voor het AI-model</h2>
+  <p>Wat jij onder een categorie verstaat, in een paar trefwoorden — vooral
+    waar de naam alleen het niet zegt. Bijvoorbeeld bij <em>Hobby › restaurant</em>:
+    <em>restaurant, café, bar, frituur, afhaal</em>; bij <em>Kinderen ›
+    Kinderhobbies</em>: <em>chiro, scouts, jeugdbeweging, muziekschool</em>.
+    Het lokale AI-model krijgt die omschrijving te zien bij elk pad dat door
+    deze categorie loopt. Leeg laten en bewaren wist ze.</p>
+  <form method="post" data-omschrijvingkiezer>
+    <input type="hidden" name="actie" value="omschrijving">
+    <div class="rooster">
+      <div class="veld">
+        <label for="omschrijving_id">Categorie</label>
+        <select id="omschrijving_id" name="id" required>
+          {% for k in keuzes %}
+            <option value="{{ k.id }}" data-omschrijving="{{ k.omschrijving }}">
+              {{ k.label }}{% if k.omschrijving %} ✎{% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="veld">
+        <label for="omschrijving_tekst">Omschrijving (max. 300 tekens)</label>
+        <input type="text" id="omschrijving_tekst" name="omschrijving" maxlength="300"
+               value="{{ keuzes[0].omschrijving if keuzes else '' }}">
+      </div>
+    </div>
+    <button type="submit" class="stil">Omschrijving bewaren</button>
   </form>
 </div>
 {% endblock %}

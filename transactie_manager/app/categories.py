@@ -22,6 +22,9 @@ class Categorie:
     volgorde: int
     actief: bool
     kinderen: list["Categorie"] = field(default_factory=list)
+    # Wat jij onder deze categorie verstaat, in trefwoorden. Gaat mee naar het
+    # AI-model.
+    omschrijving: str = ""
 
     @property
     def naam_genormaliseerd(self) -> str:
@@ -43,6 +46,8 @@ def laad_alles(conn, crypto, alleen_actief: bool = False) -> dict[int, Categorie
             naam=crypto.dec(row["naam_enc"]) or "",
             volgorde=row["volgorde"],
             actief=bool(row["actief"]),
+            omschrijving=(crypto.dec(row["omschrijving_enc"]) or ""
+                          if "omschrijving_enc" in row.keys() else ""),
         )
     return result
 
@@ -137,6 +142,7 @@ def keuzelijst(wortels: list[Categorie]) -> list[dict]:
             "soort": cat.soort,
             "label": ("\u00a0" * 4 * diepte) + cat.naam,
             "ouder_id": cat.ouder_id,
+            "omschrijving": cat.omschrijving,
         })
         for kind in cat.kinderen:
             loop(kind, diepte + 1)

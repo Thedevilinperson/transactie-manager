@@ -9,7 +9,7 @@ from flask import g
 
 from .config import DB_PATH, DEFAULT_SETTINGS
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS app_meta (
@@ -306,6 +306,13 @@ def _migreer(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE transacties ADD COLUMN kaartafrekening INTEGER")
     conn.execute("CREATE INDEX IF NOT EXISTS ix_tx_kaartafrekening"
                  " ON transacties(kaartafrekening)")
+
+    # Schemaversie 9: een categorie kan een omschrijving hebben — wat jij
+    # eronder verstaat, in trefwoorden. Die gaat mee naar het AI-model, dat
+    # anders alleen de naam heeft om op te raden.
+    catkolommen = {rij["name"] for rij in conn.execute("PRAGMA table_info(categorieen)")}
+    if "omschrijving_enc" not in catkolommen:
+        conn.execute("ALTER TABLE categorieen ADD COLUMN omschrijving_enc TEXT")
 
     # Schemaversie 5: een regel kan meer dan één voorwaarde hebben. Bestaande
     # regels houden hun ene voorwaarde in de regeltabel en krijgen hier niets.
