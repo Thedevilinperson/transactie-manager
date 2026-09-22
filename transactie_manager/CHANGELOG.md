@@ -4,6 +4,45 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.25.0] — 2026-09-22
+
+### Opgelost
+- **De gelijkenisstap (fuzzy) ging te ver en bevestigde dat zelf.** Een regel
+  "tegenpartij Axelle Huyge **én** *drinkgeld* in de mededeling" deelde daardoor
+  elke transactie van Axelle in bij *Kinderen › drinkgeld* — tandarts,
+  frietschap, Turijn — met "100% zeker" en automatisch bevestigd. Drie oorzaken
+  die elkaar versterkten:
+  - **regels met bijkomende voorwaarden of een bedragvork** gingen mee als
+    vergelijkingsmateriaal met alleen de naam. Ze doen daar niet meer mee; ze
+    werken alleen nog in de regelstap, precies zoals ze geschreven zijn;
+  - **transacties die een regel of de gelijkenisstap zelf had ingedeeld**
+    telden als geschiedenis, weer op naam alleen. Zo veralgemeende de motor
+    zijn eigen werk. Alleen wat een mens indeelde (met de hand, uit een
+    ingelezen historiek, of een bevestigd AI-voorstel) telt nog mee. Ook tijdens
+    een invoer stuurt wat de motor net indeelde de volgende rij niet meer;
+  - **een tegenpartij onder meer dan één categorie** werd niet als twijfelgeval
+    herkend: de zwaarste categorie won en werd automatisch bevestigd. Nu wordt
+    ze voorgesteld maar niet bevestigd, met de uitleg dat je zelf moet kiezen.
+- **Familieleden met dezelfde familienaam** belandden bij elkaars categorie:
+  *Daniel Huyge* kreeg met 91% *Pensioensparen* via een referentie "Huyge". Past
+  een naam in een andere, dan telt dat nu alleen als het eerste woord gelijk
+  is (*Delhaize* in *Delhaize Gent 1234* wel, *Huyge* in *Daniel Huyge* niet), en
+  zo'n gedeeltelijke treffer wordt nooit automatisch bevestigd.
+- **De richting telde niet mee**: een uitgave kon aan een inkomst van dezelfde
+  tegenpartij gekoppeld worden. Er wordt nu alleen binnen dezelfde richting
+  vergeleken.
+- De voorbeelden die het AI-model uit je historiek krijgt, bevatten geen
+  automatisch bevestigde gelijkenissen meer: niemand heeft die nagekeken.
+
+### Toegevoegd
+- **Opnieuw indelen › Automatisch bevestigde gelijkenissen opnieuw bekijken.**
+  Beoordeelt de transacties met bron *gelijkenis* die als bevestigd staan
+  opnieuw met de strengere motor. Een regel neemt over waar er een past; een
+  twijfelgeval gaat naar de voorstellen; wat nergens meer door gedragen wordt,
+  verliest zijn categorie en komt bij *Zonder categorie*. Zoals elke
+  herindeling begint dit met een kopie van de databank.
+
+
 ## [0.24.0] — 2026-09-22
 
 ### Gewijzigd

@@ -24,7 +24,20 @@ BEREIKEN = {
     "zonder_categorie": ("alleen transacties zonder categorie",
                          "categorie_id IS NULL AND status <> 'bevestigd'"),
     "onbevestigd": ("alles wat nog niet bevestigd is", "status <> 'bevestigd'"),
+    # Tot versie 0.25.0 kon de fuzzy stap zichzelf versterken en automatisch
+    # bevestigen wat niet klopte. Dit bereik laat die rijen opnieuw beoordelen
+    # met de strengere motor.
+    "gelijkenis_bevestigd": ("bevestigde transacties die door een gelijkenis zijn ingedeeld",
+                             "methode = 'fuzzy' AND status = 'bevestigd'"),
 }
+
+# Bereiken waarin een transactie waarvoor de motor niets meer vindt, haar
+# categorie verliest. In de andere bereiken blijft ze dan staan zoals ze stond:
+# daar gaat het om aanvullen, niet om intrekken.
+INTREKKEN = {"gelijkenis_bevestigd"}
+INGETROKKEN_TOELICHTING = ("De automatische gelijkenis is ingetrokken: er is geen "
+                           "regel of betrouwbare gelijkenis meer die deze indeling "
+                           "ondersteunt.")
 
 
 @dataclass
@@ -90,6 +103,14 @@ def voer_uit(conn, crypto, bereik: str = "zonder_categorie", taak=None) -> Uitsl
             uitslag.per_methode[voorstel.methode] += 1
         elif voorstel.gevonden:
             uitslag.ongewijzigd += 1
+        elif bereik in INTREKKEN:
+            werk_bij(
+                conn, crypto, tx.id,
+                categorie_id=None, subcategorie_id=None, subsub_id=None,
+                zekerheid=0.0, status="niet_toegewezen", methode="geen",
+                toelichting=INGETROKKEN_TOELICHTING, regel_id=None,
+            )
+            uitslag.per_methode["geen"] += 1
 
         if taak is not None and i % stap == 0:
             taak.vorder(i)

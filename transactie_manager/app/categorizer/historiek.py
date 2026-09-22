@@ -14,6 +14,11 @@ voorbeelden uit wat je zelf al bevestigd hebt:
   in tegenpartij en mededeling. Zeldzame woorden ("chiro", "donkere toren")
   wegen zwaar, alledaagse ("betaling", "gent") nauwelijks.
 
+Automatisch bevestigde gelijkenissen (methode *fuzzy*) tellen niet mee: die
+heeft niemand nagekeken, en een foute reeks zou zich anders als "zo deel jij
+in" aan het model voordoen. Wat een regel indeelde telt wel: een regel is jouw
+eigen keuze, en het voorbeeld toont de mededeling waarop ze paste.
+
 Alles staat versleuteld in de databank en moet dus ontsleuteld worden. Dat
 gebeurt één keer; het resultaat blijft in het geheugen tot er iets aan de
 bevestigde transacties verandert.
@@ -187,7 +192,8 @@ def laad(conn, crypto) -> Historiek:
         "SELECT richting, categorie_id, subcategorie_id, subsub_id,"
         " tegenpartij_naam_enc, handelaar_enc, begunstigde_enc, mededeling_enc"
         " FROM transacties WHERE status = 'bevestigd' AND categorie_id IS NOT NULL"
-        " AND is_afrekening = 0 ORDER BY boekdatum DESC, id DESC LIMIT ?",
+        " AND is_afrekening = 0 AND methode <> 'fuzzy'"
+        " ORDER BY boekdatum DESC, id DESC LIMIT ?",
         (MAX_TRANSACTIES,),
     ):
         r = h.richtingen.get(rij["richting"])

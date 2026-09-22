@@ -65,6 +65,16 @@
         Ook transacties die al een categorie hebben worden herbekeken. Bevestigde
         transacties blijven hoe dan ook staan.</label>
     </div>
+    <div class="keuzeregel" style="align-items:flex-start;margin-top:10px">
+      <input type="radio" id="bereik_gelijkenis" name="bereik" value="gelijkenis_bevestigd"
+             style="margin-top:4px">
+      <label for="bereik_gelijkenis"><strong>Automatisch bevestigde gelijkenissen
+        opnieuw bekijken.</strong> Transacties met bron <em>gelijkenis</em> die als
+        bevestigd staan. Vóór versie 0.25.0 kon de gelijkenisstap te ver gaan en
+        dat zelf bevestigen. Wat nu niet meer door een regel of een betrouwbare
+        gelijkenis gedragen wordt, verliest zijn categorie en komt bij
+        <em>Zonder categorie</em>; twijfelgevallen komen bij de voorstellen.</label>
+    </div>
 
     <p class="klein-detail" style="margin-top:12px">Let op: bij een herindeling
       gaat de bron van de toewijzing verloren. Een transactie die nu <em>met de

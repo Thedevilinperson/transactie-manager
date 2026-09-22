@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.24.0
+Versie 0.25.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -614,9 +614,32 @@ los van de indeling.
 ### Stap 2: fuzzy vergelijking
 
 Lukt stap 1 niet, dan vergelijkt de toepassing de naam van de tegenpartij met
-alles wat ze al kent: je eerder bevestigde transacties én je referentielijst.
-Die tweede bron is wat de motor bij een allereerste invoer al bruikbaar maakt,
-wanneer er nog geen geschiedenis is.
+wat ze al kent. Dat vergelijkingsmateriaal is bewust beperkt tot wat jij zelf
+hebt beslist:
+
+- **transacties die een mens heeft ingedeeld**: met de hand, uit een ingelezen
+  historiek, of een AI-voorstel dat je bevestigd hebt. Wat een regel of de
+  gelijkenisstap zelf indeelde, telt niet mee — anders veralgemeent de motor
+  zijn eigen werk;
+- **regels die enkel op de naam werken** (of op de gecombineerde sleutel), zoals
+  die uit je referentielijst. Die bron maakt de motor bij een allereerste
+  invoer al bruikbaar. Een regel met bijkomende voorwaarden of een bedragvork
+  doet hier níet mee: de gelijkenisstap vergelijkt alleen namen, en zou zo'n
+  regel ruimer toepassen dan hij bedoeld is. Een regel "Axelle Huyge én
+  *drinkgeld* in de mededeling" geldt dus alleen voor transacties met
+  *drinkgeld* in de mededeling, en niet voor alles van Axelle.
+
+Verder:
+
+- er wordt alleen vergeleken **binnen dezelfde richting**: een uitgave aan een
+  tegenpartij lijkt niet op een inkomst van diezelfde tegenpartij;
+- komt een tegenpartij in die richting onder **meer dan één categorie** voor,
+  dan stelt de gelijkenisstap wel iets voor, maar bevestigt ze niet zelf. De
+  uitleg zegt dan dat je zelf moet kiezen;
+- **een naam die in een andere past** telt alleen als het eerste woord gelijk
+  is. *Delhaize* past op *Delhaize Gent 1234* — zelfde zaak. *Huyge* past niet
+  op *Daniel Huyge* — alleen dezelfde familienaam. Zo'n gedeeltelijke treffer
+  wordt bovendien nooit automatisch bevestigd.
 
 Twee drempels bepalen wat er gebeurt, in te stellen bij **Instellingen ›
 Automatisch indelen**:
@@ -838,6 +861,18 @@ werk zit.
 **Alles wat nog niet bevestigd is** — ook transacties die al een categorie
 hebben worden herbekeken. Bevestigde transacties blijven hoe dan ook staan, en
 een treffer via een regel geldt als bevestigd.
+
+**Automatisch bevestigde gelijkenissen opnieuw bekijken** — transacties met bron
+*gelijkenis* die als bevestigd staan. Vóór versie 0.25.0 kon de gelijkenisstap
+te ver gaan: een regel met bijkomende voorwaarden werd op de naam alleen
+toegepast, en wat de motor zelf had ingedeeld versterkte de volgende gok. Met
+dit bereik worden die transacties opnieuw beoordeeld door de strengere motor.
+Past er een regel, dan neemt die het over; is er alleen nog een twijfelachtige
+gelijkenis, dan komt de transactie bij de voorstellen; is er niets meer, dan
+verliest ze haar categorie en komt ze bij *Zonder categorie*. Wat je zelf ooit
+met **Klopt** bevestigde, blijft normaal staan: bij die bevestiging werd een
+vaste regel bijgeleerd (tenzij je dat uitschakelde bij *Automatisch
+indelen*).
 
 Een regel uitzetten of verwijderen regelt zichzelf: zie *Een regel bewerken,
 uitzetten of verwijderen* hierboven.

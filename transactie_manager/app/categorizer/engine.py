@@ -30,12 +30,10 @@ try:  # snelle implementatie indien beschikbaar
     def _ratio(a: str, b: str) -> float:
         return float(_fuzz.WRatio(a, b))
 
-    def _beste(doel: str, kandidaten: list[str], drempel: float):
-        """Zoekt de beste kandidaat in één C-lus in plaats van in Python."""
-        treffer = _process.extractOne(
-            doel, kandidaten, scorer=_fuzz.WRatio, score_cutoff=drempel
-        )
-        return (treffer[2], treffer[1]) if treffer else None
+    def _besten(doel: str, kandidaten: list[str], drempel: float, aantal: int = 8):
+        """De beste kandidaten, in één C-lus in plaats van in Python."""
+        return [(t[2], t[1]) for t in _process.extract(
+            doel, kandidaten, scorer=_fuzz.WRatio, score_cutoff=drempel, limit=aantal)]
 except ImportError:  # terugval op de standaardbibliotheek
     _process = None
     from difflib import SequenceMatcher
@@ -43,13 +41,9 @@ except ImportError:  # terugval op de standaardbibliotheek
     def _ratio(a: str, b: str) -> float:
         return SequenceMatcher(None, a, b).ratio() * 100.0
 
-    def _beste(doel: str, kandidaten: list[str], drempel: float):
-        beste = None
-        for i, kandidaat in enumerate(kandidaten):
-            score = _ratio(doel, kandidaat)
-            if score >= drempel and (beste is None or score > beste[1]):
-                beste = (i, score)
-        return beste
+    def _besten(doel: str, kandidaten: list[str], drempel: float, aantal: int = 8):
+        scores = [(i, _ratio(doel, k)) for i, k in enumerate(kandidaten)]
+        return sorted((p for p in scores if p[1] >= drempel), key=lambda p: -p[1])[:aantal]
 
 
 # Regels die wel indelen maar altijd om bevestiging vragen.
@@ -302,29 +296,65 @@ class Referentie:
     bedrag_min: Decimal | None = None
     bedrag_max: Decimal | None = None
     onzeker: bool = False
+    # "in", "uit" of None (een regel zonder richting geldt voor beide).
+    richting: str | None = None
+    # Waarom deze referentie om nazicht vraagt: "referentie" (de regel wees
+    # in het categorieënbestand naar meer dan één categorie) of "meerdere"
+    # (deze tegenpartij komt in je geschiedenis onder meer dan één categorie
+    # voor).
+    onzeker_reden: str = ""
+
+
+# Alleen wat een mens heeft ingedeeld, telt als geschiedenis voor de fuzzy stap:
+# met de hand (manueel), uit een ingelezen historiek (bestand), of een
+# AI-voorstel dat je bevestigd hebt. Wat een regel of de fuzzy stap zelf
+# indeelde, telt niet mee. Dat werd vroeger wel gedaan, op de naam alleen, en
+# dan veralgemeende de motor zijn eigen werk: een regel "Axelle Huyge én
+# drinkgeld in de mededeling" deelde transacties in, die transacties werden
+# geschiedenis voor "Axelle Huyge", en daarna ging élke transactie van Axelle
+# automatisch naar drinkgeld — elke automatische bevestiging maakte de volgende
+# nog zekerder.
+MENSELIJKE_METHODEN = ("manueel", "bestand", "ai")
+
+# Een fuzzy treffer wordt alleen automatisch bevestigd als beide namen ongeveer
+# even lang zijn. Is de ene veel korter, dan past ze gewoon binnen de andere en
+# moet je het zelf nakijken. En dan alleen als het eerste woord gelijk is:
+# "Delhaize" in "Delhaize Gent" is dezelfde zaak, "Huyge" in "Daniel Huyge" is
+# alleen dezelfde familienaam.
+MIN_LENGTEVERHOUDING = 0.67
 
 
 def bouw_geschiedenis(conn, crypto, regels: list["Regel"] | None = None,
                       limiet: int = 8000) -> list[Referentie]:
     """Verzamelt vergelijkingsmateriaal voor de fuzzy stap.
 
-    Twee bronnen: eerder bevestigde transacties, en de regels die uit het
-    categorieënbestand zijn ingelezen. Die tweede bron is wat de motor bij een
-    allereerste invoer al bruikbaar maakt, wanneer er nog geen geschiedenis is.
+    Twee bronnen:
+
+    * transacties die een mens heeft ingedeeld (zie MENSELIJKE_METHODEN);
+    * regels die enkel op de naam van de tegenpartij (of de gecombineerde
+      sleutel) werken. Een regel met bijkomende voorwaarden of een bedragvork
+      doet niet mee: de fuzzy stap vergelijkt alleen namen, en zou zo'n regel
+      dus ruimer toepassen dan hij bedoeld is. Die regel doet zijn werk in de
+      regelstap, precies zoals hij geschreven is.
+
+    Komt een tegenpartij in dezelfde richting onder meer dan één categorie
+    voor, dan wordt ze als onzeker gemarkeerd: de fuzzy stap stelt dan wel iets
+    voor, maar bevestigt niet zelf.
     """
     verzameld: dict[tuple, Referentie] = {}
 
-    def voeg_toe(basis, cat, sub, subsub, handelaar, land, bedrag=None, gewicht=1,
-                 onzeker=False):
+    def voeg_toe(basis, cat, sub, subsub, handelaar, land, richting, bedrag=None,
+                 gewicht=1, onzeker=False):
         if not basis:
             return
-        sleutel = (basis, cat, sub, subsub)
+        sleutel = (basis, cat, sub, subsub, richting)
         ref = verzameld.get(sleutel)
         if ref is None:
             verzameld[sleutel] = Referentie(
                 tekst=basis, categorie_id=cat, subcategorie_id=sub, subsub_id=subsub,
                 handelaar=handelaar, land=land, aantal=gewicht,
                 bedrag_min=bedrag, bedrag_max=bedrag, onzeker=onzeker,
+                richting=richting, onzeker_reden="referentie" if onzeker else "",
             )
         else:
             ref.aantal += gewicht
@@ -332,22 +362,26 @@ def bouw_geschiedenis(conn, crypto, regels: list["Regel"] | None = None,
                 ref.bedrag_min = bedrag if ref.bedrag_min is None else min(ref.bedrag_min, bedrag)
                 ref.bedrag_max = bedrag if ref.bedrag_max is None else max(ref.bedrag_max, bedrag)
 
+    plaatsen = ",".join("?" * len(MENSELIJKE_METHODEN))
     rows = conn.execute(
-        "SELECT tegenpartij_naam_enc, handelaar_enc, land_enc, bedrag_enc,"
+        "SELECT tegenpartij_naam_enc, handelaar_enc, land_enc, bedrag_enc, richting,"
         " categorie_id, subcategorie_id, subsub_id"
         " FROM transacties WHERE status='bevestigd' AND categorie_id IS NOT NULL"
+        f" AND methode IN ({plaatsen})"
         " ORDER BY id DESC LIMIT ?",
-        (limiet,),
+        (*MENSELIJKE_METHODEN, limiet),
     ).fetchall()
     for row in rows:
         naam = crypto.dec(row["tegenpartij_naam_enc"]) or ""
         handelaar = crypto.dec(row["handelaar_enc"])
         voeg_toe(normalize(handelaar or naam), row["categorie_id"], row["subcategorie_id"],
                  row["subsub_id"], handelaar or naam, crypto.dec(row["land_enc"]),
-                 abs(crypto.dec_amount(row["bedrag_enc"])), gewicht=2)
+                 row["richting"], abs(crypto.dec_amount(row["bedrag_enc"])), gewicht=2)
 
     for regel in (regels or []):
         if regel.categorie_id is None:
+            continue
+        if regel.extra or regel.bedrag_min is not None or regel.bedrag_max is not None:
             continue
         if regel.veld == "sleutel":
             # Alleen het tegenpartijdeel is bruikbaar om op te vergelijken.
@@ -357,8 +391,25 @@ def bouw_geschiedenis(conn, crypto, regels: list["Regel"] | None = None,
         else:
             continue
         voeg_toe(basis, regel.categorie_id, regel.subcategorie_id, regel.subsub_id,
-                 regel.handelaar, regel.land,
+                 regel.handelaar, regel.land, regel.richting,
                  onzeker=regel.herkomst in ONZEKERE_HERKOMSTEN)
+
+    # Tegenpartijen die in dezelfde richting onder meer dan één categorie staan.
+    # Een referentie zonder richting (van een regel) telt in beide mee.
+    per_naam: dict[str, list[Referentie]] = {}
+    for ref in verzameld.values():
+        per_naam.setdefault(ref.tekst, []).append(ref)
+    for refs in per_naam.values():
+        if len(refs) < 2:
+            continue
+        for richting in ("in", "uit"):
+            hier = [r for r in refs if r.richting in (richting, None)]
+            paden = {(r.categorie_id, r.subcategorie_id, r.subsub_id) for r in hier}
+            if len(paden) > 1:
+                for r in hier:
+                    if not r.onzeker:
+                        r.onzeker = True
+                        r.onzeker_reden = "meerdere"
 
     return sorted(verzameld.values(), key=lambda r: -r.aantal)
 
@@ -370,18 +421,30 @@ def fuzzy_voorstel(geschiedenis: list[Referentie], kandidaten: list[str],
     if not doel or not kandidaten:
         return None
 
-    treffer = _beste(doel, kandidaten, suggestie_drempel)
+    treffer = None
+    for index, score in _besten(doel, kandidaten, suggestie_drempel):
+        ref = geschiedenis[index]
+        lengtes = sorted((len(doel), len(ref.tekst)))
+        gedeeltelijk = bool(lengtes[1]) and lengtes[0] / lengtes[1] < MIN_LENGTEVERHOUDING
+        if gedeeltelijk and doel.split()[:1] != ref.tekst.split()[:1]:
+            # De kortere naam past in de langere, maar niet vooraan: dan is het
+            # gedeelde stuk meestal een familienaam ("Huyge" in "Axelle Huyge"),
+            # en dat zegt niets. Bij een winkel is het gedeelde stuk net het
+            # eerste woord ("Delhaize" in "Delhaize Gent 1234").
+            continue
+        treffer = (index, score, gedeeltelijk)
+        break
     if treffer is None:
         return None
 
-    index, score = treffer
+    index, score, gedeeltelijk = treffer
     ref = geschiedenis[index]
     # Herhaalde bevestigingen wegen licht door.
     score = min(100.0, score + min(ref.aantal, 10) * 0.3)
     zeker = score / 100.0
     naam = ref.handelaar or ref.tekst
 
-    if score >= auto_drempel and not ref.onzeker:
+    if score >= auto_drempel and not ref.onzeker and not gedeeltelijk:
         return Voorstel(
             categorie_id=ref.categorie_id, subcategorie_id=ref.subcategorie_id,
             subsub_id=ref.subsub_id, handelaar=ref.handelaar, land=ref.land,
@@ -393,8 +456,11 @@ def fuzzy_voorstel(geschiedenis: list[Referentie], kandidaten: list[str],
             categorie_id=ref.categorie_id, subcategorie_id=ref.subcategorie_id,
             subsub_id=ref.subsub_id, handelaar=ref.handelaar, land=ref.land,
             zekerheid=round(min(zeker, 0.6), 3), methode="fuzzy", status="nazicht",
-            toelichting=f"{naam} staat in de referentielijst onder meer dan één "
-                        "categorie. Kies zelf welke hier past.",
+            toelichting=(f"{naam} komt in je geschiedenis onder meer dan één "
+                         "categorie voor. Kies zelf welke hier past."
+                         if ref.onzeker_reden == "meerdere" else
+                         f"{naam} staat in de referentielijst onder meer dan één "
+                         "categorie. Kies zelf welke hier past."),
         )
     return Voorstel(
         categorie_id=ref.categorie_id, subcategorie_id=ref.subcategorie_id,
@@ -475,7 +541,7 @@ class Motor:
         self.regelboek = Regelboek(self.regels)
 
         self.geschiedenis = bouw_geschiedenis(conn, crypto, self.regels)
-        self.kandidaten = [ref.tekst for ref in self.geschiedenis]
+        self._verdeel()
         self.auto_drempel = float(instelling(conn, "fuzzy_auto_drempel", "92"))
         self.suggestie_drempel = float(instelling(conn, "fuzzy_suggestie_drempel", "72"))
 
@@ -485,7 +551,8 @@ class Motor:
         if beste is not None:
             return naar_voorstel(beste)
 
-        voorstel = fuzzy_voorstel(self.geschiedenis, self.kandidaten, k,
+        refs, teksten = self.per_richting.get(k.richting, ([], []))
+        voorstel = fuzzy_voorstel(refs, teksten, k,
                                   self.auto_drempel, self.suggestie_drempel)
         if voorstel is not None:
             return voorstel
@@ -495,21 +562,46 @@ class Motor:
             toelichting="Geen regel of gelijkaardige transactie gevonden.",
         )
 
+    def _verdeel(self) -> None:
+        """Per richting de referenties die er gelden: een uitgave vergelijken
+        met een inkomst van dezelfde tegenpartij heeft geen zin. Referenties
+        zonder richting (van regels) gelden in beide."""
+        self.per_richting = {}
+        for richting in ("in", "uit"):
+            refs = [r for r in self.geschiedenis if r.richting in (richting, None)]
+            self.per_richting[richting] = (refs, [r.tekst for r in refs])
+
     def onthoud(self, k: TransactieKenmerken, voorstel: Voorstel) -> None:
-        """Voegt een bevestigde toewijzing toe aan het vergelijkingsmateriaal."""
-        if not voorstel.gevonden or voorstel.status != "bevestigd":
+        """Voegt een indeling tijdens een invoer toe aan het vergelijkingsmateriaal.
+
+        Alleen als ze van een mens komt (een ingelezen historiek met categorie).
+        Wat de motor zelf net indeelde, mag de volgende rij van dezelfde invoer
+        niet sturen — anders versterkt één gok zichzelf over het hele bestand.
+        """
+        if (not voorstel.gevonden or voorstel.status != "bevestigd"
+                or voorstel.methode not in MENSELIJKE_METHODEN):
             return
         basis = normalize(voorstel.handelaar or k.tegenpartij_naam)
         if not basis:
             return
         for ref in self.geschiedenis:
             if (ref.tekst == basis and ref.categorie_id == voorstel.categorie_id
-                    and ref.subcategorie_id == voorstel.subcategorie_id):
+                    and ref.subcategorie_id == voorstel.subcategorie_id
+                    and ref.richting == k.richting):
                 ref.aantal += 1
                 return
-        self.geschiedenis.append(Referentie(
+        andere = [r for r in self.geschiedenis if r.tekst == basis
+                  and r.richting in (k.richting, None)]
+        nieuw = Referentie(
             tekst=basis, categorie_id=voorstel.categorie_id,
             subcategorie_id=voorstel.subcategorie_id, subsub_id=voorstel.subsub_id,
             handelaar=voorstel.handelaar or k.tegenpartij_naam, land=voorstel.land,
-        ))
-        self.kandidaten.append(basis)
+            richting=k.richting,
+        )
+        if andere:
+            # Nu staat deze tegenpartij onder meer dan één categorie.
+            for r in andere + [nieuw]:
+                if not r.onzeker:
+                    r.onzeker, r.onzeker_reden = True, "meerdere"
+        self.geschiedenis.append(nieuw)
+        self._verdeel()
