@@ -1,17 +1,21 @@
-"""Instellingen die leesbaar moeten zijn vóór iemand aangemeld is.
+"""Instellingen die leesbaar moeten zijn vóór iemand aangemeld is, en losse
+geheimen die niet in de gewone (onversleutelde) instellingentabel horen.
 
 Voor het versturen van een herstelcode is er een probleem van volgorde: je hebt
 de SMTP-gegevens en het e-mailadres nodig op een moment dat er nog niemand
 aangemeld is, en dus geen datasleutel in het geheugen zit. Die gegevens kunnen
-daarom niet met de datasleutel versleuteld worden.
+daarom niet met de datasleutel versleuteld worden. De Brave API-sleutel heeft
+dat probleem niet — de webopzoeking gebeurt altijd terwijl iemand aangemeld
+is — maar hoort om dezelfde reden niet in platte tekst in de instellingentabel:
+het is een geheim, geen voorkeur.
 
 Ze staan versleuteld met een aparte sleutel die naast de databank op schijf
 ligt, in `lokaal.key`. Dat beschermt tegen een losse kopie van het
 databankbestand, niet tegen iemand die bij de hele datamap kan. Het gaat hier
-bewust alleen om het adres waarnaar een code gestuurd wordt en het
-app-wachtwoord van de mailserver — niet om je financiële gegevens. Die blijven
-versleuteld met de sleutel die alleen jouw wachtwoord of je herstelsleutel
-opent.
+bewust alleen om het adres waarnaar een code gestuurd wordt, het
+app-wachtwoord van de mailserver en de Brave API-sleutel — niet om je
+financiële gegevens. Die blijven versleuteld met de sleutel die alleen jouw
+wachtwoord of je herstelsleutel opent.
 """
 
 from __future__ import annotations
@@ -83,4 +87,5 @@ STANDAARD = {
     "smtp_gebruiker": "",
     "smtp_wachtwoord": "",
     "smtp_afzender": "",
+    "brave_api_key": "",
 }

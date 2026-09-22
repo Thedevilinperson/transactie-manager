@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.19.0
+Versie 0.20.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -611,10 +611,13 @@ Aanzetten bij **Instellingen › Automatisch indelen**. Vul het adres van je
 Ollama-server in en de naam van het model, bijvoorbeeld `llama3.1:8b`. Met
 **Verbinding testen** zie je meteen welke modellen klaarstaan.
 
-Je kan het model ook eerst het web laten raadplegen over de tegenpartij. Dat
-helpt bij namen die je zelf niet herkent. Houd er rekening mee dat de naam van
-de tegenpartij daarbij je netwerk verlaat; laat dit uit als je dat liever niet
-hebt.
+Je kan het model ook eerst Brave Search laten raadplegen over de tegenpartij.
+Dat helpt bij namen die je zelf niet herkent. Daarvoor heb je een gratis
+Brave API-sleutel nodig (aan te maken op
+[api-dashboard.search.brave.com](https://api-dashboard.search.brave.com/app/keys)),
+in te vullen bij **Instellingen › Automatisch indelen**. Houd er rekening mee
+dat de naam van de tegenpartij daarbij je netwerk verlaat — naar Brave, niet
+naar het AI-model zelf; laat de schakelaar uit als je dat liever niet hebt.
 
 Een voorstel van het model moet je altijd bevestigen. Je vraagt het aan per
 transactie, met de knop **Vraag het model** in het nazicht, of met **Vraag het
@@ -653,9 +656,9 @@ handig en gratis, maar raadt geregeld mis bij een tegenpartijnaam die niets
 over de aard van de zaak zegt — de naam van een winkel of dienstverlener zegt
 een taalmodel vaak niets. Wat helpt:
 
-- **Zet de webopzoeking aan** (hierboven) als de tegenpartijnaam op zich niet
-  duidelijk maakt wat voor zaak het is. Het model krijgt er dan een stukje
-  zoekresultaat bij.
+- **Zet de Brave-webopzoeking aan** (hierboven, met een API-sleutel) als de
+  tegenpartijnaam op zich niet duidelijk maakt wat voor zaak het is. Het
+  model krijgt er dan een stukje zoekresultaat bij.
 - **Corrigeer een fout voorstel en vink "Deze keuze onthouden als vaste
   regel" aan.** Daarna herkent de fuzzy stap dezelfde tegenpartij meteen goed,
   zonder het AI-model nog te hoeven bevragen — hoe meer je op deze manier
@@ -909,13 +912,16 @@ letters I, L, O en U komen niet voor in het alfabet: lees ze als 1, 1, 0 en V.
 Een nieuwe sleutel maken kan bij **Instellingen › Herstel en e-mail**. De oude
 werkt daarna niet meer.
 
-### Waar de mailgegevens staan
+### Waar de mailgegevens en de Brave-sleutel staan
 
 Het herstelmailadres en het app-wachtwoord van de mailserver moeten leesbaar
 zijn op het moment dat je je wachtwoord kwijt bent, dus voor je aangemeld bent.
 Ze kunnen daarom niet met je datasleutel versleuteld worden en staan versleuteld
-met een aparte sleutel in `lokaal.key`, naast de databank. Wie bij die map kan,
-kan bij je mailadres en dat app-wachtwoord — maar niet bij je transacties.
+met een aparte sleutel in `lokaal.key`, naast de databank. De Brave API-sleutel
+staat om dezelfde reden — het is een geheim, geen transactiegegeven — in
+diezelfde `lokaal.key`, ook al is daar strikt genomen geen aanmeldvolgorde
+voor nodig. Wie bij die map kan, kan bij je mailadres, dat app-wachtwoord en
+je Brave-sleutel — maar niet bij je transacties.
 
 ### Back-up
 

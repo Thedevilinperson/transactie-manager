@@ -3,8 +3,8 @@
 Er wordt gepraat met een Ollama-server (of een compatibele server met hetzelfde
 `/api/chat`-eindpunt). Het model krijgt de transactiegegevens en de lijst met
 toegelaten categoriepaden, en moet één pad kiezen — of aangeven dat het te
-onzeker is. Optioneel wordt eerst een korte webopzoeking gedaan om te
-achterhalen wat voor zaak de tegenpartij is.
+onzeker is. Optioneel wordt eerst een korte opzoeking via de Brave Search API
+gedaan om te achterhalen wat voor zaak de tegenpartij is.
 
 Een voorstel uit deze stap komt altijd op status "nazicht": de gebruiker moet
 het bevestigen, net zoals bij een fuzzy suggestie. Elke bevraging — vraag,
@@ -23,9 +23,11 @@ import urllib.request
 from ..categories import boom, keuzelijst
 from ..crypto import normalize
 from ..database import instelling, log
+from .. import lokaal
 from .engine import TransactieKenmerken, Voorstel
 
 TIMEOUT = 60
+BRAVE_ZOEK_URL = "https://api.search.brave.com/res/v1/web/search"
 
 # Nummer waarmee het model kan aangeven dat geen enkele categorie goed genoeg
 # past, in plaats van de minst slechte te raden.
@@ -66,20 +68,38 @@ def test_verbinding(conn) -> tuple[bool, str]:
 
 
 def _webcontext(conn, zoekterm: str) -> str:
-    """Haalt een paar regels tekst op over de tegenpartij. Faalt stil."""
+    """Haalt een paar zoekresultaten op over de tegenpartij, via de Brave
+    Search API. Faalt stil: geen sleutel ingesteld, geen bereikbare server of
+    een andere fout levert gewoon geen context op, en de bevraging van het
+    AI-model gaat gewoon door zonder die context."""
     if instelling(conn, "ai_zoeken_actief", "0") != "1" or not zoekterm:
         return ""
-    url = instelling(conn, "ai_zoek_url") + urllib.parse.quote_plus(zoekterm + " winkel bedrijf")
+    sleutel = lokaal.lees(conn, "brave_api_key")
+    if not sleutel:
+        return ""
+    url = BRAVE_ZOEK_URL + "?" + urllib.parse.urlencode({
+        "q": zoekterm + " winkel bedrijf",
+        "count": 5,
+    })
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "transactie-manager/0.1"})
+        req = urllib.request.Request(url, headers={
+            "Accept": "application/json",
+            "X-Subscription-Token": sleutel,
+        })
         with urllib.request.urlopen(req, timeout=15) as resp:
-            html = resp.read(200_000).decode("utf-8", errors="ignore")
+            data = json.loads(resp.read().decode("utf-8"))
     except Exception:  # noqa: BLE001
         return ""
-    tekst = re.sub(r"<script.*?</script>|<style.*?</style>", " ", html, flags=re.S | re.I)
-    tekst = re.sub(r"<[^>]+>", " ", tekst)
-    tekst = re.sub(r"\s+", " ", tekst)
-    return tekst[:1200]
+
+    resultaten = ((data.get("web") or {}).get("results") or [])[:5]
+    stukken = []
+    for r in resultaten:
+        titel = re.sub(r"<[^>]+>", "", r.get("title") or "").strip()
+        beschrijving = re.sub(r"<[^>]+>", "", r.get("description") or "").strip()
+        regel = " — ".join(deel for deel in (titel, beschrijving) if deel)
+        if regel:
+            stukken.append(regel)
+    return "\n".join(stukken)[:1200]
 
 
 def _paden(conn, crypto, richting: str) -> list[tuple[str, tuple]]:

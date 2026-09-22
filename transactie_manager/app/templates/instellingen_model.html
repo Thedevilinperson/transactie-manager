@@ -58,14 +58,24 @@
     <div class="keuzeregel">
       <input type="checkbox" id="ai_zoeken_actief" name="ai_zoeken_actief" value="1"
              {{ 'checked' if waarden.ai_zoeken_actief == '1' }}>
-      <label for="ai_zoeken_actief">Eerst het web raadplegen over de tegenpartij</label>
+      <label for="ai_zoeken_actief">Eerst Brave Search raadplegen over de tegenpartij</label>
     </div>
     <div class="veld" style="margin-top:10px">
-      <label for="ai_zoek_url">Zoekadres (de zoekterm wordt achteraan geplakt)</label>
-      <input type="url" id="ai_zoek_url" name="ai_zoek_url" value="{{ waarden.ai_zoek_url }}">
+      <label for="brave_api_key">Brave API-sleutel</label>
+      <input type="password" id="brave_api_key" name="brave_api_key"
+             autocomplete="new-password"
+             placeholder="{{ 'ingesteld, laat leeg om te behouden'
+                             if waarden.brave_api_key else '' }}">
     </div>
-    <p class="klein-detail">Met webopzoeking verlaat de naam van de tegenpartij je
-      netwerk. Laat dit uit als je dat liever niet hebt.</p>
+    <p class="klein-detail">Sleutel aanmaken op
+      <a href="https://api-dashboard.search.brave.com/app/keys" target="_blank"
+         rel="noopener">api-dashboard.search.brave.com</a>. Met webopzoeking
+      verlaat de naam van de tegenpartij je netwerk (naar Brave, niet naar het
+      AI-model zelf). Laat dit uit als je dat liever niet hebt.
+      {% if waarden.ai_zoeken_actief == '1' and not waarden.brave_api_key %}
+        <br>Deze optie staat aan maar er is nog geen sleutel ingevuld — zolang
+        die ontbreekt, wordt er gewoon niets opgezocht.
+      {% endif %}</p>
   </div>
 
   <div class="knoppen">

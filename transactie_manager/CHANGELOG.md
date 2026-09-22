@@ -4,6 +4,30 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.20.0] — 2026-09-21
+
+### Gewijzigd
+- **De webopzoeking bij het AI-model gebruikt nu de Brave Search API in
+  plaats van een DuckDuckGo-zoekopdracht.** DuckDuckGo herkende de
+  opzoekingen van de add-on als bot-verkeer en toonde een
+  captcha-uitdaging ("selecteer alle vakjes met een eend") in plaats van
+  zoekresultaten; die tekst kwam vervolgens als "context" bij het model
+  terecht en hielp dus niet. Brave's API vraagt in plaats daarvan een
+  sleutel, geen menselijke herkenningstest.
+- Het veld **Zoekadres** bij *Instellingen › Automatisch indelen* is vervangen
+  door **Brave API-sleutel** — een wachtwoordveld naar het voorbeeld van het
+  SMTP-wachtwoord: leeg laten behoudt de bestaande sleutel. De sleutel staat,
+  net als het SMTP-wachtwoord, versleuteld met de lokale sleutel in
+  `lokaal.key` en dus niet in de gewone instellingentabel.
+- Staat **Eerst Brave Search raadplegen** aan zonder dat er een sleutel is
+  ingevuld, dan meldt het scherm dat expliciet in plaats van stilzwijgend
+  niets op te zoeken.
+
+### Verwijderd
+- De instelling `ai_zoek_url` (en de standaardwaarde die naar DuckDuckGo
+  wees) is vervallen.
+
+
 ## [0.19.0] — 2026-09-21
 
 ### Toegevoegd

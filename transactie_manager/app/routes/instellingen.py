@@ -535,12 +535,16 @@ def model():
             gelukt, boodschap = test_verbinding(conn)
             flash(boodschap, "goed" if gelukt else "fout")
             return redirect(url_for("instellingen.model"))
-        for sleutel in ("ai_basis_url", "ai_model", "ai_zoek_url",
+        for sleutel in ("ai_basis_url", "ai_model",
                         "fuzzy_auto_drempel", "fuzzy_suggestie_drempel"):
             if sleutel in request.form:
                 zet_instelling(conn, sleutel, request.form[sleutel].strip())
         for schakelaar in ("ai_actief", "ai_zoeken_actief", "leer_van_bevestiging"):
             zet_instelling(conn, schakelaar, "1" if request.form.get(schakelaar) else "0")
+        # Een leeg sleutelveld laat de bestaande Brave API-sleutel staan.
+        nieuwe_sleutel = request.form.get("brave_api_key", "")
+        if nieuwe_sleutel:
+            lokaal.schrijf(conn, "brave_api_key", nieuwe_sleutel)
         conn.commit()
         flash("Instellingen opgeslagen.", "goed")
         return redirect(url_for("instellingen.model"))
@@ -548,9 +552,10 @@ def model():
     waarden = {
         sleutel: instelling(conn, sleutel)
         for sleutel in ("ai_actief", "ai_basis_url", "ai_model", "ai_zoeken_actief",
-                        "ai_zoek_url", "fuzzy_auto_drempel", "fuzzy_suggestie_drempel",
+                        "fuzzy_auto_drempel", "fuzzy_suggestie_drempel",
                         "leer_van_bevestiging")
     }
+    waarden["brave_api_key"] = lokaal.lees(conn, "brave_api_key")
     return render_template("instellingen_model.html", waarden=waarden, boodschap=boodschap)
 
 
