@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.22.0
+Versie 0.23.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -659,19 +659,51 @@ is het aannemelijk, 30% of minder is een gok — dan staat er ook *Het model
 twijfelt* bij de uitleg. Je beslist zelf of je het overneemt; bevestigd wordt
 er nooit iets zonder jou.
 
-Hoe het model tot een keuze komt:
+Hoe het model tot een keuze komt — in twee korte stappen in plaats van één
+lange lijst:
 
-- het beschrijft eerst in een zin of twee wat voor zaak de tegenpartij is en
-  waarom het dat pad kiest (die uitleg zie je bij het voorstel);
-- het geeft zowel het nummer als de volledige tekst van het gekozen pad. Een
-  klein model verspringt bij een lange lijst al eens een nummer terwijl de
-  tekst wel klopt; staat de tekst letterlijk in de lijst, dan gaat die voor;
+1. **Hoofdcategorie.** Het model krijgt de transactie, met de webinformatie
+   bovenaan als belangrijkste bron, en een lijst met je hoofdcategorieën. Achter
+   elke hoofdcategorie staat wat eronder valt, zodat het ziet dat bijvoorbeeld
+   *Elektriciteit & Verlichting* onder *Huis › verbouwingen* hangt. Het
+   beschrijft eerst wat voor zaak de tegenpartij is en wat er vermoedelijk
+   betaald werd, en kiest dan de hoofdcategorie.
+2. **Pad.** Daarna krijgt het alleen de paden binnen die hoofdcategorie te zien,
+   samen met zijn eigen beschrijving uit stap 1, en kiest het het volledige pad.
+   Heeft de hoofdcategorie maar één pad, dan valt deze stap weg.
+
+Waarom zo: een klein model begrijpt vaak prima wat voor zaak het is, maar kiest
+in een lijst van honderden paden dan toch op een toevallig woord — "online
+winkel" werd zo *Vakantie › Shopping* in plaats van *Huis › verbouwingen ›
+Elektriciteit & Verlichting*. Twee korte lijsten houden het bij de les. Geeft
+stap 1 geen bruikbaar antwoord, dan kiest het model in stap 2 uit de volledige
+lijst, zoals vroeger.
+
+De spelregels die het model meekrijgt:
+
+- de **webinformatie** is de belangrijkste bron over wat voor zaak het is;
+- deel in volgens **wát** er gekocht werd, niet hoe of waar: *online*,
+  *webshop*, *shopping*, *eCommerce* of *betaalkaart* zeggen niets over de
+  categorie. De soort verrichting gaat daarom mee met de vermelding dat ze
+  zegt hoe er betaald werd, niet waarvoor;
+- een **vakantie**categorie alleen als de transactie zelf op een reis wijst
+  (hotel, camping, tol onderweg…). Een buitenlandse webshop is geen vakantie;
+- altijd één keuze, met een eerlijke zekerheid. De zekerheid van het voorstel
+  is de laagste van de twee stappen;
+- nummer én tekst van de keuze. Een klein model verspringt al eens een nummer
+  terwijl de tekst wel klopt; staat de tekst letterlijk in de lijst, dan gaat
+  die voor.
+
+Verder:
+
 - een **land** wordt alleen overgenomen als het gekozen pad onder een
-  vakantie- of reiscategorie valt. Het land waar een winkel of webshop
-  gevestigd is, is geen land van bestemming;
+  vakantie- of reiscategorie valt;
 - namen die in het bankbestand met spaties zijn opgevuld (`LedLoket      Denekamp`)
   worden eerst opgekuist, zowel in de vraag aan het model als in de
-  zoekopdracht naar Brave.
+  zoekopdracht naar Brave;
+- een categorie die letterlijk *Hoofdcategorie* heet — de kopregel van een
+  ingelezen categorieënbestand — wordt niet aan het model voorgelegd. Je kan ze
+  zelf verwijderen bij **Instellingen › Categorieën**.
 
 Staat **Het model mag bevraagd worden** uit, dan zie je nergens een knop om het
 te bevragen — dat is bewust: zo verlaat er nooit ongemerkt transactiedata je
@@ -683,8 +715,8 @@ ook zelf naartoe zolang hij uitstaat.
 
 Elke bevraging komt in het logboek terecht (**Instellingen › Logboek**, onder
 **ai bevraagd**): de volledige systeeminstructie en vraag zoals ze naar het
-model gingen — inclusief de genummerde lijst met toegelaten categorieën — het
-ruwe antwoord van het model, en het uiteindelijke resultaat. Dat geldt ook
+model gingen — per stap, met de lijst die het model op dat moment te zien
+kreeg — het ruwe antwoord van het model, en het uiteindelijke resultaat. Dat geldt ook
 wanneer het model geen bruikbaar antwoord gaf. Zo kan je precies
 nagaan waarom een voorstel fout zat.
 

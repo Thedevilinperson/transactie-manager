@@ -1,15 +1,27 @@
 """Stap 3: voorstel door een lokaal AI-model.
 
 Er wordt gepraat met een Ollama-server (of een compatibele server met hetzelfde
-`/api/chat`-eindpunt). Het model krijgt de transactiegegevens en de lijst met
-toegelaten categoriepaden, en moet altijd één pad kiezen; hoe zeker het is,
-geeft het apart op. Optioneel wordt eerst een korte opzoeking via de Brave Search API
-gedaan om te achterhalen wat voor zaak de tegenpartij is.
+`/api/chat`-eindpunt). Optioneel wordt eerst via de Brave Search API opgezocht
+wat voor zaak de tegenpartij is; die webinformatie is dan de belangrijkste bron
+voor het model.
+
+De keuze gebeurt in twee kleine stappen in plaats van één grote:
+
+1. **Hoofdcategorie.** Het model beschrijft wat voor zaak de tegenpartij is en
+   wat er vermoedelijk betaald werd, en kiest daarna één hoofdcategorie uit een
+   korte lijst (met de subcategorieën erbij als uitleg).
+2. **Pad.** Binnen die hoofdcategorie kiest het het volledige pad.
+
+Een klein model (7B) haalt bij één lijst van honderden paden de mist in: het
+begrijpt de zaak wel, maar kiest dan op een toevallig woord ("online winkel" →
+"Shopping") in plaats van op wat er gekocht werd. Twee korte lijsten houden
+het bij de les. Het model kiest altijd een pad; twijfel drukt het uit in de
+zekerheid.
 
 Een voorstel uit deze stap komt altijd op status "nazicht": de gebruiker moet
-het bevestigen, net zoals bij een fuzzy suggestie. Elke bevraging — vraag,
-ruw antwoord en resultaat — wordt in het logboek gezet (versleuteld, net als
-de rest van dat logboek), zodat je kan nakijken wat er precies gebeurd is.
+het bevestigen, net zoals bij een fuzzy suggestie. Elke bevraging — per stap de
+vraag en het ruwe antwoord, en het resultaat — wordt in het logboek gezet
+(versleuteld, net als de rest van dat logboek).
 """
 
 from __future__ import annotations
@@ -109,11 +121,21 @@ def _webcontext(conn, zoekterm: str) -> str:
     return "\n".join(stukken)[:1200]
 
 
+# De kopregel van een categorieënbestand ("Hoofdcategorie / Categorie /
+# Subcategorie") die als categorie mee is ingelezen. Voor het model is dat
+# ruis: het is geen echte keuze.
+PLAATSHOUDERS = {"hoofdcategorie"}
+
+
+def _wortels(conn, crypto, richting: str):
+    return [w for w in boom(conn, crypto, soort=richting, alleen_actief=True)
+            if normalize(w.naam) not in PLAATSHOUDERS]
+
+
 def _paden(conn, crypto, richting: str) -> list[tuple[str, tuple]]:
     """Alle toegelaten categoriepaden als (leesbaar pad, id-tupel)."""
-    wortels = boom(conn, crypto, soort=richting, alleen_actief=True)
     resultaat: list[tuple[str, tuple]] = []
-    for hoofd in wortels:
+    for hoofd in _wortels(conn, crypto, richting):
         if not hoofd.kinderen:
             resultaat.append((hoofd.naam, (hoofd.id, None, None)))
         for sub in hoofd.kinderen:
@@ -127,31 +149,154 @@ def _paden(conn, crypto, richting: str) -> list[tuple[str, tuple]]:
     return resultaat
 
 
-SYSTEEM = (
-    "Je bent een boekhoudkundige assistent voor een Belgisch huishouden. Je krijgt "
-    "één banktransactie en een genummerde lijst met toegelaten categoriepaden.\n"
-    "Werkwijze:\n"
-    "1. Bepaal eerst wat voor zaak de tegenpartij is en wat er vermoedelijk gekocht "
-    "of betaald werd. Gebruik daarvoor de naam, de mededeling, het bedrag en — als "
-    "die er is — de informatie van het web.\n"
-    "2. Kies daarna het categoriepad uit de lijst dat daar het best bij past. Je "
-    "moet ALTIJD precies één pad uit de lijst kiezen, ook als je twijfelt: kies dan "
-    "het meest waarschijnlijke en geef een lage zekerheid op. Weigeren of een "
-    "nummer buiten de lijst geven is niet toegelaten.\n"
-    "3. Neem het nummer én de volledige tekst van het gekozen pad letterlijk over "
-    "uit de lijst.\n"
-    "Zekerheid: 0.9 of hoger als het pad duidelijk past, rond 0.6 als het "
-    "aannemelijk is, 0.3 of lager als het een gok is.\n"
-    "Land: alleen invullen (ISO-landcode, bv. FR) bij een uitgave tijdens een "
-    "vakantie of reis. Het land waar een winkel of webshop gevestigd is, telt niet; "
-    "laat het dan leeg.\n"
-    "Antwoord uitsluitend met JSON, zonder uitleg errond, met de velden in deze "
-    "volgorde: "
-    '{"reden": "<één of twee korte zinnen: wat voor zaak en waarom dit pad>", '
-    '"nummer": <getal uit de lijst>, "pad": "<de tekst van dat pad, letterlijk>", '
-    '"handelaar": "<naam van de zaak of leeg>", '
-    '"land": "<landcode of leeg>", "zekerheid": <0.0 tot 1.0>}'
+# Gedeelde spelregels voor beide stappen. Wat hier staat, is telkens een fout
+# die het model in de praktijk maakte.
+SPELREGELS = (
+    "Spelregels:\n"
+    "- De informatie van het web is je belangrijkste bron: die zegt wat voor zaak "
+    "de tegenpartij is. Vertrouw daarop meer dan op wat de naam doet vermoeden.\n"
+    "- Deel in volgens WAT er gekocht of betaald werd (het soort product of de "
+    "dienst), niet volgens HOE of WAAR: woorden als online, webshop, winkel, "
+    "shopping, eCommerce of betaalkaart zeggen niets over de categorie.\n"
+    "- Een categorie voor vakantie of reizen kies je alleen als de transactie zelf "
+    "op een reis wijst (hotel, camping, tol of brandstof onderweg, vliegticket, "
+    "uitstap tijdens een vakantie). Een aankoop bij een winkel of webshop in een "
+    "ander land is géén vakantie-uitgave.\n"
+    "- Het bedrag helpt om te kiezen tussen aannemelijke opties, niet om een "
+    "categorie te verzinnen.\n"
+    "- Je kiest ALTIJD precies één optie uit de lijst, ook als je twijfelt: kies dan "
+    "de meest waarschijnlijke en geef een lage zekerheid. Zekerheid: 0.9 of hoger "
+    "als het duidelijk past, rond 0.6 als het aannemelijk is, 0.3 of lager als het "
+    "een gok is.\n"
+    "- Neem het nummer én de tekst van je keuze letterlijk over uit de lijst.\n"
+    "- Antwoord uitsluitend met JSON, zonder uitleg errond, met de velden in de "
+    "gevraagde volgorde."
 )
+
+SYSTEEM_HOOFD = (
+    "Je bent een boekhoudkundige assistent voor een Belgisch huishouden. Je krijgt "
+    "één banktransactie en een genummerde lijst met hoofdcategorieën; achter elke "
+    "hoofdcategorie staat ter uitleg wat eronder valt.\n"
+    "Werkwijze: beschrijf eerst in een paar woorden wat voor zaak de tegenpartij is "
+    "en wat er vermoedelijk gekocht of betaald werd. Kies pas daarna de "
+    "hoofdcategorie waar dat product of die dienst thuishoort.\n"
+    + SPELREGELS + "\n"
+    'Vorm: {"soort_zaak": "<wat voor zaak>", "product": "<wat er vermoedelijk '
+    'gekocht of betaald werd>", "reden": "<één korte zin>", "nummer": <getal uit '
+    'de lijst>, "hoofdcategorie": "<de naam, letterlijk>", "zekerheid": <0.0 tot 1.0>}'
+)
+
+SYSTEEM_PAD = (
+    "Je bent een boekhoudkundige assistent voor een Belgisch huishouden. Je krijgt "
+    "één banktransactie, een beschrijving van wat er betaald werd, en een "
+    "genummerde lijst met categoriepaden binnen één hoofdcategorie. Kies het pad "
+    "dat past bij het product of de dienst.\n"
+    + SPELREGELS + "\n"
+    "Land: alleen invullen (ISO-landcode, bv. FR) bij een uitgave tijdens een "
+    "vakantie of reis; het land waar een winkel gevestigd is, telt niet.\n"
+    'Vorm: {"reden": "<één korte zin>", "nummer": <getal uit de lijst>, '
+    '"pad": "<de tekst van dat pad, letterlijk>", "handelaar": "<naam van de zaak '
+    'of leeg>", "land": "<landcode of leeg>", "zekerheid": <0.0 tot 1.0>}'
+)
+
+
+def _transactietekst(k: TransactieKenmerken, context: str) -> str:
+    """De transactie zoals het model ze te zien krijgt, webinformatie voorop."""
+    tegenpartij = _enkel_spatie(k.tegenpartij_naam)
+    tekst = ""
+    if context:
+        tekst += ("Wat het web zegt over de tegenpartij (belangrijkste bron):\n"
+                  f"{context}\n\n")
+    else:
+        tekst += ("Er is geen webinformatie over de tegenpartij. Baseer je op de "
+                  "naam, de mededeling en het bedrag.\n\n")
+    tekst += (
+        "Transactie\n"
+        f"- Richting: {'inkomst' if k.richting == 'in' else 'uitgave'}\n"
+        f"- Bedrag: {abs(k.bedrag)} EUR\n"
+        f"- Tegenpartij: {tegenpartij or 'onbekend'}\n"
+        f"- Rekening tegenpartij: {k.tegenpartij_rekening or 'onbekend'}\n"
+        f"- Mededeling: {_enkel_spatie(k.mededeling) or 'geen'}\n"
+    )
+    if k.beschrijving:
+        tekst += (f"- Soort verrichting: {_enkel_spatie(k.beschrijving)} "
+                  "(zegt hoe er betaald werd, niet waarvoor)\n")
+    return tekst
+
+
+def _hoofdlijst(wortels) -> list[str]:
+    """Eén regel per hoofdcategorie, met wat eronder valt als uitleg.
+
+    Juist die uitleg doet het werk: "Huis" zegt een model weinig, maar
+    "Huis — verbouwingen (…, Elektriciteit & Verlichting, …)" wel.
+    """
+    regels = []
+    for hoofd in wortels:
+        delen = []
+        # Bewust alles: een weggelaten naam is net het woord dat het model
+        # nodig had. Het blijft één regel per hoofdcategorie.
+        for sub in hoofd.kinderen:
+            if sub.kinderen:
+                namen = ", ".join(c.naam for c in sub.kinderen)
+                delen.append(f"{sub.naam} ({namen})")
+            else:
+                delen.append(sub.naam)
+        regels.append(hoofd.naam + (" — " + "; ".join(delen) if delen else ""))
+    return regels
+
+
+class _StapFout(AIFout):
+    """Een fout binnen één stap, met het ruwe antwoord erbij voor het logboek."""
+
+    def __init__(self, boodschap: str, ruw: str = ""):
+        super().__init__(boodschap)
+        self.ruw = ruw
+
+
+def _chat(basis: str, model: str, systeem: str, vraag: str) -> tuple[str, dict]:
+    """Eén vraag aan het model. Geeft (ruw antwoord, ontlede JSON) terug."""
+    antwoord = _http_json(f"{basis}/api/chat", {
+        "model": model,
+        "stream": False,
+        "format": "json",
+        "options": {"temperature": 0.1},
+        "messages": [
+            {"role": "system", "content": systeem},
+            {"role": "user", "content": vraag},
+        ],
+    })
+    inhoud = (antwoord.get("message") or {}).get("content", "")
+    try:
+        return inhoud, json.loads(inhoud)
+    except json.JSONDecodeError:
+        gevonden = re.search(r"\{.*\}", inhoud, re.S)
+        if gevonden:
+            try:
+                return inhoud, json.loads(gevonden.group(0))
+            except json.JSONDecodeError:
+                pass
+    raise _StapFout("Het model gaf geen bruikbaar antwoord.", inhoud)
+
+
+def _zekerheid(data: dict, standaard: float = 0.6) -> float:
+    try:
+        return max(0.0, min(1.0, float(data.get("zekerheid", standaard))))
+    except (TypeError, ValueError):
+        return standaard
+
+
+def _kies_hoofd(data: dict, wortels) -> int:
+    """Welke hoofdcategorie? De naam gaat voor op het nummer, zoals bij _kies_pad."""
+    gevraagd = normalize(str(data.get("hoofdcategorie", "") or ""))
+    if gevraagd:
+        for i, hoofd in enumerate(wortels):
+            if normalize(hoofd.naam) == gevraagd:
+                return i
+    try:
+        index = int(data.get("nummer", 0)) - 1
+    except (TypeError, ValueError):
+        return -1
+    return index if 0 <= index < len(wortels) else -1
 
 
 def _kies_pad(data: dict, paden: list[tuple[str, tuple]]) -> tuple[int, str]:
@@ -181,27 +326,34 @@ def _kies_pad(data: dict, paden: list[tuple[str, tuple]]) -> tuple[int, str]:
 
 
 def _log_bevraging(conn, crypto, gebruiker: str | None, model: str,
-                    k: TransactieKenmerken, vraag: str, ruw_antwoord: str,
+                    k: TransactieKenmerken, stappen: list[tuple[str, str, str, str]],
                     voorstel: Voorstel | None, fout: str | None = None) -> None:
-    """Zet de volledige bevraging in het logboek: wat er verstuurd werd, wat er
-    terugkwam, en wat daaruit volgde. Net als de rest van het logboek wordt dit
-    versleuteld opgeslagen."""
+    """Zet de volledige bevraging in het logboek: per stap wat er verstuurd werd
+    en wat er terugkwam, en wat daaruit volgde. Net als de rest van het logboek
+    wordt dit versleuteld opgeslagen.
+
+    `stappen` is een lijst van (titel, systeeminstructie, vraag, ruw antwoord).
+    """
     if not gebruiker:
         return
-    naam = k.tegenpartij_naam or k.beschrijving or "onbekend"
+    naam = _enkel_spatie(k.tegenpartij_naam) or k.beschrijving or "onbekend"
     stukken = [
         f"Tegenpartij: {naam}",
         f"Bedrag: {abs(k.bedrag)} EUR ({'inkomst' if k.richting == 'in' else 'uitgave'})",
         f"Model: {model}",
-        "",
-        "Verzonden vraag (systeeminstructie + gebruikersbericht):",
-        SYSTEEM,
-        "---",
-        vraag.strip(),
-        "",
-        "Ruw antwoord van het model:",
-        (ruw_antwoord or "(geen antwoord ontvangen)").strip(),
     ]
+    for titel, systeem, vraag, ruw in stappen:
+        stukken += [
+            "",
+            f"=== {titel} ===",
+            "Verzonden vraag (systeeminstructie + gebruikersbericht):",
+            systeem,
+            "---",
+            vraag.strip(),
+            "",
+            "Ruw antwoord van het model:",
+            (ruw or "(geen antwoord ontvangen)").strip(),
+        ]
     if voorstel is not None:
         stukken += [
             "",
@@ -214,77 +366,90 @@ def _log_bevraging(conn, crypto, gebruiker: str | None, model: str,
 
 
 def stel_voor(conn, crypto, k: TransactieKenmerken, gebruiker: str | None = None) -> Voorstel:
-    """Vraagt het model om een voorstel.
+    """Vraagt het model om een voorstel, in twee stappen (zie bovenaan).
 
-    Met `gebruiker` wordt de volledige bevraging — vraag, ruw antwoord en
-    resultaat — in het logboek gezet, ook als het model geen bruikbaar
-    antwoord geeft. Zonder `gebruiker` (bijvoorbeeld bij een automatische
-    aanroep zonder ingelogde context) gebeurt dat niet.
+    Met `gebruiker` wordt de volledige bevraging — per stap de vraag en het ruwe
+    antwoord, en het resultaat — in het logboek gezet, ook als het model geen
+    bruikbaar antwoord geeft. Zonder `gebruiker` gebeurt dat niet.
+
+    Lukt de eerste stap niet (geen bruikbaar antwoord, of een hoofdcategorie die
+    niet bestaat), dan valt de tweede stap terug op de volledige lijst met
+    paden: liever één grote vraag dan geen voorstel.
     """
     if not beschikbaar(conn):
         raise AIFout("Het AI-model staat uitgeschakeld in de instellingen.")
 
-    paden = _paden(conn, crypto, k.richting)
-    if not paden:
+    wortels = _wortels(conn, crypto, k.richting)
+    alle_paden = _paden(conn, crypto, k.richting)
+    if not alle_paden:
         raise AIFout("Er zijn nog geen categorieën ingesteld.")
-
-    lijst = "\n".join(f"{i + 1}. {label}" for i, (label, _) in enumerate(paden))
-    tegenpartij = _enkel_spatie(k.tegenpartij_naam)
-    context = _webcontext(conn, tegenpartij)
-
-    vraag = (
-        f"Transactie\n"
-        f"- Richting: {'inkomst' if k.richting == 'in' else 'uitgave'}\n"
-        f"- Bedrag: {abs(k.bedrag)} EUR\n"
-        f"- Tegenpartij: {tegenpartij or 'onbekend'}\n"
-        f"- Rekening tegenpartij: {k.tegenpartij_rekening or 'onbekend'}\n"
-        f"- Mededeling: {_enkel_spatie(k.mededeling) or 'geen'}\n"
-    )
-    if k.beschrijving:
-        vraag += f"- Soort verrichting: {_enkel_spatie(k.beschrijving)}\n"
-    if context:
-        vraag += f"\nGevonden op het web over de tegenpartij:\n{context}\n"
-    vraag += f"\nToegelaten categorieën:\n{lijst}\n"
 
     basis = instelling(conn, "ai_basis_url").rstrip("/")
     model = instelling(conn, "ai_model")
+    context = _webcontext(conn, _enkel_spatie(k.tegenpartij_naam))
+    transactie = _transactietekst(k, context)
+    stappen: list[tuple[str, str, str, str]] = []
 
-    inhoud = ""
     try:
-        antwoord = _http_json(f"{basis}/api/chat", {
-            "model": model,
-            "stream": False,
-            "format": "json",
-            "options": {"temperature": 0.1},
-            "messages": [
-                {"role": "system", "content": SYSTEEM},
-                {"role": "user", "content": vraag},
-            ],
-        })
-
-        inhoud = (antwoord.get("message") or {}).get("content", "")
+        # ---- stap 1: hoofdcategorie ------------------------------------
+        hoofd = None
+        data1: dict = {}
+        zeker_hoofd = 1.0
+        beschrijving = ""
+        vraag1 = (transactie + "\nHoofdcategorieën:\n" + "\n".join(
+            f"{i + 1}. {regel}" for i, regel in enumerate(_hoofdlijst(wortels))) + "\n")
         try:
-            data = json.loads(inhoud)
-        except json.JSONDecodeError:
-            gevonden = re.search(r"\{.*\}", inhoud, re.S)
-            if not gevonden:
-                raise AIFout("Het model gaf geen bruikbaar antwoord.")
-            data = json.loads(gevonden.group(0))
+            ruw1, data1 = _chat(basis, model, SYSTEEM_HOOFD, vraag1)
+            stappen.append(("Stap 1: hoofdcategorie", SYSTEEM_HOOFD, vraag1, ruw1))
+            index = _kies_hoofd(data1, wortels)
+            if index >= 0:
+                hoofd = wortels[index]
+                zeker_hoofd = _zekerheid(data1)
+                soort = _enkel_spatie(str(data1.get("soort_zaak", "") or ""))
+                product = _enkel_spatie(str(data1.get("product", "") or ""))
+                beschrijving = "; ".join(d for d in (
+                    f"soort zaak: {soort}" if soort else "",
+                    f"vermoedelijk betaald voor: {product}" if product else "") if d)
+        except _StapFout as exc:
+            stappen.append(("Stap 1: hoofdcategorie", SYSTEEM_HOOFD, vraag1, exc.ruw))
 
-        index, _ = _kies_pad(data, paden)
-        if index < 0:
-            raise AIFout("Het model koos geen categorie uit de lijst.")
+        # ---- stap 2: pad binnen de hoofdcategorie -----------------------
+        if hoofd is not None:
+            paden = [p for p in alle_paden if p[1][0] == hoofd.id]
+            titel2 = f"Stap 2: pad binnen {hoofd.naam}"
+        else:
+            paden = alle_paden
+            titel2 = "Stap 2: pad uit de volledige lijst (stap 1 gaf geen hoofdcategorie)"
+
+        if len(paden) == 1:
+            # Niets te kiezen: de hoofdcategorie heeft maar één pad.
+            index, data2, zeker_pad = 0, {}, 1.0
+        else:
+            vraag2 = transactie
+            if beschrijving:
+                vraag2 += f"\nWat er betaald werd (uit de eerste stap): {beschrijving}\n"
+            vraag2 += "\nCategoriepaden:\n" + "\n".join(
+                f"{i + 1}. {label}" for i, (label, _) in enumerate(paden)) + "\n"
+            try:
+                ruw2, data2 = _chat(basis, model, SYSTEEM_PAD, vraag2)
+            except _StapFout as exc:
+                stappen.append((titel2, SYSTEEM_PAD, vraag2, exc.ruw))
+                raise
+            stappen.append((titel2, SYSTEEM_PAD, vraag2, ruw2))
+            index, _ = _kies_pad(data2, paden)
+            if index < 0:
+                raise AIFout("Het model koos geen categorie uit de lijst.")
+            zeker_pad = _zekerheid(data2)
 
         label, ids = paden[index]
-        zekerheid = data.get("zekerheid", 0.6)
-        try:
-            zekerheid = max(0.0, min(1.0, float(zekerheid)))
-        except (TypeError, ValueError):
-            zekerheid = 0.6
+        # Een ketting is zo sterk als haar zwakste schakel.
+        zekerheid = min(zeker_hoofd, zeker_pad)
 
-        reden = str(data.get("reden", "")).strip()
-        handelaar = _enkel_spatie(str(data.get("handelaar", ""))) or None
-        land = str(data.get("land", "")).strip() or None
+        reden = str(data2.get("reden") or data1.get("reden") or "").strip()
+        if beschrijving:
+            reden = (beschrijving[:1].upper() + beschrijving[1:] + ". " + reden).strip()
+        handelaar = _enkel_spatie(str(data2.get("handelaar", "") or "")) or None
+        land = str(data2.get("land", "") or "").strip() or None
         if land and not any(w in label.lower() for w in LAND_WOORDEN):
             land = None
         if zekerheid < 0.5:
@@ -302,10 +467,10 @@ def stel_voor(conn, crypto, k: TransactieKenmerken, gebruiker: str | None = None
             toelichting=f"Voorstel van {model}: {label}." + (f" {reden}" if reden else ""),
         )
     except AIFout as exc:
-        _log_bevraging(conn, crypto, gebruiker, model, k, vraag, inhoud, None, fout=str(exc))
+        _log_bevraging(conn, crypto, gebruiker, model, k, stappen, None, fout=str(exc))
         raise
 
-    _log_bevraging(conn, crypto, gebruiker, model, k, vraag, inhoud, voorstel)
+    _log_bevraging(conn, crypto, gebruiker, model, k, stappen, voorstel)
     return voorstel
 
 

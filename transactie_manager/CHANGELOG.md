@@ -4,6 +4,38 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.23.0] — 2026-09-22
+
+### Gewijzigd
+- **Het AI-model kiest nu in twee stappen: eerst de hoofdcategorie, dan het
+  pad daarbinnen.** Met één lijst van bijna tweehonderd paden begreep
+  `qwen2.5:7b` de zaak wel ("koop van LED-verlichting via een online winkel"),
+  maar koos het toch *Vakantie › vakantie-uitgaven › Shopping* met 90%
+  zekerheid — op het woord, niet op het product. Nu kiest het eerst uit een
+  korte lijst hoofdcategorieën, elk met de namen van wat eronder valt als
+  uitleg, en daarna alleen nog uit de paden binnen die hoofdcategorie. Heeft
+  die maar één pad, dan valt de tweede vraag weg. Geeft de eerste stap geen
+  bruikbaar antwoord, dan valt de tweede terug op de volledige lijst.
+- **De webinformatie staat nu bovenaan de vraag** en wordt uitdrukkelijk de
+  belangrijkste bron genoemd. Is er geen, dan zegt de vraag dat ook.
+- **Stap 1 laat het model eerst de soort zaak en het vermoedelijke product
+  benoemen**, en pas dan kiezen. Die beschrijving gaat mee naar stap 2 en staat
+  ook in de uitleg bij het voorstel.
+- **Nieuwe spelregels in de prompt**, telkens een fout die het model maakte:
+  deel in volgens wat er gekocht werd en niet hoe of waar (*online*, *webshop*,
+  *shopping*, *eCommerce*, *betaalkaart* zeggen niets); een vakantiecategorie
+  alleen bij een echte reis, niet bij een buitenlandse webshop. De soort
+  verrichting gaat mee met de vermelding dat ze het betaalmiddel beschrijft.
+- De zekerheid van een voorstel is de laagste van beide stappen.
+- **Het logboek toont beide stappen apart**, elk met de vraag en het ruwe
+  antwoord.
+
+### Opgelost
+- Een categorie die letterlijk *Hoofdcategorie* heet — de kopregel van een
+  ingelezen categorieënbestand — werd als keuze aan het model voorgelegd. Ze
+  blijft nu buiten de lijst.
+
+
 ## [0.22.0] — 2026-09-22
 
 ### Gewijzigd
