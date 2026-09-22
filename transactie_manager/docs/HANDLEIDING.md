@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.21.0
+Versie 0.22.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -653,11 +653,25 @@ staan — met status *nazicht*, net als bij een fuzzy suggestie. Open (of
 open opnieuw) de transactie en de categoriekiezer staat al ingevuld; er wordt
 alleen niets *bevestigd* zonder dat jij daarop klikt.
 
-Is het model niet redelijk zeker — bijvoorbeeld omdat de naam van de
-tegenpartij niets zegt over wat voor zaak het is — dan mag het dat zelf
-aangeven in plaats van de minst slechte categorie te raden. Je krijgt dan een
-melding dat het model twijfelt, en de transactie blijft *zonder categorie*
-staan.
+Het model kiest altijd een categorie uit de lijst, ook als het twijfelt. Hoe
+zeker het is, zie je aan het percentage: rond 90% past het duidelijk, rond 60%
+is het aannemelijk, 30% of minder is een gok — dan staat er ook *Het model
+twijfelt* bij de uitleg. Je beslist zelf of je het overneemt; bevestigd wordt
+er nooit iets zonder jou.
+
+Hoe het model tot een keuze komt:
+
+- het beschrijft eerst in een zin of twee wat voor zaak de tegenpartij is en
+  waarom het dat pad kiest (die uitleg zie je bij het voorstel);
+- het geeft zowel het nummer als de volledige tekst van het gekozen pad. Een
+  klein model verspringt bij een lange lijst al eens een nummer terwijl de
+  tekst wel klopt; staat de tekst letterlijk in de lijst, dan gaat die voor;
+- een **land** wordt alleen overgenomen als het gekozen pad onder een
+  vakantie- of reiscategorie valt. Het land waar een winkel of webshop
+  gevestigd is, is geen land van bestemming;
+- namen die in het bankbestand met spaties zijn opgevuld (`LedLoket      Denekamp`)
+  worden eerst opgekuist, zowel in de vraag aan het model als in de
+  zoekopdracht naar Brave.
 
 Staat **Het model mag bevraagd worden** uit, dan zie je nergens een knop om het
 te bevragen — dat is bewust: zo verlaat er nooit ongemerkt transactiedata je
@@ -671,7 +685,7 @@ Elke bevraging komt in het logboek terecht (**Instellingen › Logboek**, onder
 **ai bevraagd**): de volledige systeeminstructie en vraag zoals ze naar het
 model gingen — inclusief de genummerde lijst met toegelaten categorieën — het
 ruwe antwoord van het model, en het uiteindelijke resultaat. Dat geldt ook
-wanneer het model twijfelde of geen bruikbaar antwoord gaf. Zo kan je precies
+wanneer het model geen bruikbaar antwoord gaf. Zo kan je precies
 nagaan waarom een voorstel fout zat.
 
 #### De kwaliteit van de voorstellen verbeteren
@@ -833,8 +847,8 @@ ze zelf in te delen — daar kan je, als het AI-model aanstaat, ook meteen
 **Vraag het AI-model** klikken om de categoriekiezer te laten invullen. Of vraag
 rechtstreeks vanuit deze lijst een voorstel met **Vraag het model**: dat
 voorstel wordt meteen bewaard, en verschijnt na een herlading van deze
-bladzijde bovenaan bij *Voorgesteld, nog te bevestigen*. Twijfelde het model te
-veel, dan blijft de transactie hier staan.
+bladzijde bovenaan bij *Voorgesteld, nog te bevestigen*. Gaf het model geen
+bruikbaar antwoord, dan blijft de transactie hier staan.
 
 Elke tabel toont de eerste 300 rijen; hoeveel het er in totaal zijn, staat
 naast de titel. Met de filters maak je de lijst kleiner.

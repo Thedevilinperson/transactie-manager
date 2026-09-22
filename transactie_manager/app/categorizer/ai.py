@@ -2,8 +2,8 @@
 
 Er wordt gepraat met een Ollama-server (of een compatibele server met hetzelfde
 `/api/chat`-eindpunt). Het model krijgt de transactiegegevens en de lijst met
-toegelaten categoriepaden, en moet één pad kiezen — of aangeven dat het te
-onzeker is. Optioneel wordt eerst een korte opzoeking via de Brave Search API
+toegelaten categoriepaden, en moet altijd één pad kiezen; hoe zeker het is,
+geeft het apart op. Optioneel wordt eerst een korte opzoeking via de Brave Search API
 gedaan om te achterhalen wat voor zaak de tegenpartij is.
 
 Een voorstel uit deze stap komt altijd op status "nazicht": de gebruiker moet
@@ -29,9 +29,16 @@ from .engine import TransactieKenmerken, Voorstel
 TIMEOUT = 60
 BRAVE_ZOEK_URL = "https://api.search.brave.com/res/v1/web/search"
 
-# Nummer waarmee het model kan aangeven dat geen enkele categorie goed genoeg
-# past, in plaats van de minst slechte te raden.
-TWIJFEL_NUMMER = 0
+# Hoofdcategorieën waarbij een land van bestemming zin heeft. Bij andere
+# uitgaven vulde het model soms toch een land in — het land van de winkel —
+# en dat hoort niet in het veld "land van bestemming".
+LAND_WOORDEN = ("vakantie", "reis")
+
+
+def _enkel_spatie(tekst: str) -> str:
+    """Bankexports vullen namen soms op met spaties ("LedLoket      Denekamp").
+    Dat maakt de vraag aan het model en de zoekopdracht er niet beter op."""
+    return " ".join((tekst or "").split())
 
 
 class AIFout(RuntimeError):
@@ -78,7 +85,7 @@ def _webcontext(conn, zoekterm: str) -> str:
     if not sleutel:
         return ""
     url = BRAVE_ZOEK_URL + "?" + urllib.parse.urlencode({
-        "q": zoekterm + " winkel bedrijf",
+        "q": _enkel_spatie(zoekterm) + " winkel bedrijf",
         "count": 5,
     })
     try:
@@ -121,16 +128,56 @@ def _paden(conn, crypto, richting: str) -> list[tuple[str, tuple]]:
 
 
 SYSTEEM = (
-    "Je bent een boekhoudkundige assistent. Je krijgt één banktransactie en een "
-    "genummerde lijst met toegelaten categoriepaden. Kies het pad dat het best past. "
-    f"Ben je daar niet redelijk zeker van — bijvoorbeeld omdat de naam van de "
-    f"tegenpartij niets zegt over wat voor zaak het is — kies dan nummer "
-    f"{TWIJFEL_NUMMER} in plaats van te raden. Antwoord uitsluitend met JSON, "
-    "zonder uitleg errond, in de vorm: "
-    '{"nummer": <getal>, "handelaar": "<naam van de zaak of leeg>", '
-    '"land": "<landcode bij vakantie-uitgave, anders leeg>", '
-    '"zekerheid": <0.0 tot 1.0>, "reden": "<één korte zin>"}'
+    "Je bent een boekhoudkundige assistent voor een Belgisch huishouden. Je krijgt "
+    "één banktransactie en een genummerde lijst met toegelaten categoriepaden.\n"
+    "Werkwijze:\n"
+    "1. Bepaal eerst wat voor zaak de tegenpartij is en wat er vermoedelijk gekocht "
+    "of betaald werd. Gebruik daarvoor de naam, de mededeling, het bedrag en — als "
+    "die er is — de informatie van het web.\n"
+    "2. Kies daarna het categoriepad uit de lijst dat daar het best bij past. Je "
+    "moet ALTIJD precies één pad uit de lijst kiezen, ook als je twijfelt: kies dan "
+    "het meest waarschijnlijke en geef een lage zekerheid op. Weigeren of een "
+    "nummer buiten de lijst geven is niet toegelaten.\n"
+    "3. Neem het nummer én de volledige tekst van het gekozen pad letterlijk over "
+    "uit de lijst.\n"
+    "Zekerheid: 0.9 of hoger als het pad duidelijk past, rond 0.6 als het "
+    "aannemelijk is, 0.3 of lager als het een gok is.\n"
+    "Land: alleen invullen (ISO-landcode, bv. FR) bij een uitgave tijdens een "
+    "vakantie of reis. Het land waar een winkel of webshop gevestigd is, telt niet; "
+    "laat het dan leeg.\n"
+    "Antwoord uitsluitend met JSON, zonder uitleg errond, met de velden in deze "
+    "volgorde: "
+    '{"reden": "<één of twee korte zinnen: wat voor zaak en waarom dit pad>", '
+    '"nummer": <getal uit de lijst>, "pad": "<de tekst van dat pad, letterlijk>", '
+    '"handelaar": "<naam van de zaak of leeg>", '
+    '"land": "<landcode of leeg>", "zekerheid": <0.0 tot 1.0>}'
 )
+
+
+def _kies_pad(data: dict, paden: list[tuple[str, tuple]]) -> tuple[int, str]:
+    """Welk pad heeft het model gekozen?
+
+    Het model geeft zowel een nummer als de tekst van het pad. Bij een lange
+    lijst verspringt een klein model al eens een nummer, terwijl de tekst wel
+    klopt; de tekst gaat daarom voor als ze letterlijk (op hoofdletters en
+    spaties na) in de lijst staat. Geeft (index, hoe gevonden) terug, of
+    (-1, "") als geen van beide bruikbaar is.
+    """
+    def plat(tekst: str) -> str:
+        return normalize(re.sub(r"\s*[>›]\s*", " > ", str(tekst or "")))
+
+    gevraagd = plat(data.get("pad", ""))
+    if gevraagd:
+        for i, (label, _) in enumerate(paden):
+            if plat(label) == gevraagd:
+                return i, "pad"
+    try:
+        index = int(data.get("nummer", 0)) - 1
+    except (TypeError, ValueError):
+        index = -1
+    if 0 <= index < len(paden):
+        return index, "nummer"
+    return -1, ""
 
 
 def _log_bevraging(conn, crypto, gebruiker: str | None, model: str,
@@ -181,18 +228,20 @@ def stel_voor(conn, crypto, k: TransactieKenmerken, gebruiker: str | None = None
     if not paden:
         raise AIFout("Er zijn nog geen categorieën ingesteld.")
 
-    lijst = f"{TWIJFEL_NUMMER}. Geen van deze past goed genoeg — twijfel te groot\n"
-    lijst += "\n".join(f"{i + 1}. {label}" for i, (label, _) in enumerate(paden))
-    context = _webcontext(conn, k.tegenpartij_naam)
+    lijst = "\n".join(f"{i + 1}. {label}" for i, (label, _) in enumerate(paden))
+    tegenpartij = _enkel_spatie(k.tegenpartij_naam)
+    context = _webcontext(conn, tegenpartij)
 
     vraag = (
         f"Transactie\n"
         f"- Richting: {'inkomst' if k.richting == 'in' else 'uitgave'}\n"
         f"- Bedrag: {abs(k.bedrag)} EUR\n"
-        f"- Tegenpartij: {k.tegenpartij_naam or 'onbekend'}\n"
+        f"- Tegenpartij: {tegenpartij or 'onbekend'}\n"
         f"- Rekening tegenpartij: {k.tegenpartij_rekening or 'onbekend'}\n"
-        f"- Mededeling: {k.mededeling or 'geen'}\n"
+        f"- Mededeling: {_enkel_spatie(k.mededeling) or 'geen'}\n"
     )
+    if k.beschrijving:
+        vraag += f"- Soort verrichting: {_enkel_spatie(k.beschrijving)}\n"
     if context:
         vraag += f"\nGevonden op het web over de tegenpartij:\n{context}\n"
     vraag += f"\nToegelaten categorieën:\n{lijst}\n"
@@ -222,20 +271,9 @@ def stel_voor(conn, crypto, k: TransactieKenmerken, gebruiker: str | None = None
                 raise AIFout("Het model gaf geen bruikbaar antwoord.")
             data = json.loads(gevonden.group(0))
 
-        try:
-            nummer = int(data.get("nummer", TWIJFEL_NUMMER))
-        except (TypeError, ValueError):
-            nummer = -1
-        if nummer == TWIJFEL_NUMMER:
-            reden = str(data.get("reden", "")).strip()
-            raise AIFout(
-                "Het model geeft zelf aan te twijfelen en durft geen categorie "
-                "te kiezen." + (f" ({reden})" if reden else "") +
-                " Deel deze transactie liever handmatig in."
-            )
-        index = nummer - 1
-        if not 0 <= index < len(paden):
-            raise AIFout("Het model koos geen geldige categorie.")
+        index, _ = _kies_pad(data, paden)
+        if index < 0:
+            raise AIFout("Het model koos geen categorie uit de lijst.")
 
         label, ids = paden[index]
         zekerheid = data.get("zekerheid", 0.6)
@@ -245,8 +283,12 @@ def stel_voor(conn, crypto, k: TransactieKenmerken, gebruiker: str | None = None
             zekerheid = 0.6
 
         reden = str(data.get("reden", "")).strip()
-        handelaar = str(data.get("handelaar", "")).strip() or None
+        handelaar = _enkel_spatie(str(data.get("handelaar", ""))) or None
         land = str(data.get("land", "")).strip() or None
+        if land and not any(w in label.lower() for w in LAND_WOORDEN):
+            land = None
+        if zekerheid < 0.5:
+            reden = ("Het model twijfelt. " + reden).strip()
 
         voorstel = Voorstel(
             categorie_id=ids[0],

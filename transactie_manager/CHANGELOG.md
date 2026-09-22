@@ -4,6 +4,38 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.22.0] — 2026-09-22
+
+### Gewijzigd
+- **Het AI-model kiest nu altijd een categorie.** De uitweg "nummer 0: geen van
+  deze past" uit versie 0.19.0 werkte averechts: `qwen2.5:7b` las nummer 0 als
+  een gewone categorie en koos die met 80% zekerheid, ook wanneer de
+  webopzoeking duidelijk maakte wat voor zaak het was (bijvoorbeeld een
+  LED-verlichtingswinkel). Die optie is weg. Twijfel drukt het model voortaan
+  uit in de zekerheid; bij minder dan 50% staat *Het model twijfelt* in de
+  uitleg. Een voorstel blijft hoe dan ook op nazicht staan tot jij het
+  bevestigt.
+- **Nieuwe prompt, met een vaste werkwijze**: eerst bepalen wat voor zaak de
+  tegenpartij is en wat er vermoedelijk betaald werd, dan pas het pad kiezen.
+  Het veld `reden` staat daarom vooraan in het JSON-antwoord, zodat het model
+  eerst redeneert en dan beslist. De prompt geeft ook houvast voor de
+  zekerheid (0,9 = duidelijk, 0,6 = aannemelijk, 0,3 = gok).
+- **Het model geeft naast het nummer ook de tekst van het gekozen pad.** Staat
+  die tekst letterlijk in de lijst (op hoofdletters, spaties en het
+  scheidingsteken na), dan gaat ze voor op het nummer. Bij een lijst van
+  tachtig paden verspringt een klein model al eens een nummer.
+- De **soort verrichting** (beschrijving) gaat nu mee in de vraag aan het model.
+
+### Opgelost
+- **Het model vulde een land in bij gewone aankopen** — het land waar de winkel
+  gevestigd is ("NL" voor een Nederlandse webshop). Een land wordt nu alleen
+  overgenomen als het gekozen pad onder een vakantie- of reiscategorie valt, en
+  de prompt zegt uitdrukkelijk dat het land van een winkel niet telt.
+- **Namen met opvulspaties** uit het bankbestand ("LedLoket               Denekamp")
+  gingen zo naar het model en naar Brave Search. De spaties worden nu eerst
+  samengevoegd; ook de voorgestelde handelaar wordt zo opgekuist.
+
+
 ## [0.21.0] — 2026-09-22
 
 ### Opgelost
