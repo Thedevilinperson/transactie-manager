@@ -6,7 +6,7 @@
                     p='', toon_zoeken=false, toon_status=false, toon_bron=false,
                     toon_groepering=false, toon_uitsluiten=false,
                     alle_categorieen=none, methoden=none, statussen=none,
-                    anker='') %}
+                    anker='', toon_alleen_bevestigd=true) %}
 <form method="get" action="{{ doel }}" class="filterblok" data-autofilter
       {% if anker %}data-anker="{{ anker }}"{% endif %}>
   {# Blijft meereizen bij elke andere filterkeuze; het kruisje op het merkje
@@ -223,9 +223,11 @@
       </details>
     {% endif %}
 
-    <label class="aanvinkknop {{ 'aan' if filters.alleen_bevestigd }}">
-      <input type="checkbox" name="{{ p }}alleen_bevestigd" value="1"
-             {{ 'checked' if filters.alleen_bevestigd }}>Alleen bevestigd</label>
+    {% if toon_alleen_bevestigd %}
+      <label class="aanvinkknop {{ 'aan' if filters.alleen_bevestigd }}">
+        <input type="checkbox" name="{{ p }}alleen_bevestigd" value="1"
+               {{ 'checked' if filters.alleen_bevestigd }}>Alleen bevestigd</label>
+    {% endif %}
 
     <a class="knop stil klein wisknop" href="{{ doel }}">Alles wissen</a>
     <noscript><button type="submit" class="klein">Toepassen</button></noscript>

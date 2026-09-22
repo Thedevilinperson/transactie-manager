@@ -1,5 +1,41 @@
 {% extends "basis.html" %}
+{% from "_filterbalk.html" import filterbalk %}
 {% block titel %}Nazicht{% endblock %}
+
+{# Sorteerbare kolomkop. Beide tabellen delen dezelfde sortering, net zoals ze
+   dezelfde filters delen; het anker brengt je terug bij de tabel waar je
+   klikte. #}
+{% macro kop(sleutel, label, uitlijning='', anker='') %}
+  {% set actief = sorteer == sleutel %}
+  {% set nieuwe = 'op' if actief and aflopend else 'af' %}
+  <th class="{{ uitlijning }}">
+    <a class="sorteerkop {{ 'actief' if actief }}"
+       href="{{ url_for('tx.nazicht', **dict(request.args.to_dict(flat=false),
+                                             sorteer=[sleutel],
+                                             richting_sortering=[nieuwe])) }}{{ '#' ~ anker if anker }}">
+      {{ label }}<span class="pijl">{{ '▼' if actief and aflopend
+                                       else ('▲' if actief else '') }}</span></a>
+  </th>
+{% endmacro %}
+
+{# Tegenpartij met alle mededelingen eronder. Bewust niet de winkel die de
+   motor voorstelde: die staat al bij het voorstel, en naast de tegenpartij
+   werkte ze eerder verwarrend dan verhelderend. #}
+{% macro tegenpartij(tx) %}
+  {{ tx.tegenpartij_naam or tx.begunstigde or "Onbekend" }}
+  {% if tx.mededeling %}
+    <span class="klein-detail mededelingen">{{ tx.mededeling }}</span>
+  {% endif %}
+{% endmacro %}
+
+{% macro bron(tx) %}
+  <span class="merkje {{ tx.methode }}">{{ bronnamen.get(tx.methode, tx.methode) }}</span>
+  {% if tx.methode in ('fuzzy', 'ai') %}
+    <span class="klein-detail">{{ tx.zekerheid|procent }} zeker</span>
+  {% elif tx.methode == 'regel' and tx.zekerheid < 1 %}
+    <span class="klein-detail">vraagt bevestiging</span>
+  {% endif %}
+{% endmacro %}
 
 {% block inhoud %}
 <div class="kop">
@@ -42,21 +78,30 @@
   </form>
 </div>
 
-<div class="vlak">
-  <h2>Voorgesteld, nog te bevestigen</h2>
-  <p>Deze transacties lijken sterk op eerdere, maar niet zeker genoeg om
-    zonder nazicht door te laten.</p>
+{{ filterbalk(filters, keuzes, rekeningen, hoofdcategorieen,
+              url_for('tx.nazicht'), toon_zoeken=true, toon_bron=true,
+              alle_categorieen=alle_keuzes, methoden=methoden,
+              toon_alleen_bevestigd=false) }}
+
+<div class="vlak" id="voorgesteld">
+  <h2>Voorgesteld, nog te bevestigen
+    <span class="klein-detail" style="display:inline;font-weight:normal">
+      — {{ aantal_onzeker }}{% if aantal_onzeker > onzeker|length %},
+      de eerste {{ onzeker|length }} getoond{% endif %}</span></h2>
+  <p>Deze transacties lijken sterk op eerdere, of werden ingedeeld door een
+    regel die om bevestiging vraagt — maar niet zeker genoeg om zonder
+    nazicht door te laten.</p>
 
   {% if onzeker %}
     <div class="tabel-omhulsel" style="margin-top:14px">
       <table>
         <thead>
           <tr>
-            <th>Datum</th>
-            <th>Tegenpartij</th>
-            <th>Voorstel</th>
-            <th>Zekerheid</th>
-            <th class="getal">Bedrag</th>
+            {{ kop('datum', 'Datum', anker='voorgesteld') }}
+            {{ kop('tegenpartij', 'Tegenpartij en mededeling', anker='voorgesteld') }}
+            {{ kop('categorie', 'Voorstel', anker='voorgesteld') }}
+            {{ kop('bron', 'Bron', anker='voorgesteld') }}
+            {{ kop('bedrag', 'Bedrag', 'getal', anker='voorgesteld') }}
             <th></th>
           </tr>
         </thead>
@@ -64,32 +109,31 @@
           {% for tx in onzeker %}
             <tr class="status-nazicht">
               <td>{{ tx.boekdatum|datum }}</td>
-              <td>
-                {{ tx.handelaar or tx.tegenpartij_naam or "Onbekend" }}
-                <span class="klein-detail">{{ tx.mededeling[:60] }}</span>
-              </td>
+              <td>{{ tegenpartij(tx) }}</td>
               <td>
                 {{ pad_tekst(tx.categorie_id, tx.subcategorie_id, tx.subsub_id) }}
+                {% if tx.handelaar %}
+                  <span class="klein-detail">winkel: {{ tx.handelaar }}</span>
+                {% endif %}
                 <span class="klein-detail">{{ tx.toelichting }}</span>
               </td>
-              <td>
-                <span class="merkje {{ tx.methode }}">{{ tx.zekerheid|procent }}</span>
-              </td>
+              <td>{{ bron(tx) }}</td>
               <td class="getal {{ 'bedrag-in' if tx.richting == 'in' else 'bedrag-uit' }}">
                 {{ tx.bedrag|euro }}
               </td>
               <td>
                 <div class="knoppen">
                   <form method="post" action="{{ url_for('tx.bevestigen', tx_id=tx.id) }}">
+                    <input type="hidden" name="terug" value="{{ huidig_pad() }}">
                     <button type="submit" class="klein">Klopt</button>
                   </form>
                   <a class="knop stil klein"
-                     href="{{ url_for('tx.bewerken', tx_id=tx.id, terug=url_for('tx.nazicht')) }}">
+                     href="{{ url_for('tx.bewerken', tx_id=tx.id, terug=huidig_pad()) }}">
                     Aanpassen</a>
                   {% if tx.regel_id %}
                     <a class="knop stil klein"
                        href="{{ url_for('tx.regel_oordeel', tx_id=tx.id,
-                                        terug=url_for('tx.nazicht')) }}">
+                                        terug=huidig_pad()) }}">
                       Naar de regel</a>
                   {% endif %}
                 </div>
@@ -101,16 +145,29 @@
     </div>
 
     <form method="post" action="{{ url_for('tx.alles_bevestigen') }}" style="margin-top:14px"
-          data-bevestig="Alle voorstellen in één keer bevestigen?">
-      <button type="submit" class="stil">Alle voorstellen bevestigen</button>
+          data-bevestig="{{ ('Deze ' ~ onzeker|length ~ ' voorstellen bevestigen?')
+                            if gefilterd else 'Alle voorstellen in één keer bevestigen?' }}">
+      <input type="hidden" name="terug" value="{{ huidig_pad() }}">
+      {% if gefilterd %}
+        {% for tx in onzeker %}<input type="hidden" name="id" value="{{ tx.id }}">{% endfor %}
+        <button type="submit" class="stil">Deze {{ onzeker|length }} voorstellen bevestigen</button>
+      {% else %}
+        <button type="submit" class="stil">Alle voorstellen bevestigen</button>
+      {% endif %}
     </form>
+  {% elif gefilterd %}
+    <div class="leeg"><strong>Niets gevonden</strong>Geen voorstellen binnen deze
+      filters.</div>
   {% else %}
     <div class="leeg"><strong>Niets te bevestigen</strong>Alles is ingedeeld.</div>
   {% endif %}
 </div>
 
-<div class="vlak">
-  <h2>Zonder categorie</h2>
+<div class="vlak" id="zonder">
+  <h2>Zonder categorie
+    <span class="klein-detail" style="display:inline;font-weight:normal">
+      — {{ aantal_open }}{% if aantal_open > open_rijen|length %},
+      de eerste {{ open_rijen|length }} getoond{% endif %}</span></h2>
   <p>Geen regel en geen gelijkaardige transactie gevonden.
     {% if ai_actief %}
       Vraag het AI-model om een voorstel, of deel handmatig in.
@@ -125,10 +182,9 @@
       <table>
         <thead>
           <tr>
-            <th>Datum</th>
-            <th>Tegenpartij</th>
-            <th>Mededeling</th>
-            <th class="getal">Bedrag</th>
+            {{ kop('datum', 'Datum', anker='zonder') }}
+            {{ kop('tegenpartij', 'Tegenpartij en mededeling', anker='zonder') }}
+            {{ kop('bedrag', 'Bedrag', 'getal', anker='zonder') }}
             <th></th>
           </tr>
         </thead>
@@ -136,9 +192,11 @@
           {% for tx in open_rijen %}
             <tr class="status-niet_toegewezen">
               <td>{{ tx.boekdatum|datum }}</td>
-              <td>{{ tx.tegenpartij_naam or "Onbekend" }}</td>
               <td>
-                {{ tx.mededeling[:70] }}
+                {{ tegenpartij(tx) }}
+                {% if tx.status == 'nazicht' and tx.toelichting %}
+                  <span class="klein-detail"><em>{{ tx.toelichting }}</em></span>
+                {% endif %}
                 <span class="klein-detail" data-ai-uitvoer="{{ tx.id }}"></span>
               </td>
               <td class="getal {{ 'bedrag-in' if tx.richting == 'in' else 'bedrag-uit' }}">
@@ -151,7 +209,7 @@
                       Vraag het model</button>
                   {% endif %}
                   <a class="knop stil klein"
-                     href="{{ url_for('tx.bewerken', tx_id=tx.id, terug=url_for('tx.nazicht')) }}">
+                     href="{{ url_for('tx.bewerken', tx_id=tx.id, terug=huidig_pad()) }}">
                     Indelen</a>
                 </div>
               </td>
@@ -160,6 +218,9 @@
         </tbody>
       </table>
     </div>
+  {% elif gefilterd %}
+    <div class="leeg"><strong>Niets gevonden</strong>Geen transacties zonder
+      categorie binnen deze filters.</div>
   {% else %}
     <div class="leeg"><strong>Alles heeft een categorie</strong>Niets meer te doen hier.</div>
   {% endif %}

@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.20.0
+Versie 0.21.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -485,25 +485,50 @@ op een lager getal.
 
 Een treffer via een regel is zeker en wordt meteen bevestigd. Behalve wanneer de
 regel als onzeker gemarkeerd staat: dat gebeurt bij tegenpartijen die in je
-referentielijst onder meer dan één categorie voorkomen.
+referentielijst of je historiek onder meer dan één categorie voorkomen. Zo'n
+onzekere regel blijft dat tot jij er een keuze over maakt: **bevestigen** met
+*Ze klopt*, of **bewerken**. Beide halen het merkteken weg, en de transacties
+die om die reden op nazicht stonden, gaan mee naar *bevestigd* — tenzij de
+bewerkte regel er niet meer op past; dan zoekt de motor een andere regel, of
+komen ze bij *Zonder categorie* terecht.
 
-**Welke regel heeft dit gedaan?** Het merkje *regel* in de transactielijst is een
-link. Klik erop en je komt op een scherm met de regel die deze transactie
-indeelde, hoeveel transacties er nu aan hangen, en drie keuzes:
+**Welke regel heeft dit gedaan?** Het merkje *regel* in de transactielijst, en de
+knop **Naar de regel** in het nazicht, brengen je naar een scherm met de
+transactie zelf (tegenpartij, rekening, begunstigde, mededeling, huidige
+indeling) en de volledige regel erachter:
+
+- alle **voorwaarden** — de eerste en elke bijkomende met *en*, telkens met het
+  veld, de vergelijking en de waarde;
+- de **bedragvork** en of de regel voor inkomsten, uitgaven of beide geldt;
+- de **categorie** waarin ze indeelt, met winkel en land als die ingevuld zijn;
+- de **prioriteit**, de **herkomst** (zelf aangemaakt, uit de historiek, uit de
+  referentielijst) en het aantal transacties dat er nu aan hangt.
+
+Past de regel zoals ze nu staat niet meer op deze transactie, of wijst ze naar
+een andere categorie dan waar de transactie in staat, dan zegt het scherm dat
+er ook bij. Daaronder drie keuzes:
 
 - **Ze klopt** — de transactie wordt bevestigd en de regel krijgt jouw vinkje.
-  Vroeg ze telkens om nazicht, dan doet ze dat voortaan niet meer.
+  Vroeg ze telkens om nazicht, dan doet ze dat voortaan niet meer, en de andere
+  transacties die om dezelfde reden op nazicht stonden, worden mee bevestigd.
 - **Ze klopt niet, regel bewerken** — je komt op het bewerkscherm. Bewaren
-  beoordeelt meteen de transacties die eraan hingen opnieuw.
+  beoordeelt meteen de transacties die eraan hingen opnieuw, en een onzekere
+  regel vraagt daarna niet langer om nazicht.
 - **Ze klopt niet, regel verwijderen** — wat eraan hing komt op nazicht te staan
   zonder categorie, tenzij een andere regel het overneemt.
 
 Daarnaast kan je altijd nog *alleen deze transactie aanpassen* en de regel laten
 staan.
 
-Zie je een transactie met bron *regel* die tóch op nazicht staat met een
-zekerheid van 60%, dan is dat geen tegenspraak: dat is zo'n onzekere regel. Ze
-deelt in, maar vraagt om bevestiging.
+Zie je een transactie met bron *Vaste regel* die tóch op nazicht staat, met
+*vraagt bevestiging* eronder, dan is dat geen tegenspraak: dat is zo'n onzekere
+regel. Ze deelt in, maar vraagt om bevestiging. Het is géén gelijkenis — dat
+merkje heet *Gelijkenis* en staat in een andere kleur, met een percentage.
+
+Had je een onzekere regel al bewerkt vóór versie 0.21.0, dan bleef ze
+verkeerdelijk om nazicht vragen. Bij het eerste bezoek aan het nazicht na de
+update wordt dat eenmalig rechtgezet: de toepassing zoekt in het logboek welke
+regels je bewerkt hebt, en meldt bovenaan wat er veranderde.
 
 In de regeltabel staat bij elke regel hoeveel transacties er nu aan hangen. Dat
 getal is doorklikbaar, zodat je ziet wat een regel in de praktijk doet.
@@ -766,23 +791,53 @@ diezelfde seconde nog iets anders aangepast, dan staat dat er ook bij.
 
 ## 7. Nazicht
 
-Het scherm **Nazicht** heeft twee delen.
+Het scherm **Nazicht** heeft twee delen, met één filterbalk en één sortering
+die voor allebei gelden.
 
-**Voorgesteld, nog te bevestigen.** Transacties die op iets bekends lijken, maar
-niet zeker genoeg. Je ziet het voorstel, de zekerheid in procenten en waarom de
-toepassing tot die keuze kwam. Klopt het, klik dan **Klopt**. Klopt het niet,
-klik **Aanpassen**.
+**Filteren.** Dezelfde filterbalk als bij de transacties: **Zoeken** (op
+tegenpartij, mededeling, rekening, begunstigde, winkel, categorie…), **Soort**,
+**Rekening**, **Bron** (vaste regel, gelijkenis, AI-model, …), **Jaren**,
+**Categorie**, **Land** en **Winkel**. Wat actief is, staat eronder met een
+kruisje om het weg te halen.
 
-Met **Alle voorstellen bevestigen** neem je alles in één keer over. Handig na
-een grote invoer, maar kijk het toch even door.
+**Sorteren.** Klik op een kolomkop — datum, tegenpartij, voorstel, bron of
+bedrag — om erop te sorteren; nog eens klikken keert de volgorde om. De
+sortering blijft staan wanneer je filtert.
 
-**Zonder categorie.** Transacties waar niets voor gevonden is. Klik
-**Indelen** om ze zelf in te delen — daar kan je, als het AI-model aanstaat,
-ook meteen **Vraag het AI-model** klikken om de categoriekiezer te laten
-invullen. Of vraag rechtstreeks vanuit deze lijst een voorstel met **Vraag het
-model**: dat voorstel wordt meteen bewaard, en verschijnt na een herlading
-van deze bladzijde bovenaan bij *Voorgesteld, nog te bevestigen*. Twijfelde
-het model te veel, dan blijft de transactie hier staan.
+**Voorgesteld, nog te bevestigen.** Transacties die op iets bekends lijken, of
+die ingedeeld werden door een regel die om bevestiging vraagt. Per rij zie je:
+
+- **Tegenpartij en mededeling**: de naam van de tegenpartij (of, als die
+  ontbreekt, de begunstigde) met daaronder alle mededelingen samen. De winkel
+  die de motor voorstelt staat hier bewust niet, maar bij het voorstel;
+- **Voorstel**: de categorie, de voorgestelde winkel, en waarom de toepassing
+  tot die keuze kwam;
+- **Bron**: *Vaste regel*, *Gelijkenis* of *AI-model*. Bij een gelijkenis of
+  een AI-voorstel staat de zekerheid in procenten; bij een regel die om
+  bevestiging vraagt staat *vraagt bevestiging*.
+
+Klopt het, klik dan **Klopt**. Klopt het niet, klik **Aanpassen**. Bij een
+regel brengt **Naar de regel** je naar de regel erachter (zie
+[Stap 1: vaste regels](#stap-1-vaste-regels)). Na elke handeling kom je terug
+op het nazicht met je filters en sortering nog ingesteld.
+
+Met **Alle voorstellen bevestigen** neem je alles in één keer over. Staat er een
+filter aan, dan heet de knop **Deze N voorstellen bevestigen** en bevestigt hij
+alleen wat je op dat moment ziet. Handig om bijvoorbeeld alleen de gelijkenissen
+van één jaar af te werken — maar kijk het toch even door.
+
+**Zonder categorie.** Transacties waar niets voor gevonden is, en transacties
+die hun categorie kwijtraakten omdat de regel die ze indeelde bewerkt,
+uitgezet of verwijderd is (waarom, staat er schuin onder). Klik **Indelen** om
+ze zelf in te delen — daar kan je, als het AI-model aanstaat, ook meteen
+**Vraag het AI-model** klikken om de categoriekiezer te laten invullen. Of vraag
+rechtstreeks vanuit deze lijst een voorstel met **Vraag het model**: dat
+voorstel wordt meteen bewaard, en verschijnt na een herlading van deze
+bladzijde bovenaan bij *Voorgesteld, nog te bevestigen*. Twijfelde het model te
+veel, dan blijft de transactie hier staan.
+
+Elke tabel toont de eerste 300 rijen; hoeveel het er in totaal zijn, staat
+naast de titel. Met de filters maak je de lijst kleiner.
 
 ---
 

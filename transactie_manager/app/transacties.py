@@ -449,12 +449,20 @@ def haal(conn, crypto, tx_id: int) -> Transactie | None:
 
 
 def zoek(conn, crypto, *, filters=None, categorie_ids=None, cat_namen=None,
-         sorteer="datum", aflopend=True, limiet=200, offset=0):
+         sorteer="datum", aflopend=True, limiet=200, offset=0, tellen=False,
+         extra_waar: str = ""):
     """Haalt transacties op volgens de filters.
 
     Zoeken op tekst en sorteren op een versleuteld veld kunnen niet in SQL, dus
     die gebeuren na het ontsleutelen. Bij een zoekterm of een sortering op naam
     wordt de selectie eerst volledig opgehaald en dan pas afgesneden.
+
+    Het tweede deel van het antwoord is het aantal gevonden rijen. Langs de
+    SQL-weg is dat None, tenzij `tellen` gevraagd is; dan kost het één
+    telquery extra.
+
+    `extra_waar` is een vaste SQL-voorwaarde bovenop de filters, zonder
+    parameters — voor schermen die zelf een selectie vastleggen.
     """
     from .filters import Filters
     from .crypto import normalize
@@ -466,6 +474,8 @@ def zoek(conn, crypto, *, filters=None, categorie_ids=None, cat_namen=None,
         waar += (f" AND (categorie_id IN ({plaatsen}) OR subcategorie_id IN ({plaatsen})"
                  f" OR subsub_id IN ({plaatsen}))")
         params = params + list(categorie_ids) * 3
+    if extra_waar:
+        waar += f" AND ({extra_waar})"
 
     sql = f"SELECT * FROM transacties WHERE {waar}"
 
@@ -479,8 +489,12 @@ def zoek(conn, crypto, *, filters=None, categorie_ids=None, cat_namen=None,
         richting_sql = "DESC" if aflopend else "ASC"
         sql += f" ORDER BY {in_sql.get(sorteer, 'boekdatum')} {richting_sql}, id {richting_sql}"
         sql += " LIMIT ? OFFSET ?"
+        aantal = None
+        if tellen:
+            aantal = conn.execute(f"SELECT COUNT(*) n FROM transacties WHERE {waar}",
+                                  params).fetchone()["n"]
         return ([rij_naar_object(r, crypto)
-                 for r in conn.execute(sql, params + [limiet, offset])], None)
+                 for r in conn.execute(sql, params + [limiet, offset])], aantal)
 
     naald = normalize(filters.zoekterm) if filters.zoekterm else ""
     cat_namen = cat_namen or {}

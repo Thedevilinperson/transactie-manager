@@ -30,9 +30,11 @@ Twee dingen blijven bewust ongemoeid:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from .categorizer.engine import Regelboek, laad_regels, naar_voorstel
+from .database import now_iso
 from .transacties import rij_naar_object, werk_bij
 
 WIS_TOELICHTING = "De regel die deze transactie indeelde, bestaat niet meer."
@@ -49,6 +51,7 @@ class Uitkomst:
     gewist: int = 0        # geen enkele regel past nog: categorie weg, op nazicht
     ongewijzigd: int = 0   # de regel die erop past, wijst nog naar hetzelfde
     erbij: int = 0         # had geen categorie en kreeg er alsnog een
+    bevestigd: int = 0     # zelfde categorie, maar niet langer op nazicht
 
 
 def hangende_transacties(conn, crypto, regel_id: int) -> list[int]:
@@ -125,6 +128,19 @@ def herbekijk(conn, crypto, tx_ids: list[int], *,
                   and vervanger.subcategorie_id == row["subcategorie_id"]
                   and vervanger.subsub_id == row["subsub_id"])
         if zelfde:
+            voorstel = naar_voorstel(vervanger)
+            if row["status"] == "nazicht" and voorstel.status == "bevestigd":
+                # Zelfde categorie, maar de regel is ondertussen zeker
+                # geworden (bewerkt of bevestigd). Dan hoeft de transactie
+                # niet langer op nazicht te wachten, en moet de oude uitleg
+                # ("wijst naar meer dan één categorie") ook weg.
+                werk_bij(
+                    conn, crypto, tx.id,
+                    zekerheid=voorstel.zekerheid, status=voorstel.status,
+                    toelichting=voorstel.toelichting, regel_id=vervanger.id,
+                )
+                uit.bevestigd += 1
+                continue
             # Alleen de band met de regel vastleggen; de indeling klopt al.
             if row["regel_id"] != vervanger.id:
                 werk_bij(conn, crypto, tx.id, regel_id=vervanger.id)
@@ -222,6 +238,9 @@ def verslag(uit: Uitkomst) -> str:
     if uit.erbij:
         stukken.append(f"{uit.erbij} {'kreeg' if uit.erbij == 1 else 'kregen'}"
                        " er alsnog een categorie bij")
+    if uit.bevestigd:
+        stukken.append(f"{uit.bevestigd} {'staat' if uit.bevestigd == 1 else 'staan'}"
+                       " niet langer op nazicht")
     if not stukken:
         if uit.ongewijzigd:
             return (f"{uit.ongewijzigd} "
@@ -232,3 +251,76 @@ def verslag(uit: Uitkomst) -> str:
     if uit.ongewijzigd:
         zin += f" {uit.ongewijzigd} bleven staan zoals ze stonden."
     return zin
+
+
+# --------------------------------------------------------------------------
+# Onzekere regels die je al zelf hebt rechtgezet
+# --------------------------------------------------------------------------
+
+def maak_zeker(conn, regel_id: int) -> bool:
+    """Haalt het merkteken "wees naar meer dan één categorie" van een regel.
+
+    Een regel uit je historiek of uit de referentielijst die naar meer dan één
+    categorie wees, krijgt een herkomst die op `_onzeker` eindigt: ze deelt in,
+    maar vraagt telkens om nazicht. Heb je ze zelf bewerkt of bevestigd, dan
+    heb jij de keuze gemaakt en is die twijfel voorbij.
+
+    Geeft terug of er iets veranderde.
+    """
+    return conn.execute(
+        "UPDATE regels SET herkomst = REPLACE(herkomst, '_onzeker', '')"
+        " WHERE id = ? AND herkomst LIKE '%\\_onzeker' ESCAPE '\\'",
+        (regel_id,),
+    ).rowcount > 0
+
+
+HERSTEL_SLEUTEL = "herstel_onzeker_na_bewerken"
+
+
+def herstel_bewerkte_onzekere_regels(conn, crypto) -> Uitkomst | None:
+    """Eenmalig: onzekere regels die je vóór versie 0.21.0 al bewerkt hebt.
+
+    Tot die versie liet het bewerken van een regel het merkteken `_onzeker`
+    staan. De regel wees dan naar één categorie, maar bleef toch om nazicht
+    vragen. Welke regels je bewerkt hebt, staat in het logboek; dat is
+    versleuteld, en daarom gebeurt dit pas wanneer iemand aangemeld is en niet
+    bij het opstarten.
+
+    Alleen logregels van ná het aanmaken van de regel tellen: een regel uit de
+    historiek wordt bij het opnieuw afleiden gewist en opnieuw aangemaakt, en
+    kan dan het nummer van een eerder bewerkte regel krijgen.
+
+    Geeft None terug als dit al eerder gebeurd is.
+    """
+    if conn.execute("SELECT 1 FROM app_meta WHERE sleutel = ?",
+                    (HERSTEL_SLEUTEL,)).fetchone():
+        return None
+
+    onzeker = {
+        r["id"]: r["aangemaakt_op"] for r in conn.execute(
+            "SELECT id, aangemaakt_op FROM regels"
+            " WHERE herkomst LIKE '%\\_onzeker' ESCAPE '\\'")
+    }
+    te_herstellen: set[int] = set()
+    if onzeker:
+        for rij in conn.execute(
+                "SELECT tijdstip, detail_enc FROM logboek WHERE actie = 'regel bewerkt'"):
+            gevonden = re.search(r"regel=(\d+)", crypto.dec(rij["detail_enc"]) or "")
+            if not gevonden:
+                continue
+            regel_id = int(gevonden.group(1))
+            if regel_id in onzeker and rij["tijdstip"] >= (onzeker[regel_id] or ""):
+                te_herstellen.add(regel_id)
+
+    uit = Uitkomst()
+    for regel_id in sorted(te_herstellen):
+        hingen = hangende_transacties(conn, crypto, regel_id)
+        maak_zeker(conn, regel_id)
+        deel = herbekijk(conn, crypto, hingen, toelichting=BEWERKT_TOELICHTING)
+        for veld in ("overgenomen", "gewist", "ongewijzigd", "bevestigd"):
+            setattr(uit, veld, getattr(uit, veld) + getattr(deel, veld))
+
+    conn.execute("INSERT INTO app_meta (sleutel, waarde) VALUES (?, ?)",
+                 (HERSTEL_SLEUTEL, f"{now_iso()} regels={len(te_herstellen)}"))
+    conn.commit()
+    return uit if te_herstellen else None

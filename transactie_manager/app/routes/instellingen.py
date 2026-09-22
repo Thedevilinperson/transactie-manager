@@ -16,7 +16,7 @@ from .. import handleiding as hl
 from ..database import connect, get_db, instelling, log, now_iso, zet_instelling
 from ..regelonderhoud import (BEWERKT_TOELICHTING, UIT_TOELICHTING, WIS_TOELICHTING,
                               Uitkomst, hangende_transacties, herbekijk, herbekijk_alles,
-                              pas_toe, verslag)
+                              maak_zeker, pas_toe, verslag)
 
 bp = Blueprint("instellingen", __name__, url_prefix="/instellingen")
 
@@ -400,6 +400,12 @@ def regels():
                 tuple(velden.values()) + (regel_id,),
             )
             _schrijf_voorwaarden(conn, regel_id, extra)
+            # Wie een regel bewerkt, heeft zelf gekozen waar ze naartoe wijst.
+            # Wees ze in de historiek of de referentielijst naar meer dan één
+            # categorie, dan is die twijfel nu voorbij: ze hoeft niet langer om
+            # nazicht te vragen. Vóór het herbekijken, zodat de transacties die
+            # eraan hangen meteen als bevestigd uit de herbeoordeling komen.
+            maak_zeker(conn, regel_id)
             uit = herbekijk(conn, crypto, hingen, toelichting=BEWERKT_TOELICHTING)
             uit.erbij = pas_toe(conn, crypto, regel_id)
             conn.commit()
@@ -460,16 +466,20 @@ def regels():
     )
 
 
-def _regelrijen(conn, crypto) -> list[dict]:
+def _regelrijen(conn, crypto, regel_id: int | None = None) -> list[dict]:
+    """De regels, ontsleuteld en klaar om te tonen. Met `regel_id` alleen die
+    ene — voor het scherm dat bij één transactie de regel erachter toont."""
     platte = laad_alles(conn, crypto)
 
     def pad(*ids):
         namen = [platte[i].naam for i in ids if i and i in platte]
         return " › ".join(namen) if namen else "—"
 
+    enkel = " WHERE regel_id = ?" if regel_id is not None else ""
+    params = (regel_id,) if regel_id is not None else ()
     extra: dict[int, list[dict]] = {}
-    for vw in conn.execute("SELECT * FROM regel_voorwaarden"
-                           " ORDER BY regel_id, volgorde, id"):
+    for vw in conn.execute("SELECT * FROM regel_voorwaarden" + enkel +
+                           " ORDER BY regel_id, volgorde, id", params):
         extra.setdefault(vw["regel_id"], []).append({
             "veld": vw["veld"], "operator": vw["operator"],
             "waarde": crypto.dec(vw["waarde_enc"]) or "",
@@ -480,10 +490,12 @@ def _regelrijen(conn, crypto) -> list[dict]:
     # haar indeelde, valt het echte aantal gewoon te tellen.
     treffers = {rij["regel_id"]: rij["n"] for rij in conn.execute(
         "SELECT regel_id, COUNT(*) n FROM transacties"
-        " WHERE regel_id IS NOT NULL GROUP BY regel_id")}
+        " WHERE regel_id IS NOT NULL" + (" AND regel_id = ?" if enkel else "") +
+        " GROUP BY regel_id", params)}
 
     rijen = []
-    for r in conn.execute("SELECT * FROM regels ORDER BY prioriteit, id"):
+    for r in conn.execute("SELECT * FROM regels" + (" WHERE id = ?" if enkel else "")
+                          + " ORDER BY prioriteit, id", params):
         rijen.append({
             "id": r["id"], "naam": crypto.dec(r["naam_enc"]) or "",
             "prioriteit": r["prioriteit"], "veld": r["veld"], "operator": r["operator"],
@@ -499,9 +511,20 @@ def _regelrijen(conn, crypto) -> list[dict]:
             "land": crypto.dec(r["land_enc"]) or "",
             "treffers": treffers.get(r["id"], 0), "herkomst": r["herkomst"],
             "bevestigd_op": r["bevestigd_op"], "bevestigd_door": r["bevestigd_door"],
+            "aangemaakt_op": r["aangemaakt_op"],
             "extra": extra.get(r["id"], []),
         })
     return rijen
+
+
+# Waar een regel vandaan komt, in woorden.
+HERKOMSTEN = {
+    "handmatig": "Zelf aangemaakt",
+    "historiek": "Afgeleid uit je historiek",
+    "historiek_onzeker": "Afgeleid uit je historiek — wees daar naar meer dan één categorie",
+    "referentie": "Uit de referentielijst",
+    "referentie_onzeker": "Uit de referentielijst — stond daar onder meer dan één categorie",
+}
 
 
 @bp.route("/regels/<int:regel_id>")
@@ -509,7 +532,7 @@ def _regelrijen(conn, crypto) -> list[dict]:
 def regel_bewerken(regel_id: int):
     conn = get_db()
     crypto = g.crypto
-    regel = next((r for r in _regelrijen(conn, crypto) if r["id"] == regel_id), None)
+    regel = next(iter(_regelrijen(conn, crypto, regel_id)), None)
     if regel is None:
         flash("Die regel bestaat niet meer.", "fout")
         return redirect(url_for("instellingen.regels"))

@@ -5,25 +5,108 @@
 <div class="kop">
   <h1>Klopt deze regel?</h1>
   <p>Voor de transactie van {{ tx.boekdatum|datum }} van {{ tx.bedrag|euro }}
-    bij {{ tx.tegenpartij_naam or 'onbekende tegenpartij' }}.</p>
+    bij {{ tx.tegenpartij_naam or tx.begunstigde or 'onbekende tegenpartij' }}.</p>
+</div>
+
+<div class="vlak">
+  <h2>De transactie</h2>
+  <div class="tabel-omhulsel">
+    <table class="regeldetail">
+      <tbody>
+        <tr><th>Tegenpartij</th>
+          <td>{{ tx.tegenpartij_naam or '—' }}
+            {% if tx.tegenpartij_rekening %}
+              <span class="klein-detail">{{ tx.tegenpartij_rekening }}</span>{% endif %}</td></tr>
+        {% if tx.begunstigde %}
+          <tr><th>Begunstigde</th><td>{{ tx.begunstigde }}</td></tr>
+        {% endif %}
+        {% if tx.beschrijving %}
+          <tr><th>Beschrijving</th><td>{{ tx.beschrijving }}</td></tr>
+        {% endif %}
+        <tr><th>Mededeling</th><td>{{ tx.mededeling or '—' }}</td></tr>
+        <tr><th>Huidige indeling</th>
+          <td>{{ tx_pad or '—' }}
+            <span class="klein-detail">{{ tx.toelichting }}</span></td></tr>
+      </tbody>
+    </table>
+  </div>
 </div>
 
 <div class="vlak">
   <h2>De regel die haar indeelde</h2>
-  <p><strong>{{ regel.naam }}</strong></p>
-  <p class="klein-detail">{{ regel.veld.replace('_', ' ') }} {{ regel.operator }}
-    “{{ regel.waarde }}” — hangt nu aan
-    <a href="{{ url_for('tx.lijst', regel=regel.id) }}">{{ treffers }}
-      {{ 'transactie' if treffers == 1 else 'transacties' }}</a>.</p>
+  <p><strong>{{ regel.naam }}</strong>
+    {% if not regel.actief %}<span class="merkje geen">staat uit</span>{% endif %}</p>
+
+  <div class="tabel-omhulsel" style="margin-top:10px">
+    <table class="regeldetail">
+      <tbody>
+        <tr><th>Voorwaarden</th>
+          <td>
+            <div>{{ veldnamen.get(regel.veld, regel.veld) }}
+              {{ operatoren.get(regel.operator, regel.operator) }}
+              <code>{{ regel.waarde }}</code></div>
+            {% for vw in regel.extra %}
+              <div><strong>en</strong> {{ veldnamen.get(vw.veld, vw.veld) }}
+                {{ operatoren.get(vw.operator, vw.operator) }}
+                <code>{{ vw.waarde }}</code></div>
+            {% endfor %}
+          </td></tr>
+        <tr><th>Bedrag</th>
+          <td>
+            {% if regel.bedrag_min is not none and regel.bedrag_max is not none %}
+              vanaf {{ regel.bedrag_min|euro }} en onder {{ regel.bedrag_max|euro }}
+            {% elif regel.bedrag_min is not none %}
+              vanaf {{ regel.bedrag_min|euro }}
+            {% elif regel.bedrag_max is not none %}
+              onder {{ regel.bedrag_max|euro }}
+            {% else %}
+              elk bedrag
+            {% endif %}</td></tr>
+        <tr><th>Soort</th>
+          <td>{{ {'in': 'alleen inkomsten', 'uit': 'alleen uitgaven'}.get(regel.richting,
+                  'inkomsten en uitgaven') }}</td></tr>
+        <tr><th>Deelt in als</th>
+          <td>{{ regel.pad }}
+            {% if regel.handelaar %}<span class="klein-detail">winkel:
+              {{ regel.handelaar }}</span>{% endif %}
+            {% if regel.land %}<span class="klein-detail">land:
+              {{ regel.land }}</span>{% endif %}</td></tr>
+        <tr><th>Prioriteit</th>
+          <td>{{ regel.prioriteit }}
+            <span class="klein-detail">lager gaat voor</span></td></tr>
+        <tr><th>Herkomst</th>
+          <td>{{ herkomst }}
+            {% if regel.aangemaakt_op %}<span class="klein-detail">aangemaakt op
+              {{ regel.aangemaakt_op[:10]|datum }}</span>{% endif %}</td></tr>
+        <tr><th>In gebruik</th>
+          <td><a href="{{ url_for('tx.lijst', regel=regel.id) }}">{{ treffers }}
+              {{ 'transactie' if treffers == 1 else 'transacties' }}</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+
   {% if regel.bevestigd_op %}
-    <p class="melding goed">Je hebt deze regel bevestigd op
+    <p class="melding goed" style="margin-top:12px">Je hebt deze regel bevestigd op
       {{ regel.bevestigd_op[:10]|datum }}{% if regel.bevestigd_door %} door
       {{ regel.bevestigd_door }}{% endif %}.</p>
   {% endif %}
-  {% if regel.onzeker %}
-    <p>Deze regel is uit je historiek afgeleid en wees daar naar meer dan één
-      categorie. Daarom deelt ze wel in, maar vraagt ze telkens om nazicht.
-      Bevestig je ze hier, dan doet ze dat voortaan niet meer.</p>
+  {% if not past_nog %}
+    <p class="melding fout" style="margin-top:12px">Zoals de regel nu staat, past ze
+      niet meer op deze transactie — ze is waarschijnlijk bewerkt nadat ze deze
+      transactie indeelde. Met <strong>Opnieuw indelen</strong> in het nazicht, of
+      <strong>Alle regels opnieuw toepassen</strong> bij de regels, wordt dat
+      rechtgezet.</p>
+  {% elif not zelfde_categorie %}
+    <p class="melding fout" style="margin-top:12px">De regel wijst nu naar
+      <strong>{{ regel.pad }}</strong>, maar deze transactie staat nog op
+      <strong>{{ tx_pad or 'geen categorie' }}</strong>.</p>
+  {% endif %}
+  {% if onzeker %}
+    <p style="margin-top:12px">Deze regel wees in {{ 'je historiek'
+      if regel.herkomst.startswith('historiek') else 'de referentielijst' }} naar
+      meer dan één categorie. Daarom deelt ze wel in, maar vraagt ze telkens om
+      nazicht. Bevestig je ze hier, of bewerk je ze, dan doet ze dat voortaan
+      niet meer.</p>
   {% endif %}
 </div>
 
@@ -45,8 +128,9 @@
     {% endif %}
   </div>
   <p class="klein-detail" style="margin:8px 0 18px">De transactie wordt
-    bevestigd{% if regel.onzeker %}, en de regel vraagt voortaan niet meer om
-    nazicht{% endif %}{% if not regel.bevestigd_op %}. De regel krijgt een vinkje,
+    bevestigd{% if onzeker %}, de regel vraagt voortaan niet meer om nazicht, en
+    de andere transacties die om dezelfde reden op nazicht stonden, worden mee
+    bevestigd{% endif %}{% if not regel.bevestigd_op %}. De regel krijgt een vinkje,
     zodat je later ziet dat je ze hebt nagekeken{% endif %}. Intrekken haalt dat
     vinkje weg; de regel zelf blijft staan en deelt gewoon verder in.</p>
 
@@ -61,12 +145,13 @@
     </form>
   </div>
   <p class="klein-detail" style="margin-top:10px">Bewerken past de regel aan en
-    beoordeelt meteen de transacties die eraan hingen opnieuw. Verwijderen haalt
-    ze weg; wat eraan hing komt op nazicht te staan, tenzij een andere regel het
+    beoordeelt meteen de transacties die eraan hingen opnieuw; een regel die om
+    nazicht vroeg, doet dat na het bewerken niet meer. Verwijderen haalt ze weg;
+    wat eraan hing komt op nazicht te staan, tenzij een andere regel het
     overneemt.</p>
 
   <div class="knoppen" style="margin-top:18px">
-    <a class="knop stil" href="{{ url_for('tx.bewerken', tx_id=tx.id) }}">
+    <a class="knop stil" href="{{ url_for('tx.bewerken', tx_id=tx.id, terug=terug) }}">
       Alleen deze transactie aanpassen</a>
     <a class="knop stil" href="{{ terug }}">Terug</a>
   </div>

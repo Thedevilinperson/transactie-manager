@@ -4,6 +4,66 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.21.0] — 2026-09-22
+
+### Opgelost
+- **Een onzekere regel bleef om nazicht vragen nadat je ze bewerkt had.** Een
+  regel uit de historiek of de referentielijst die daar naar meer dan één
+  categorie wees, krijgt het merkteken *onzeker*: ze deelt in, maar vraagt
+  telkens om bevestiging. Bewerken liet dat merkteken staan, ook al had je de
+  regel ondertussen zelf rechtgezet. Bewerken haalt het nu weg, net zoals
+  *Ze klopt* dat al deed.
+- **Transacties bleven op nazicht staan, met de oude uitleg "wijst naar meer
+  dan één categorie", ook als de regel ondertussen zeker was.** Bij het
+  herbekijken na een bewerking veranderde er niets zolang de categorie
+  dezelfde bleef — ook de status en de uitleg niet. Nu gaat zo'n transactie
+  naar *bevestigd*, met de uitleg van de regel zoals ze nu is.
+- **Ze klopt bevestigde alleen de ene transactie** waarvan je vertrok. De andere
+  transacties van dezelfde onzekere regel bleven op nazicht staan. Ze gaan nu
+  mee, en de melding zegt hoeveel.
+- **Eenmalig herstel voor regels die je al bewerkt had.** Bij het eerste bezoek
+  aan het nazicht zoekt de toepassing in het logboek welke onzekere regels je
+  vóór deze versie al bewerkt had, haalt het merkteken weg en beoordeelt de
+  transacties die eraan hangen opnieuw. Dat gebeurt pas na het aanmelden,
+  omdat het logboek versleuteld is. Alleen logregels van ná het aanmaken van
+  een regel tellen: regels uit de historiek krijgen bij het opnieuw afleiden
+  nieuwe nummers, en een oud nummer mag geen nieuwe regel goedkeuren.
+- **Een transactie die haar categorie kwijtraakte** (omdat de regel erachter
+  bewerkt, uitgezet of verwijderd werd) stond bij *Voorgesteld, nog te
+  bevestigen*, met een lege voorstelkolom en een knop **Klopt** die niets had om
+  te bevestigen. Ze staat nu bij *Zonder categorie*, met de reden erbij.
+
+### Gewijzigd
+- **Nazicht: de kolom Tegenpartij toont de naam van de tegenpartij met alle
+  mededelingen eronder**, in plaats van de winkel die de motor voorstelde. Die
+  winkel staat nu bij het voorstel. Ontbreekt de naam, dan valt ze terug op de
+  begunstigde. Ook de tabel *Zonder categorie* toont het zo.
+- **Nazicht: de kolom Zekerheid heet nu Bron** en zegt wat de bron is: *Vaste
+  regel*, *Gelijkenis* of *AI-model*. Een percentage staat er alleen nog bij een
+  gelijkenis of een AI-voorstel; bij een regel die om bevestiging vraagt staat
+  *vraagt bevestiging*. Voorheen stond er bij zo'n regel enkel "60%", wat las als
+  een gelijkenis.
+- **Klopt deze regel?** toont nu de volledige regel: alle voorwaarden (ook de
+  bijkomende), de bedragvork, inkomst of uitgave, de categorie met winkel en
+  land, de prioriteit, de herkomst en de aanmaakdatum — plus de gegevens van de
+  transactie zelf. Past de regel niet meer op de transactie, of wijst ze naar
+  een andere categorie, dan staat dat er ook.
+- Na **Klopt**, **Aanpassen** en **Naar de regel** kom je terug op het nazicht
+  met je filters en sortering nog ingesteld.
+
+### Toegevoegd
+- **Nazicht: filterbalk** met zoeken (tegenpartij, mededeling, rekening,
+  begunstigde, winkel, categorie), soort, rekening, **bron**, jaren, categorie,
+  land en winkel — dezelfde als bij de transacties. De filters gelden voor
+  beide tabellen.
+- **Nazicht: sorteerbare kolommen** — datum, tegenpartij, voorstel, bron en
+  bedrag.
+- **Deze N voorstellen bevestigen**: staat er een filter aan, dan bevestigt de
+  bulkknop alleen wat je op dat moment ziet.
+- Naast de titel van elke nazichttabel staat hoeveel transacties erin zitten;
+  de tabellen tonen er elk tot 300.
+
+
 ## [0.20.0] — 2026-09-21
 
 ### Gewijzigd

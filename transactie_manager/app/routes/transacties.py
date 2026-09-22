@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
@@ -14,10 +15,12 @@ from ..categories import boom, keuzelijst, laad_alles, nakomelingen, pad_tekst
 from ..filters import METHODEN, STATUSSEN, Filters, keuzes, rekeningen as alle_rekeningen
 from ..categorizer.ai import maak_regel_van_voorstel
 from ..categorizer.engine import (ONZEKERE_HERKOMSTEN, Motor,
-                                  TransactieKenmerken, Voorstel)
+                                  TransactieKenmerken, Voorstel, laad_regels,
+                                  regel_past)
 from ..database import get_db, instelling, log, now_iso
-from ..regelonderhoud import (WIS_TOELICHTING, hangende_transacties,
-                              herbekijk, verslag)
+from ..regelonderhoud import (WIS_TOELICHTING, hangende_transacties, herbekijk,
+                              herstel_bewerkte_onzekere_regels, maak_zeker, verslag)
+from .instellingen import EXTRA_OPERATOREN, HERKOMSTEN, VELDNAMEN, _regelrijen
 from ..transacties import bewaar, haal, tel, werk_bij, zoek
 
 bp = Blueprint("tx", __name__, url_prefix="/transacties")
@@ -275,18 +278,63 @@ def verwijderen(tx_id: int):
     return redirect(veilig_terug(request.form.get("terug"), url_for("tx.lijst")))
 
 
+# Waarop de tabellen in het nazicht gesorteerd kunnen worden. De sleutels zijn
+# die van zoek(); "categorie" is daar de kolom met het voorstel.
+NAZICHT_SORTERINGEN = {"datum", "tegenpartij", "categorie", "bron", "zekerheid",
+                       "bedrag"}
+NAZICHT_LIMIET = 300
+
+
 @bp.route("/nazicht")
 @login_vereist
 def nazicht():
     conn = get_db()
     crypto = g.crypto
+
+    # Eenmalig: onzekere regels die je al bewerkt had, alsnog zeker maken.
+    hersteld = herstel_bewerkte_onzekere_regels(conn, crypto)
+    if hersteld is not None:
+        flash("Regels die je eerder al had rechtgezet, vroegen nog om nazicht. "
+              "Dat is nu opgelost: " + verslag(hersteld), "goed")
+
     platte = laad_alles(conn, crypto)
-    onzeker, _ = zoek(conn, crypto, filters=Filters(status="nazicht"), limiet=100)
-    open_rijen, _ = zoek(conn, crypto, filters=Filters(status="niet_toegewezen"),
-                         limiet=100)
+    cat_namen = {i: c.naam for i, c in platte.items()}
+
+    # Dezelfde filters als op de transactielijst. Status en "alleen bevestigd"
+    # legt dit scherm zelf vast: elke tabel toont precies één status.
+    filters = replace(Filters.uit_aanvraag(), status="", alleen_bevestigd=False)
+    categorie_ids = (sorted(nakomelingen(platte, filters.categorie_id))
+                     if filters.categorie_id else None)
+    sorteer = request.args.get("sorteer", "datum")
+    if sorteer not in NAZICHT_SORTERINGEN:
+        sorteer = "datum"
+    aflopend = request.args.get("richting_sortering", "af") != "op"
+
+    def lijst_met(voorwaarde):
+        return zoek(conn, crypto, filters=filters, categorie_ids=categorie_ids,
+                    cat_namen=cat_namen, sorteer=sorteer, aflopend=aflopend,
+                    limiet=NAZICHT_LIMIET, tellen=True, extra_waar=voorwaarde)
+
+    # Een transactie op nazicht zónder categorie — bijvoorbeeld omdat de regel
+    # die haar indeelde bewerkt of verwijderd is — heeft geen voorstel om te
+    # bevestigen. Ze hoort bij "Zonder categorie", niet bij de voorstellen.
+    onzeker, aantal_onzeker = lijst_met(
+        "status = 'nazicht' AND categorie_id IS NOT NULL")
+    open_rijen, aantal_open = lijst_met(
+        "status = 'niet_toegewezen' OR (status = 'nazicht' AND categorie_id IS NULL)")
+
+    gefilterd = bool(filters.jaren or filters.richting or filters.rekening_id
+                     or filters.categorie_id or filters.landen or filters.winkels
+                     or filters.methoden or filters.zoekterm)
     return render_template(
         "nazicht.html",
         onzeker=onzeker, open_rijen=open_rijen,
+        aantal_onzeker=aantal_onzeker, aantal_open=aantal_open,
+        limiet=NAZICHT_LIMIET, gefilterd=gefilterd,
+        filters=filters, sorteer=sorteer, aflopend=aflopend,
+        keuzes=keuzes(conn, crypto), rekeningen=alle_rekeningen(conn, crypto),
+        methoden=METHODEN, bronnamen=dict(METHODEN),
+        hoofdcategorieen=[c for c in _alle_keuzes(conn, crypto) if c["niveau"] == 0],
         pad_tekst=lambda *ids: pad_tekst(platte, *ids),
         ai_actief=instelling(conn, "ai_actief", "0") == "1",
         **_cat_context(conn, crypto),
@@ -317,15 +365,26 @@ def bevestigen(tx_id: int):
 @bp.route("/alles-bevestigen", methods=["POST"])
 @login_vereist
 def alles_bevestigen():
+    """Bevestigt de voorstellen in één keer.
+
+    Staat er een filter aan in het nazicht, dan stuurt het scherm de nummers
+    mee van wat je op dat moment ziet, en worden alleen die bevestigd. Zonder
+    nummers: alles wat op nazicht staat en een categorie heeft.
+    """
     conn = get_db()
-    aantal = conn.execute(
-        "UPDATE transacties SET status='bevestigd', zekerheid=1.0"
-        " WHERE status='nazicht' AND categorie_id IS NOT NULL"
-    ).rowcount
-    log(conn, g.crypto, g.gebruiker, "bulk_bevestigd", f"aantal={aantal}")
+    ids = [i for i in request.form.getlist("id", type=int) if i]
+    sql = ("UPDATE transacties SET status='bevestigd', zekerheid=1.0"
+           " WHERE status='nazicht' AND categorie_id IS NOT NULL")
+    params: list = []
+    if ids:
+        sql += f" AND id IN ({','.join('?' * len(ids))})"
+        params = ids
+    aantal = conn.execute(sql, params).rowcount
+    log(conn, g.crypto, g.gebruiker, "bulk_bevestigd",
+        f"aantal={aantal}" + (" (selectie)" if ids else ""))
     conn.commit()
     flash(f"{aantal} transacties bevestigd.", "goed")
-    return redirect(url_for("tx.nazicht"))
+    return redirect(veilig_terug(request.form.get("terug"), url_for("tx.nazicht")))
 
 
 @bp.route("/herindelen", methods=["GET"])
@@ -422,16 +481,26 @@ def regel_oordeel(tx_id: int):
             werk_bij(conn, crypto, tx_id, status="bevestigd", zekerheid=1.0,
                      toelichting="Regel bevestigd.")
             gepromoveerd = regel["herkomst"] in ONZEKERE_HERKOMSTEN
-            conn.execute(
-                "UPDATE regels SET bevestigd_op = ?, bevestigd_door = ?, herkomst = ?"
-                " WHERE id = ?",
-                (now_iso(), g.gebruiker,
-                 regel["herkomst"].replace("_onzeker", ""), regel["id"]))
+            conn.execute("UPDATE regels SET bevestigd_op = ?, bevestigd_door = ?"
+                         " WHERE id = ?", (now_iso(), g.gebruiker, regel["id"]))
+            meegenomen = 0
+            if gepromoveerd:
+                # De andere transacties van deze regel stonden om dezelfde
+                # reden op nazicht; die gaan nu mee.
+                hingen = hangende_transacties(conn, crypto, regel["id"])
+                maak_zeker(conn, regel["id"])
+                meegenomen = herbekijk(conn, crypto, hingen).bevestigd
             log(conn, crypto, g.gebruiker, "regel_bevestigd",
-                f"tx={tx_id} regel={regel['id']}")
+                f"tx={tx_id} regel={regel['id']} mee={meegenomen}")
             conn.commit()
-            flash("Bevestigd." + (" Deze regel vraagt voortaan niet meer om nazicht."
-                                  if gepromoveerd else ""), "goed")
+            melding = "Bevestigd."
+            if gepromoveerd:
+                melding += " Deze regel vraagt voortaan niet meer om nazicht."
+            if meegenomen:
+                melding += (f" {meegenomen} andere "
+                            f"{'transactie' if meegenomen == 1 else 'transacties'}"
+                            " van deze regel mee bevestigd.")
+            flash(melding, "goed")
             return redirect(terug)
 
         if actie == "intrekken":
@@ -454,16 +523,22 @@ def regel_oordeel(tx_id: int):
             flash("Regel verwijderd. " + verslag(uit), "goed")
             return redirect(terug)
 
+    details = next(iter(_regelrijen(conn, crypto, regel["id"])), None)
+    engine_regel = next((r for r in laad_regels(conn, crypto, alleen_actief=False)
+                         if r.id == regel["id"]), None)
+    past_nog = engine_regel is not None and regel_past(engine_regel, tx.kenmerken)
+    zelfde_categorie = (tx.categorie_id == regel["categorie_id"]
+                        and tx.subcategorie_id == regel["subcategorie_id"]
+                        and tx.subsub_id == regel["subsub_id"])
+    platte = laad_alles(conn, crypto)
+
     return render_template(
-        "transactie_regel.html", tx=tx,
-        regel={"id": regel["id"], "naam": crypto.dec(regel["naam_enc"]) or "",
-               "veld": regel["veld"], "operator": regel["operator"],
-               "waarde": crypto.dec(regel["waarde_enc"]) or "",
-               "herkomst": regel["herkomst"],
-               "onzeker": regel["herkomst"] in ONZEKERE_HERKOMSTEN,
-               "bevestigd_op": regel["bevestigd_op"],
-               "bevestigd_door": regel["bevestigd_door"]},
-        treffers=conn.execute("SELECT COUNT(*) n FROM transacties WHERE regel_id = ?",
-                              (regel["id"],)).fetchone()["n"],
+        "transactie_regel.html", tx=tx, regel=details,
+        onzeker=regel["herkomst"] in ONZEKERE_HERKOMSTEN,
+        herkomst=HERKOMSTEN.get(regel["herkomst"], regel["herkomst"]),
+        veldnamen=VELDNAMEN, operatoren=EXTRA_OPERATOREN,
+        past_nog=past_nog, zelfde_categorie=zelfde_categorie,
+        tx_pad=pad_tekst(platte, tx.categorie_id, tx.subcategorie_id, tx.subsub_id),
+        treffers=details["treffers"],
         terug=veilig_terug(request.args.get("terug"), url_for("tx.nazicht")),
     )
