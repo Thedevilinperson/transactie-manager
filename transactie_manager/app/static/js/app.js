@@ -244,38 +244,79 @@
     }
   }
 
+  /* Leest een antwoord als JSON. Een proxy die de verbinding afbreekt, geeft
+     een HTML-foutpagina terug; dan liever een duidelijke melding dan een
+     stille fout. */
+  function leesJson(r) {
+    return r.text().then(function (tekst) {
+      try {
+        return { ok: r.ok, status: r.status, d: JSON.parse(tekst) };
+      } catch (e) {
+        return { ok: false, status: r.status,
+                 d: { fout: "Onverwacht antwoord van de server (HTTP " + r.status + ")." } };
+      }
+    });
+  }
+
+  /* De bevraging loopt op de server in een aparte draad: een lokaal model
+     rekent soms minuten, en zo lang op één antwoord wachten brak onderweg af.
+     De knop start ze en vraagt dan om de twee seconden de stand op. */
   function koppelAiKnoppen() {
     document.querySelectorAll("[data-ai-voor]").forEach(function (knop) {
       knop.addEventListener("click", function () {
         var txId = knop.dataset.aiVoor;
         var doel = document.querySelector('[data-ai-uitvoer="' + txId + '"]');
-        knop.disabled = true;
         var oud = knop.textContent;
-        knop.textContent = "Bezig…";
-        fetch(basis() + "api/ai-voorstel/" + txId, { method: "POST" })
-          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
-          .then(function (antwoord) {
-            if (!antwoord.ok) {
-              if (doel) {
-                doel.textContent = antwoord.d.fout || "Het model gaf geen antwoord.";
-                doel.className = "klein-detail";
+        var begin = Date.now();
+        var missers = 0;
+
+        function melding(tekst) { if (doel) doel.textContent = tekst; }
+        function klaar() { knop.disabled = false; knop.textContent = oud; }
+        function toon(d) {
+          if (d.fout) { melding(d.fout); return; }
+          if (doel) {
+            doel.innerHTML = "Voorstel: <strong>" + d.pad + "</strong>. " +
+              (d.toelichting || "") +
+              " Opgeslagen als voorstel — nakijken en bevestigen blijft nodig.";
+          }
+          vulAiVoorstelIn(knop, d);
+        }
+        function volg(token) {
+          fetch(basis() + "api/ai-voorstel/stand/" + encodeURIComponent(token),
+                { headers: { "Accept": "application/json" } })
+            .then(leesJson)
+            .then(function (a) {
+              missers = 0;
+              if (!a.ok) { melding(a.d.fout || "De stand is niet op te vragen."); klaar(); return; }
+              if (!a.d.klaar) {
+                knop.textContent = "Bezig… " + Math.round((Date.now() - begin) / 1000) + " s";
+                setTimeout(function () { volg(token); }, 2000);
+                return;
               }
-              return;
-            }
-            if (doel) {
-              doel.innerHTML = "Voorstel: <strong>" + antwoord.d.pad + "</strong>. " +
-                (antwoord.d.toelichting || "") +
-                " Opgeslagen als voorstel — open de transactie om te bevestigen.";
-            }
-            vulAiVoorstelIn(knop, antwoord.d);
+              klaar();
+              if (!a.d.gelukt) { melding("Er liep iets mis: " + (a.d.fout || "onbekende fout")); return; }
+              toon(a.d.resultaat || {});
+            })
+            .catch(function () {
+              // Een enkele gemiste stand is geen ramp; blijven proberen.
+              if (++missers <= 5) { setTimeout(function () { volg(token); }, 4000); return; }
+              melding("De server is niet bereikbaar. Herlaad de bladzijde straks: een " +
+                      "voorstel dat intussen klaar is, staat dan al bij de transactie.");
+              klaar();
+            });
+        }
+
+        knop.disabled = true;
+        knop.textContent = "Bezig…";
+        melding("");
+        fetch(basis() + "api/ai-voorstel/" + txId,
+              { method: "POST", headers: { "Accept": "application/json" } })
+          .then(leesJson)
+          .then(function (a) {
+            if (!a.ok || !a.d.token) { melding(a.d.fout || "Het model gaf geen antwoord."); klaar(); return; }
+            volg(a.d.token);
           })
-          .catch(function () {
-            if (doel) doel.textContent = "Het model is niet bereikbaar.";
-          })
-          .finally(function () {
-            knop.disabled = false;
-            knop.textContent = oud;
-          });
+          .catch(function () { melding("De server is niet bereikbaar."); klaar(); });
       });
     });
   }

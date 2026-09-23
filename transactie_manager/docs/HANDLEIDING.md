@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.25.0
+Versie 0.26.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -683,6 +683,14 @@ staan — met status *nazicht*, net als bij een fuzzy suggestie. Open (of
 open opnieuw) de transactie en de categoriekiezer staat al ingevuld; er wordt
 alleen niets *bevestigd* zonder dat jij daarop klikt.
 
+**Wachten op het model.** Een lokaal model rekent, zeker zonder grafische
+kaart, al snel een of twee minuten. De bevraging loopt daarom op de server in
+de achtergrond; de knop toont ondertussen *Bezig… 45 s* en het scherm vraagt om
+de paar seconden op of het voorstel er is. Is het er, dan vult het bewerkscherm
+meteen de hoofdcategorie, de subcategorie, de sub-subcategorie en de winkel
+in. Je mag de bladzijde intussen ook verlaten: het voorstel wordt hoe dan ook
+bij de transactie bewaard, en staat klaar wanneer je ze later opent.
+
 Het model kiest altijd een pad uit de lijst, ook als het twijfelt. Je beslist
 zelf of je het overneemt; bevestigd wordt er nooit iets zonder jou.
 
@@ -1173,6 +1181,12 @@ in.
 Automatisch indelen*. Draait de add-on in Home Assistant en Ollama op dezelfde
 machine, gebruik dan `http://homeassistant.local:11434` of het IP-adres; niet
 `localhost`, want dat wijst binnen de add-on naar de add-on zelf.
+
+**Het AI-voorstel vult de categorie niet in.** Kijk bij *Instellingen ›
+Logboek* of er een regel *ai voorstel opgeslagen* staat. Zo ja, dan is het
+voorstel bewaard: herlaad het bewerkscherm, dan staat de categorie erin.
+Tot versie 0.26.0 wachtte het scherm op één lang antwoord, en de ingress van
+Home Assistant kon die verbinding afbreken voordat het model klaar was.
 
 **Het AI-model kiest een verkeerde categorie.** Zie [Stap 3: het lokale
 AI-model](#stap-3-het-lokale-ai-model) → *De kwaliteit van de voorstellen

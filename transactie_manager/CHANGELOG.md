@@ -4,6 +4,34 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.26.0] — 2026-09-23
+
+### Opgelost
+- **Een AI-voorstel vulde de categorievelden niet in.** Het scherm wachtte op
+  één antwoord van de server, en die wachtte op het model. Sinds 0.24.0 krijgt
+  het model je volledige indeling met voorbeelden mee, en op een processor
+  zonder grafische kaart duurt dat al snel een of twee minuten. Zo lang
+  openstaande verbindingen worden onderweg afgebroken (de ingress van Home
+  Assistant); de browser kreeg dan geen bruikbaar antwoord en vulde niets in,
+  terwijl de server het voorstel wel bewaarde. In een rechtstreekse test,
+  zonder proxy ertussen, werkte het wel — daarom viel het niet eerder op.
+  De bevraging loopt nu op de server in een aparte draad, net als een grote
+  invoer. De knop krijgt meteen een kenmerk terug en vraagt daarna om de twee
+  seconden de stand op; zodra het voorstel er is, worden hoofdcategorie,
+  subcategorie, sub-subcategorie en winkel ingevuld. Geen enkele aanvraag duurt
+  nog langer dan een ogenblik.
+
+### Gewijzigd
+- De knop **Vraag het model** / **Vraag het AI-model** toont tijdens het wachten
+  hoelang het al duurt (*Bezig… 45 s*).
+- Een antwoord dat geen JSON is (een foutpagina van een proxy) geeft nu een
+  duidelijke melding met de HTTP-code, in plaats van stil niets te doen. Een
+  enkele gemiste stand tijdens het wachten wordt opnieuw geprobeerd.
+- Nieuw eindpunt `api/ai-voorstel/stand/<kenmerk>`; `api/ai-voorstel/<id>`
+  antwoordt voortaan met `202` en een kenmerk in plaats van met het voorstel
+  zelf.
+
+
 ## [0.25.0] — 2026-09-22
 
 ### Opgelost
