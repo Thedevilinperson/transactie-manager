@@ -1,0 +1,111 @@
+{# Een vaste regel samenstellen vanuit één transactie.
+
+   Staat in hetzelfde formulier als de transactie: de categorie, de winkel en
+   het land van de regel zijn die van het formulier. De rijen zijn vooraf
+   ingevuld met de gegevens van de transactie; alleen aangevinkte rijen met een
+   waarde tellen (zie regelmaker.py). #}
+
+{% macro voorwaarderij(i, veld, operator, waarde, aan, veldnamen, operatoren, hint='') %}
+  <div class="voorwaarderij regelmaker-rij">
+    <input type="checkbox" name="rv_gebruik" value="{{ i }}" aria-label="Deze voorwaarde gebruiken"
+           {{ 'checked' if aan }}>
+    <select name="rv_veld" aria-label="Veld">
+      {% for sleutel, label in veldnamen.items() %}
+        <option value="{{ sleutel }}" {{ 'selected' if sleutel == veld }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <select name="rv_operator" aria-label="Vergelijking">
+      {% for sleutel, label in operatoren.items() %}
+        <option value="{{ sleutel }}" {{ 'selected' if sleutel == operator }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <input type="text" name="rv_waarde" value="{{ waarde }}" aria-label="Waarde"
+           placeholder="{{ hint or 'waarde' }}">
+  </div>
+{% endmacro %}
+
+{% macro regelmaker(tx, veldnamen, operatoren) %}
+  {% set naam = tx.tegenpartij_naam or tx.begunstigde or '' %}
+  {% set medeling = tx.mededeling or '' %}
+  <details class="regelmaker" data-regelmaker data-tx="{{ tx.id }}">
+    <summary><strong>Vaste regel maken voor de toekomst</strong>
+      <span class="klein-detail" style="display:inline"> — kies zelf op welke velden
+        de regel moet passen</span></summary>
+
+    <div class="keuzeregel" style="margin-top:12px">
+      <input type="checkbox" id="regel_maken" name="regel_maken" value="1">
+      <label for="regel_maken"><strong>Bij het opslaan deze regel aanmaken</strong>
+        — met de categorie, winkel en het land die je hierboven kiest.</label>
+    </div>
+
+    <p class="klein-detail" style="margin:10px 0">Vooraf ingevuld met de gegevens van
+      deze transactie. Vink aan wat moet kloppen; alle aangevinkte voorwaarden moeten
+      samen kloppen. Een mededeling maakt de regel heel specifiek: vaak is één
+      trefwoord eruit (<em>drinkgeld</em>, <em>lidgeld</em>) beter dan de hele tekst.
+      Met <em>bevat niet</em> sluit je iets uit.</p>
+
+    <fieldset class="voorwaarden">
+      <legend>Voorwaarden</legend>
+      {{ voorwaarderij(0, 'tegenpartij_naam', 'bevat', naam, naam, veldnamen, operatoren) }}
+      {{ voorwaarderij(1, 'beschrijving', 'gelijk', tx.beschrijving or '', tx.beschrijving, veldnamen, operatoren) }}
+      {{ voorwaarderij(2, 'mededeling', 'bevat', medeling, medeling, veldnamen, operatoren) }}
+      {{ voorwaarderij(3, 'tegenpartij_rekening', 'gelijk', tx.tegenpartij_rekening or '', false, veldnamen, operatoren) }}
+      {{ voorwaarderij(4, 'mededeling', 'bevat', '', false, veldnamen, operatoren, 'nog een voorwaarde') }}
+      {{ voorwaarderij(5, 'mededeling', 'bevat_niet', '', false, veldnamen, operatoren, 'nog een voorwaarde') }}
+    </fieldset>
+
+    <div class="rooster drie" style="margin-top:12px">
+      <div class="veld">
+        <label>Soort</label>
+        <div class="knoppen">
+          <span class="keuzeregel">
+            <input type="radio" id="rv_uit" name="rv_richting" value="uit"
+                   {{ 'checked' if tx.richting == 'uit' }}>
+            <label for="rv_uit">Uitgave</label></span>
+          <span class="keuzeregel">
+            <input type="radio" id="rv_in" name="rv_richting" value="in"
+                   {{ 'checked' if tx.richting == 'in' }}>
+            <label for="rv_in">Inkomst</label></span>
+          <span class="keuzeregel">
+            <input type="radio" id="rv_beide" name="rv_richting" value="">
+            <label for="rv_beide">Beide</label></span>
+        </div>
+      </div>
+      <div class="veld">
+        <label for="rv_bedrag_min">Bedrag vanaf</label>
+        <input type="number" step="0.01" id="rv_bedrag_min" name="rv_bedrag_min"
+               placeholder="leeg = geen ondergrens">
+      </div>
+      <div class="veld">
+        <label for="rv_bedrag_max">Bedrag tot (niet inbegrepen)</label>
+        <input type="number" step="0.01" id="rv_bedrag_max" name="rv_bedrag_max"
+               placeholder="leeg = geen bovengrens">
+      </div>
+      <div class="veld">
+        <label for="rv_naam">Naam van de regel</label>
+        <input type="text" id="rv_naam" name="rv_naam" maxlength="120"
+               value="{{ naam }}{{ ' – ' ~ medeling[:40] if medeling }}">
+      </div>
+      <div class="veld">
+        <label for="rv_prioriteit">Prioriteit (laag gaat voor)</label>
+        <input type="number" id="rv_prioriteit" name="rv_prioriteit"
+               placeholder="automatisch">
+        <p class="klein-detail">Leeg: 5 bij meer dan één voorwaarde, zodat de regel
+          vóór de algemene regels uit je referentielijst of historiek komt (10 tot
+          90); 50 bij één voorwaarde.</p>
+      </div>
+    </div>
+
+    <div class="keuzeregel" style="margin-top:4px">
+      <input type="checkbox" id="rv_toepassen" name="rv_toepassen" value="1" checked>
+      <label for="rv_toepassen">Meteen toepassen op andere transacties zonder
+        categorie waarop ze past</label>
+    </div>
+
+    <div class="knoppen" style="margin-top:12px">
+      <button type="button" class="stil klein" data-regelproef>Op welke transacties past
+        deze regel?</button>
+    </div>
+    <div class="klein-detail" data-regelproef-uitvoer style="margin-top:8px"></div>
+  </details>
+{% endmacro %}

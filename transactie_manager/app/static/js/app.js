@@ -698,6 +698,117 @@
     vul();
   }
 
+  /* ------------------------------------------ regel maken vanuit transactie */
+  /* Wie iets aanpast in het uitklapvenster, wil die regel ook: dan gaat het
+     vinkje "bij het opslaan aanmaken" vanzelf aan, en bij een rij waarin je
+     een waarde typt ook het vinkje van die rij. De proefknop stuurt het hele
+     formulier op en toont op welke transacties de regel nu zou passen. */
+
+  function koppelRegelmaker(vak) {
+    var maken = vak.querySelector("[name='regel_maken']");
+    var formulier = vak.closest("form");
+    var naamVeld = vak.querySelector("[name='rv_naam']");
+    var naamZelf = false;  // zelf aangepast? dan niet meer overschrijven
+
+    /* De voorgestelde naam: tegenpartij, met de aangevinkte mededelingen erbij. */
+    function stelNaamVoor() {
+      if (!naamVeld || naamZelf) return;
+      var naam = "", mededelingen = [];
+      vak.querySelectorAll(".regelmaker-rij").forEach(function (rij) {
+        if (!rij.querySelector("[name='rv_gebruik']").checked) return;
+        var veld = rij.querySelector("[name='rv_veld']").value;
+        var op = rij.querySelector("[name='rv_operator']").value;
+        var w = rij.querySelector("[name='rv_waarde']").value.trim();
+        if (!w) return;
+        if (veld === "tegenpartij_naam" && !naam) naam = w;
+        if (veld === "mededeling") mededelingen.push((op === "bevat_niet" ? "zonder " : "") + w);
+      });
+      var tekst = [naam].concat(mededelingen).filter(Boolean).join(" – ");
+      if (tekst) naamVeld.value = tekst.slice(0, 120);
+    }
+
+    vak.addEventListener("input", function (e) {
+      if (e.target === maken) return;
+      if (maken) maken.checked = true;
+      if (e.target === naamVeld) { naamZelf = true; return; }
+      if (e.target.name === "rv_waarde") {
+        var rij = e.target.closest(".regelmaker-rij");
+        var vink = rij && rij.querySelector("[name='rv_gebruik']");
+        if (vink) vink.checked = e.target.value.trim() !== "";
+      }
+      stelNaamVoor();
+    });
+    vak.addEventListener("change", function (e) {
+      if (e.target !== maken && maken) maken.checked = true;
+      if (e.target !== naamVeld) stelNaamVoor();
+    });
+
+    var knop = vak.querySelector("[data-regelproef]");
+    var uitvoer = vak.querySelector("[data-regelproef-uitvoer]");
+    if (!knop || !uitvoer || !formulier) return;
+
+    function regel(tekst, sterk) {
+      var p = document.createElement("div");
+      if (sterk) { var b = document.createElement("strong"); b.textContent = tekst; p.appendChild(b); }
+      else p.textContent = tekst;
+      uitvoer.appendChild(p);
+    }
+
+    knop.addEventListener("click", function () {
+      var oud = knop.textContent;
+      knop.disabled = true;
+      knop.textContent = "Bezig met tellen…";
+      uitvoer.textContent = "";
+      var gegevens = new FormData(formulier);
+      gegevens.append("rv_tx", vak.dataset.tx || "");
+      fetch(basis() + "api/regel-proef", { method: "POST", body: gegevens })
+        .then(leesJson)
+        .then(function (a) {
+          if (!a.ok) { uitvoer.textContent = a.d.fout || "Proberen lukte niet."; return; }
+          var d = a.d;
+          if (!d.aantal) {
+            regel("Deze regel past op geen enkele transactie — ook niet op deze. " +
+                  "Kijk de voorwaarden na.", true);
+            return;
+          }
+          if (!d.deze) {
+            regel("Let op: deze regel past niet op de transactie die je nu bewerkt.", true);
+          }
+          var andere = d.aantal - d.deze;
+          regel("Past op " + (d.deze ? "deze transactie en " : "") + andere +
+                (andere === 1 ? " andere" : " andere") + ": " + d.zelfde +
+                " al in de gekozen categorie, " + d.anders + " in een andere, " +
+                d.zonder + " zonder categorie.", true);
+          if (d.anders) {
+            regel("Transacties die al in een andere categorie staan, blijven daar: " +
+                  "de regel geldt voor nieuwe transacties en, als je dat aanvinkt, " +
+                  "voor wat nog geen categorie heeft." +
+                  (d.handmatig_anders ? " " + d.handmatig_anders +
+                   " daarvan heb je zelf ingedeeld — misschien is de regel te ruim." : ""));
+          }
+          regel("Prioriteit " + d.prioriteit + ", " + d.voorwaarden +
+                (d.voorwaarden === 1 ? " voorwaarde." : " voorwaarden die samen moeten kloppen."));
+          var lijst = document.createElement("ul");
+          lijst.className = "regelproef-lijst";
+          d.voorbeelden.forEach(function (v) {
+            var li = document.createElement("li");
+            li.textContent = v.datum + " · " + v.tegenpartij +
+              (v.mededeling ? " — " + v.mededeling : "") + " · " + v.bedrag + " € · " +
+              (v.soort === "deze" ? "deze transactie" :
+               v.soort === "zonder" ? "zonder categorie" :
+               (v.soort === "zelfde" ? "al in deze categorie" : "nu: " + v.categorie));
+            lijst.appendChild(li);
+          });
+          uitvoer.appendChild(lijst);
+          if (d.aantal > d.voorbeelden.length) {
+            regel("… en nog " + (d.aantal - d.voorbeelden.length) + " andere.");
+          }
+        })
+        .catch(function () { uitvoer.textContent = "De server is niet bereikbaar."; })
+        .finally(function () { knop.disabled = false; knop.textContent = oud; });
+    });
+  }
+
   /* ------------------------------------------------------------------ start */
 
   document.addEventListener("DOMContentLoaded", function () {
@@ -719,6 +830,7 @@
     document.querySelectorAll(".zoekinlijst").forEach(koppelLijstzoeker);
     document.querySelectorAll("[data-voortgang]").forEach(koppelVoortgang);
     koppelAiKnoppen();
+    document.querySelectorAll("[data-regelmaker]").forEach(koppelRegelmaker);
     document.querySelectorAll("[data-omschrijvingkiezer]").forEach(koppelOmschrijving);
 
     document.querySelectorAll("[data-bevestig]").forEach(function (formulier) {

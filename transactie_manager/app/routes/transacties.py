@@ -18,8 +18,10 @@ from ..categorizer.engine import (ONZEKERE_HERKOMSTEN, Motor,
                                   TransactieKenmerken, Voorstel, laad_regels,
                                   regel_past)
 from ..database import get_db, instelling, log, now_iso
+from .. import regelmaker
 from ..regelonderhoud import (WIS_TOELICHTING, hangende_transacties, herbekijk,
-                              herstel_bewerkte_onzekere_regels, maak_zeker, verslag)
+                              herstel_bewerkte_onzekere_regels, maak_zeker, pas_toe,
+                              verslag)
 from .instellingen import EXTRA_OPERATOREN, HERKOMSTEN, VELDNAMEN, _regelrijen
 from ..transacties import bewaar, haal, tel, werk_bij, zoek
 
@@ -193,21 +195,36 @@ def bewerken(tx_id: int):
             # wijziging aan die regel mag deze keuze niet meer overschrijven.
             regel_id=None,
         )
-        if request.form.get("onthouden") == "1":
+        melding = "Transactie opgeslagen."
+        soort = "goed"
+        if request.form.get("regel_maken") == "1":
             bijgewerkt = haal(conn, crypto, tx_id)
-            maak_regel_van_voorstel(
-                conn, crypto, bijgewerkt.kenmerken,
-                Voorstel(
-                    categorie_id=bijgewerkt.categorie_id,
-                    subcategorie_id=bijgewerkt.subcategorie_id,
-                    subsub_id=bijgewerkt.subsub_id,
-                    handelaar=bijgewerkt.handelaar or None,
-                    land=bijgewerkt.land or None,
-                ),
-            )
-            flash("Opgeslagen en als vaste regel onthouden.", "goed")
-        else:
-            flash("Transactie opgeslagen.", "goed")
+            samenstelling, reden = regelmaker.lees(request.form)
+            if bijgewerkt.categorie_id is None:
+                melding += " De regel is niet aangemaakt: kies eerst een categorie."
+                soort = "fout"
+            elif samenstelling is None:
+                melding += " De regel is niet aangemaakt: " + reden
+                soort = "fout"
+            else:
+                ids = (bijgewerkt.categorie_id, bijgewerkt.subcategorie_id,
+                       bijgewerkt.subsub_id)
+                regel_id = regelmaker.bewaar(conn, crypto, samenstelling, ids,
+                                             bijgewerkt.handelaar or None,
+                                             bijgewerkt.land or None)
+                log(conn, crypto, g.gebruiker, "regel toegevoegd",
+                    f"regel={regel_id} vanuit tx={tx_id}")
+                n = len(samenstelling.voorwaarden)
+                melding += (f" Vaste regel “{samenstelling.naam}” aangemaakt"
+                            f" ({n} {'voorwaarde' if n == 1 else 'voorwaarden'},"
+                            f" prioriteit {samenstelling.prioriteit}).")
+                if request.form.get("rv_toepassen") == "1":
+                    erbij = pas_toe(conn, crypto, regel_id)
+                    if erbij:
+                        melding += (f" Ook toegepast op {erbij} andere "
+                                    f"{'transactie' if erbij == 1 else 'transacties'}"
+                                    " zonder categorie.")
+        flash(melding, soort)
         log(conn, crypto, g.gebruiker, "transactie_gewijzigd", f"id={tx_id}")
         conn.commit()
         return redirect(veilig_terug(request.form.get("terug"), url_for("tx.lijst")))
@@ -217,6 +234,7 @@ def bewerken(tx_id: int):
         tx=tx, rekeningen=_rekeningen(conn, crypto),
         terug=veilig_terug(request.args.get("terug"), url_for("tx.lijst")),
         ai_actief=instelling(conn, "ai_actief", "0") == "1",
+        veldnamen=VELDNAMEN, extra_operatoren=EXTRA_OPERATOREN,
         **_herkomst(conn, crypto, tx), **_cat_context(conn, crypto),
     )
 

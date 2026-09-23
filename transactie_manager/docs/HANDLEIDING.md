@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.26.0
+Versie 0.27.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -792,8 +792,8 @@ Wat het meest helpt, van groot naar klein:
   door die categorie loopt.
 - **Bevestig en corrigeer.** Elke bevestigde transactie wordt een voorbeeld:
   haar tegenpartij verschijnt bij het pad, en ze kan als gelijkaardige
-  transactie opduiken. Vink bij een correctie ook *Deze keuze onthouden als
-  vaste regel* aan; dan hoeft het model er de volgende keer niet meer aan te
+  transactie opduiken. Maak bij een correctie ook een *vaste regel* in het
+  uitklapvenster onderaan het bewerkscherm; dan hoeft het model er de volgende keer niet meer aan te
   pas te komen.
 - **Laat de Brave-webopzoeking aanstaan** voor betalingen aan zaken met een
   nietszeggende naam.
@@ -813,8 +813,68 @@ particulieren zonder duidelijke mededeling blijven raden, voor elk model.
 Wat overblijft, deel je zelf in. De subcategorieën worden daarbij gefilterd op
 de gekozen hoofdcategorie, en de sub-subcategorieën op de gekozen subcategorie.
 
-Vink **Deze keuze onthouden als vaste regel** aan om er meteen een regel van te
-maken. De volgende keer gaat het dan vanzelf.
+#### Een vaste regel maken vanuit een transactie
+
+Onderaan het bewerkscherm — ook als je er komt via **Aanpassen** of **Indelen**
+in het nazicht — staat het uitklapvenster **Vaste regel maken voor de
+toekomst**. Daarin stel je de regel zelf samen, met dezelfde mogelijkheden als
+bij *Instellingen › Regels*. Het venster is vooraf ingevuld met de gegevens van
+de transactie:
+
+| Voorwaarde                | Vergelijking             | Standaard aangevinkt |
+|---------------------------|--------------------------|----------------------|
+| Naam tegenpartij          | bevat                    | ja, als er een naam is |
+| Beschrijving              | is precies gelijk aan    | ja, als er een is    |
+| Mededeling                | bevat                    | ja, als er een is    |
+| Rekening tegenpartij      | is precies gelijk aan    | nee                  |
+| twee lege rijen           | bevat / bevat niet       | nee                  |
+
+Daaronder: **inkomst, uitgave of beide** (vooraf gezet op de soort van deze
+transactie), een **bedragvork**, de **naam** van de regel en de
+**prioriteit**. De categorie, de winkel en het land van de regel zijn die van
+het formulier erboven.
+
+Zo werk je ermee:
+
+- **Vink aan wat moet kloppen.** Alle aangevinkte voorwaarden moeten samen
+  kloppen. Een vinkje uit = die voorwaarde telt niet. Typ je een waarde in een
+  lege rij, dan gaat haar vinkje vanzelf aan.
+- **Kort de mededeling in tot het trefwoord.** De volledige mededeling
+  ("Drinkgeld week 18") past bijna nooit nog een tweede keer; één woord eruit
+  (*drinkgeld*) wel. Zo maak je van "alles van Axelle" een regel "Axelle én
+  *drinkgeld* in de mededeling", en blijft de tandartsbetaling van Axelle
+  buiten schot.
+- **Beschrijving.** De soort verrichting ("Uitgaande instantoverschrijving")
+  maakt de regel nauwkeuriger, maar een gewone overschrijving aan dezelfde
+  persoon heeft een andere beschrijving. Vink ze uit als dat niet uitmaakt.
+- **Met *bevat niet* sluit je iets uit.** Een regel moet wel minstens één
+  voorwaarde hebben die iets insluit.
+- **Probeer ze uit.** De knop **Op welke transacties past deze regel?** telt
+  over je hele boekhouding hoeveel transacties erop passen: hoeveel al in de
+  gekozen categorie staan, hoeveel in een andere en hoeveel zonder categorie,
+  met een paar voorbeelden. Past ze op transacties die je zelf elders
+  indeelde, dan zegt het scherm dat de regel misschien te ruim is. Past ze
+  niet op de transactie zelf, dan krijg je ook een waarschuwing.
+- **Opslaan.** Pas je iets aan in het venster, dan gaat het vinkje **Bij het
+  opslaan deze regel aanmaken** vanzelf aan; je kan het ook zelf aan- of
+  uitzetten. Met **Opslaan en bevestigen** wordt eerst de transactie bewaard,
+  en dan de regel. Is er geen categorie gekozen, of geen enkele voorwaarde die
+  iets insluit, dan wordt de transactie bewaard maar de regel niet, en zegt
+  de melding waarom.
+- **Meteen toepassen** (standaard aan) deelt ook de andere transacties zonder
+  categorie in waarop de regel past. Wat al een categorie heeft — en zeker wat
+  je zelf indeelde — blijft staan.
+
+**De prioriteit.** Leeg laten is meestal het beste. Een regel met meer dan één
+voorwaarde krijgt dan prioriteit 5, zodat ze vóór de algemene regels uit je
+referentielijst of historiek komt (die krijgen 10 tot 90): anders zou een regel
+"alles van Axelle" altijd winnen van "Axelle én drinkgeld". Met één voorwaarde
+wordt het 50. Een lage prioriteit gaat voor.
+
+De naam van de regel wordt voorgesteld uit de tegenpartij en de aangevinkte
+mededelingen, en volgt je aanpassingen tot je hem zelf wijzigt. De regel
+verschijnt daarna gewoon bij *Instellingen › Regels*, waar je hem later nog kan
+bewerken.
 
 ### Regels afleiden uit je historiek
 

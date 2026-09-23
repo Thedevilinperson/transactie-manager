@@ -10,7 +10,7 @@ from flask import Blueprint, g, jsonify, request
 from ..auth import login_vereist
 from ..categories import laad_alles
 from ..categorizer import ai
-from .. import taken
+from .. import regelmaker, taken
 from ..database import connect, get_db, log
 from ..transacties import haal, werk_bij
 
@@ -35,6 +35,27 @@ def categorieen():
 
     kinderen.sort(key=lambda c: c.naam.lower())
     return jsonify([{"id": c.id, "naam": c.naam} for c in kinderen])
+
+
+@bp.route("/regel-proef", methods=["POST"])
+@login_vereist
+def regel_proef():
+    """Op welke transacties zou de regel uit het bewerkscherm nu passen?
+
+    Krijgt het hele formulier van het bewerkscherm, zodat ook de gekozen
+    categorie meetelt: hoeveel treffers staan er al in, hoeveel elders.
+    """
+    samenstelling, reden = regelmaker.lees(request.form)
+    if samenstelling is None:
+        return jsonify({"fout": reden}), 400
+    ids = (request.form.get("categorie_id", type=int),
+           request.form.get("subcategorie_id", type=int),
+           request.form.get("subsub_id", type=int))
+    uit = regelmaker.proef(get_db(), g.crypto, samenstelling, ids,
+                           huidig_tx=request.form.get("rv_tx", type=int))
+    uit["prioriteit"] = samenstelling.prioriteit
+    uit["voorwaarden"] = len(samenstelling.voorwaarden)
+    return jsonify(uit)
 
 
 @bp.route("/ai-voorstel/<int:tx_id>", methods=["POST"])

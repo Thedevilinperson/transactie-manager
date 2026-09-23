@@ -4,6 +4,49 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.27.0] — 2026-09-23
+
+### Toegevoegd
+- **Een vaste regel samenstellen vanuit een transactie.** Het vinkje *Deze keuze
+  onthouden als vaste regel voor deze tegenpartij* maakte altijd dezelfde regel
+  ("naam bevat …"): voor een winkel goed, voor een persoon zelden. In de plaats
+  staat onderaan het bewerkscherm — ook bereikbaar via **Aanpassen** en
+  **Indelen** in het nazicht — het uitklapvenster **Vaste regel maken voor de
+  toekomst**, met dezelfde mogelijkheden als *Instellingen › Regels*:
+  - voorwaarden met een vinkje, een veld, een vergelijking en een waarde,
+    vooraf ingevuld met de gegevens van de transactie: **naam tegenpartij**
+    (bevat), **beschrijving** (is gelijk aan) en — als die er is — de
+    **mededeling** (bevat), aangevinkt; de **rekening tegenpartij** en twee
+    lege rijen (waarvan één met *bevat niet*) staan klaar maar niet aangevinkt.
+    Typ je in een rij, dan gaat haar vinkje vanzelf aan;
+  - **inkomst, uitgave of beide**, vooraf gezet op de soort van de
+    transactie, en een **bedragvork**;
+  - de **naam** van de regel, voorgesteld uit tegenpartij en mededelingen en
+    bijgewerkt terwijl je de voorwaarden aanpast, tot je hem zelf wijzigt;
+  - de **prioriteit**, standaard automatisch (zie hieronder);
+  - **Meteen toepassen** op de andere transacties zonder categorie waarop de
+    regel past (standaard aan).
+  De categorie, winkel en het land van de regel zijn die van het formulier.
+  Pas je iets aan in het venster, dan gaat het vinkje *Bij het opslaan deze
+  regel aanmaken* vanzelf aan.
+- **Op welke transacties past deze regel?** Een knop in hetzelfde venster
+  telt over de hele boekhouding waarop de regel nu zou passen: deze
+  transactie, en hoeveel andere al in de gekozen categorie staan, in een
+  andere, of zonder categorie — met een paar voorbeelden. Past ze op
+  transacties die je zelf elders indeelde, of niet op de transactie zelf, dan
+  staat er een waarschuwing bij. Nieuw eindpunt `api/regel-proef`.
+
+### Gewijzigd
+- **Automatische prioriteit voor zelf samengestelde regels**: 5 bij meer dan
+  één voorwaarde, 50 bij één. Regels uit je referentielijst en historiek
+  krijgen 10 tot 90, en de laagste gaat voor; zonder deze keuze zou een
+  algemene regel "alles van Axelle" altijd winnen van de specifiekere "Axelle
+  én drinkgeld".
+- Lukt het aanmaken van de regel niet (geen categorie gekozen, of geen enkele
+  voorwaarde die iets insluit), dan wordt de transactie wel bewaard en zegt de
+  melding waarom de regel er niet kwam.
+
+
 ## [0.26.0] — 2026-09-23
 
 ### Opgelost

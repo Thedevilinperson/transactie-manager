@@ -1,5 +1,6 @@
 {% extends "basis.html" %}
 {% from "_kiezer.html" import categoriekiezer %}
+{% from "_regelmaker.html" import regelmaker %}
 {% block titel %}Transactie bewerken{% endblock %}
 
 {% block inhoud %}
@@ -154,10 +155,10 @@
       <label for="land">Land van bestemming (bij vakantie-uitgaven)</label>
       <input type="text" id="land" name="land" value="{{ tx.land }}">
     </div>
-    <div class="keuzeregel">
-      <input type="checkbox" id="onthouden" name="onthouden" value="1">
-      <label for="onthouden">Deze keuze onthouden als vaste regel voor deze tegenpartij</label>
-    </div>
+  </div>
+
+  <div class="vlak">
+    {{ regelmaker(tx, veldnamen, extra_operatoren) }}
   </div>
 
   <div class="knoppen">
