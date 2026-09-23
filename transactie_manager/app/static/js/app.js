@@ -321,6 +321,97 @@
     });
   }
 
+  /* ---------------------------------------------------- webopzoeking */
+
+  /* Toont wat Brave Search over de tegenpartij vindt: dezelfde opzoeking die
+     het AI-model meekrijgt. Alles wordt als tekst in de pagina gezet, nooit
+     als HTML — de resultaten komen van buiten. */
+  function toonWebresultaten(doel, d) {
+    doel.textContent = "";
+    function el(soort, klasse, tekst) {
+      var e = document.createElement(soort);
+      if (klasse) e.className = klasse;
+      if (tekst) e.textContent = tekst;
+      return e;
+    }
+
+    var kop = el("p", "klein-detail");
+    kop.appendChild(document.createTextNode("Gezocht op "));
+    kop.appendChild(el("strong", "", d.zoekvraag));
+    kop.appendChild(document.createTextNode(". " + d.gebruik));
+    doel.appendChild(kop);
+
+    if (!d.resultaten || !d.resultaten.length) {
+      doel.appendChild(el("p", "klein-detail", "Brave vond niets."));
+      return;
+    }
+
+    var lijst = el("ol", "webresultaten");
+    d.resultaten.forEach(function (r) {
+      var li = el("li");
+      var titel = r.titel || r.url || "(zonder titel)";
+      if (/^https?:\/\//i.test(r.url || "")) {
+        var a = el("a", "", titel);
+        a.href = r.url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        li.appendChild(a);
+      } else {
+        li.appendChild(el("strong", "", titel));
+      }
+      if (r.bron) li.appendChild(el("span", "klein-detail", " " + r.bron));
+      if (r.beschrijving) li.appendChild(el("div", "", r.beschrijving));
+      lijst.appendChild(li);
+    });
+    doel.appendChild(lijst);
+
+    if (d.context) {
+      var details = el("details", "webcontext");
+      details.appendChild(el("summary", "klein-detail",
+        "Zo krijgt het model het te zien"));
+      details.appendChild(el("pre", "", d.context));
+      doel.appendChild(details);
+    }
+  }
+
+  function koppelWebKnoppen() {
+    document.querySelectorAll("[data-web-voor]").forEach(function (knop) {
+      knop.addEventListener("click", function () {
+        var txId = knop.dataset.webVoor;
+        var doel = document.querySelector('[data-web-uitvoer="' + txId + '"]');
+        var oud = knop.textContent;
+        var gegevens = new URLSearchParams();
+        var naam = document.getElementById("tegenpartij_naam");
+        var beschrijving = document.getElementById("beschrijving");
+        if (naam) gegevens.set("naam", naam.value);
+        if (beschrijving) gegevens.set("beschrijving", beschrijving.value);
+
+        function melding(tekst) {
+          if (doel) { doel.textContent = ""; doel.appendChild(document.createTextNode(tekst)); }
+        }
+        knop.disabled = true;
+        knop.textContent = "Bezig met zoeken…";
+        fetch(basis() + "api/webopzoeking/" + txId, {
+          method: "POST",
+          headers: { "Accept": "application/json" },
+          body: gegevens
+        })
+          .then(leesJson)
+          .then(function (a) {
+            knop.disabled = false;
+            knop.textContent = "Opnieuw zoeken";
+            if (!a.ok) { melding(a.d.fout || "De opzoeking lukte niet."); return; }
+            if (doel) toonWebresultaten(doel, a.d);
+          })
+          .catch(function () {
+            knop.disabled = false;
+            knop.textContent = oud;
+            melding("De server is niet bereikbaar.");
+          });
+      });
+    });
+  }
+
   /* ------------------------------------------------- filters die zelf gaan */
 
   function koppelAutofilter(formulier) {
@@ -830,6 +921,7 @@
     document.querySelectorAll(".zoekinlijst").forEach(koppelLijstzoeker);
     document.querySelectorAll("[data-voortgang]").forEach(koppelVoortgang);
     koppelAiKnoppen();
+    koppelWebKnoppen();
     document.querySelectorAll("[data-regelmaker]").forEach(koppelRegelmaker);
     document.querySelectorAll("[data-omschrijvingkiezer]").forEach(koppelOmschrijving);
 

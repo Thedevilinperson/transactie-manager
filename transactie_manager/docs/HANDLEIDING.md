@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.27.0
+Versie 0.28.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -319,7 +319,9 @@ ziet daar alles wat eraan vasthangt:
 - **Zoals de bank ze aanleverde** — rekening, boekdatum, valutadatum, bedrag,
   richting, de referentie van de bank, en uit welk bestand ze kwam.
 - **Hoe deze indeling tot stand kwam** — welke stap de categorie toekende en
-  waarom, met de zekerheid erbij als het om een vergelijking ging.
+  waarom, met de zekerheid erbij als het om een vergelijking ging. Kom je uit
+  het nazicht, dan staat hier ook de knop **Zoek de tegenpartij op het
+  internet** (zie [Stap 3](#stap-3-het-lokale-ai-model)).
 - **De rij zoals ze in het bestand stond** — uitklapbaar onderaan, met alle
   kolommen, ook die waarvoor de toepassing geen eigen veld heeft. Handig als je
   je afvraagt waar een indeling vandaan komt.
@@ -720,6 +722,34 @@ met voorbeelden. De vraag bestaat daarom uit:
    LinkedIn-profielen op — "Anita Bauweraerts" werd zo een lingeriemerk. Dan
    wordt er niet gezocht; het logboek zegt waarom.
 
+**De webopzoeking zelf bekijken.** Open je een transactie vanuit het nazicht
+(**Aanpassen** of **Indelen**), dan staat in het blok *Hoe deze indeling tot
+stand kwam* de knop **Zoek de tegenpartij op het internet**. Die doet precies
+dezelfde opzoeking als bij een bevraging van het model — Brave Search, op de
+naam van de tegenpartij met *winkel bedrijf* erachter, de eerste vijf
+resultaten — en toont je:
+
+- de **zoekvraag** zoals ze naar Brave ging;
+- de **resultaten**, met titel, website en beschrijving. Klik op een titel om
+  de pagina in een nieuw tabblad te openen;
+- of het model deze resultaten **bij deze transactie ook meekrijgt**. Bij een
+  overschrijving niet (zie punt 4 hierboven): de knop zoekt dan wel, zodat je
+  zelf kan kijken, maar zegt erbij dat het model het niet te zien krijgt;
+- uitklapbaar onder **Zo krijgt het model het te zien**: de tekst letterlijk
+  zoals hij in de vraag staat.
+
+Er wordt gezocht op de naam en de beschrijving zoals ze op dat moment in het
+formulier staan. Klopt de naam niet goed — een afgekapte of vreemd gespelde
+naam van de bank — verbeter hem dan eerst in het veld **Naam tegenpartij** en
+klik de knop opnieuw; opslaan hoeft daarvoor niet. De knop verandert zelf niets
+aan de transactie. Handig om te begrijpen waarom het model een zaak verkeerd
+inschatte, of om een onbekende naam te herkennen voor je zelf indeelt.
+
+De knop verschijnt alleen als de webopzoeking aanstaat en er een Brave
+API-sleutel is ingevuld; anders staat er een verwijzing naar **Instellingen ›
+Automatisch indelen**. Ook hier verlaat de naam van de tegenpartij je netwerk,
+naar Brave. Elke opzoeking komt in het logboek.
+
 **De spelregels** die het model meekrijgt: de bronnen in de volgorde hierboven,
 van sterk naar zwak; indelen volgens *wát* er betaald werd en niet hoe of waar
 (*online*, *webshop*, *Bancontact*, *overschrijving* zeggen niets); een paar
@@ -1001,7 +1031,10 @@ die ingedeeld werden door een regel die om bevestiging vraagt. Per rij zie je:
   een AI-voorstel staat de zekerheid in procenten; bij een regel die om
   bevestiging vraagt staat *vraagt bevestiging*.
 
-Klopt het, klik dan **Klopt**. Klopt het niet, klik **Aanpassen**. Bij een
+Klopt het, klik dan **Klopt**. Klopt het niet, klik **Aanpassen**. In dat
+scherm kan je met **Zoek de tegenpartij op het internet** bekijken wat Brave
+over de tegenpartij vindt, dezelfde informatie die het AI-model krijgt (zie
+[Stap 3](#stap-3-het-lokale-ai-model)). Bij een
 regel brengt **Naar de regel** je naar de regel erachter (zie
 [Stap 1: vaste regels](#stap-1-vaste-regels)). Na elke handeling kom je terug
 op het nazicht met je filters en sortering nog ingesteld.

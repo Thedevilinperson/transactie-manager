@@ -6,7 +6,7 @@
 /* Het versienummer staat hier zodat de toepassing kan nagaan of de browser wel
    het juiste stijlblad gebruikt. Bijwerken met scripts/versie.py. */
 :root {
-  --stijl-versie: "0.27.0";
+  --stijl-versie: "0.28.0";
   --inkt: #17202e;
   --inkt-zacht: #5a6675;
   --papier: #f1f3f6;
@@ -610,3 +610,15 @@ details.regelmaker > summary { cursor: pointer; }
 .regelmaker-rij input[type="checkbox"] { flex: 0 0 auto; width: auto; }
 ul.regelproef-lijst { margin: 6px 0 0 18px; padding: 0; }
 ul.regelproef-lijst li { margin: 2px 0; }
+
+/* Webopzoeking in het blok "Hoe deze indeling tot stand kwam". */
+.webopzoeking { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--lijn); }
+ol.webresultaten { margin: 8px 0 0 20px; padding: 0; }
+ol.webresultaten li { margin: 0 0 8px; }
+ol.webresultaten li div { color: var(--inkt-zacht); font-size: 13px; }
+details.webcontext { margin-top: 6px; }
+details.webcontext > summary { cursor: pointer; }
+details.webcontext pre {
+  background: var(--papier); padding: 8px 10px; border-radius: 6px;
+  white-space: pre-wrap; font-size: 12.5px; margin: 6px 0 0;
+}

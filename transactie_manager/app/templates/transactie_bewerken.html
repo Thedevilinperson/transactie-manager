@@ -47,16 +47,40 @@
   </div>
 </div>
 
-{% if tx.toelichting %}
+{% if tx.toelichting or vanuit_nazicht %}
   <div class="vlak">
     <h2>Hoe deze indeling tot stand kwam</h2>
-    <p>
-      <span class="merkje {{ tx.methode }}">{{ tx.methode }}</span>
-      {{ tx.toelichting }}
-      {% if tx.methode == 'fuzzy' %}
-        <span class="klein-detail">zekerheid: {{ tx.zekerheid|procent }}</span>
-      {% endif %}
-    </p>
+    {% if tx.toelichting %}
+      <p>
+        <span class="merkje {{ tx.methode }}">{{ tx.methode }}</span>
+        {{ tx.toelichting }}
+        {% if tx.methode == 'fuzzy' %}
+          <span class="klein-detail">zekerheid: {{ tx.zekerheid|procent }}</span>
+        {% endif %}
+      </p>
+    {% else %}
+      <p class="klein-detail">Voor deze transactie is nog geen indeling voorgesteld.</p>
+    {% endif %}
+
+    {% if vanuit_nazicht %}
+      <div class="webopzoeking">
+        {% if web_klaar %}
+          <p>
+            <button type="button" class="stil klein" data-web-voor="{{ tx.id }}">
+              Zoek de tegenpartij op het internet</button>
+            <span class="klein-detail">Dezelfde opzoeking via Brave Search die het
+              AI-model gebruikt, op de naam zoals die hieronder in het formulier
+              staat. Er wordt niets aangepast.</span>
+          </p>
+          <div data-web-uitvoer="{{ tx.id }}"></div>
+        {% else %}
+          <p class="klein-detail">Wil je hier zien wat het internet over de
+            tegenpartij zegt? Zet de webopzoeking aan en vul een Brave
+            API-sleutel in bij
+            <a href="{{ url_for('instellingen.model') }}">Automatisch indelen</a>.</p>
+        {% endif %}
+      </div>
+    {% endif %}
   </div>
 {% endif %}
 

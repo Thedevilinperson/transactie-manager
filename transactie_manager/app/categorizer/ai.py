@@ -123,6 +123,55 @@ def test_verbinding(conn) -> tuple[bool, str]:
         return False, f"Geen verbinding: {exc}"
 
 
+def zoekvraag(naam: str) -> str:
+    """De zoekvraag die naar Brave gaat. Op één plaats, zodat de knop in het
+    bewerkscherm gegarandeerd hetzelfde opzoekt als het AI-model."""
+    return _enkel_spatie(naam) + " winkel bedrijf"
+
+
+def _zonder_html(tekst: str) -> str:
+    return re.sub(r"<[^>]+>", "", tekst or "").strip()
+
+
+def _brave(sleutel: str, zoekterm: str) -> list[dict]:
+    """Eén opzoeking bij de Brave Search API. Geeft de eerste vijf resultaten
+    als {titel, beschrijving, url, bron}; gooit AIFout als het misloopt."""
+    url = BRAVE_ZOEK_URL + "?" + urllib.parse.urlencode({
+        "q": zoekvraag(zoekterm),
+        "count": 5,
+    })
+    try:
+        req = urllib.request.Request(url, headers={
+            "Accept": "application/json",
+            "X-Subscription-Token": sleutel,
+        })
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        raise AIFout(f"Brave Search gaf geen antwoord: {exc}") from exc
+
+    uit = []
+    for r in ((data.get("web") or {}).get("results") or [])[:5]:
+        uit.append({
+            "titel": _zonder_html(r.get("title")),
+            "beschrijving": _zonder_html(r.get("description")),
+            "url": str(r.get("url") or ""),
+            "bron": str((r.get("meta_url") or {}).get("hostname") or ""),
+        })
+    return uit
+
+
+def _als_context(resultaten: list[dict]) -> str:
+    """De resultaten zoals het model ze te zien krijgt: titel — beschrijving,
+    één per regel, samen hoogstens 1200 tekens."""
+    stukken = []
+    for r in resultaten:
+        regel = " — ".join(deel for deel in (r["titel"], r["beschrijving"]) if deel)
+        if regel:
+            stukken.append(regel)
+    return "\n".join(stukken)[:1200]
+
+
 def _webcontext(conn, zoekterm: str) -> str:
     """Haalt een paar zoekresultaten op over de tegenpartij, via de Brave
     Search API. Faalt stil: geen sleutel ingesteld, geen bereikbare server of
@@ -133,29 +182,47 @@ def _webcontext(conn, zoekterm: str) -> str:
     sleutel = lokaal.lees(conn, "brave_api_key")
     if not sleutel:
         return ""
-    url = BRAVE_ZOEK_URL + "?" + urllib.parse.urlencode({
-        "q": _enkel_spatie(zoekterm) + " winkel bedrijf",
-        "count": 5,
-    })
     try:
-        req = urllib.request.Request(url, headers={
-            "Accept": "application/json",
-            "X-Subscription-Token": sleutel,
-        })
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-    except Exception:  # noqa: BLE001
+        return _als_context(_brave(sleutel, zoekterm))
+    except AIFout:
         return ""
 
-    resultaten = ((data.get("web") or {}).get("results") or [])[:5]
-    stukken = []
-    for r in resultaten:
-        titel = re.sub(r"<[^>]+>", "", r.get("title") or "").strip()
-        beschrijving = re.sub(r"<[^>]+>", "", r.get("description") or "").strip()
-        regel = " — ".join(deel for deel in (titel, beschrijving) if deel)
-        if regel:
-            stukken.append(regel)
-    return "\n".join(stukken)[:1200]
+
+def webopzoeking_klaar(conn) -> bool:
+    """Staat de webopzoeking aan, en is er een Brave-sleutel?"""
+    return (instelling(conn, "ai_zoeken_actief", "0") == "1"
+            and bool(lokaal.lees(conn, "brave_api_key")))
+
+
+def webopzoeking(conn, k: TransactieKenmerken) -> dict:
+    """Dezelfde opzoeking als bij een AI-bevraging, maar om te tonen.
+
+    Er wordt ook gezocht als het model het bij deze transactie niet zou doen
+    (een overschrijving): je vraagt er zelf om, en het scherm zegt erbij dat
+    het model deze resultaten dan niet meekrijgt.
+    """
+    if not webopzoeking_klaar(conn):
+        raise AIFout("De webopzoeking staat uit of er is geen Brave API-sleutel "
+                     "ingevuld (Instellingen › Automatisch indelen).")
+    naam = _enkel_spatie(k.tegenpartij_naam)
+    if not naam:
+        raise AIFout("Er is geen naam van de tegenpartij om op te zoeken.")
+
+    resultaten = _brave(lokaal.lees(conn, "brave_api_key"), naam)
+    zinvol, reden = webopzoeking_zinvol(k)
+    if zinvol:
+        gebruik = ("Dit is wat het AI-model bij deze transactie over de "
+                   "tegenpartij meekrijgt.")
+    else:
+        gebruik = (f"Bij deze transactie zoekt het AI-model niet op het internet "
+                   f"({reden}); deze resultaten krijgt het dus niet te zien.")
+    return {
+        "zoekvraag": zoekvraag(naam),
+        "resultaten": resultaten,
+        "context": _als_context(resultaten) if zinvol else "",
+        "model_gebruikt": zinvol,
+        "gebruik": gebruik,
+    }
 
 
 def webopzoeking_zinvol(k: TransactieKenmerken) -> tuple[bool, str]:

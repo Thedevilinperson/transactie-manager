@@ -4,6 +4,47 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.28.0] — 2026-09-23
+
+### Toegevoegd
+- **De webopzoeking van het AI-model zelf bekijken.** Open je een transactie
+  vanuit het nazicht (**Aanpassen** of **Indelen**), dan staat in het blok
+  *Hoe deze indeling tot stand kwam* de knop **Zoek de tegenpartij op het
+  internet**. Die doet precies de opzoeking die het model meekrijgt — Brave
+  Search, op de naam van de tegenpartij met *winkel bedrijf* erachter, de
+  eerste vijf resultaten — en toont:
+  - de zoekvraag zoals ze naar Brave ging;
+  - de resultaten met titel, website en beschrijving; de titel is een link die
+    in een nieuw tabblad opent;
+  - of het model deze resultaten bij deze transactie ook echt te zien krijgt.
+    Bij een overschrijving zoekt het model niet (de tegenpartij kan een persoon
+    zijn); de knop zoekt dan wel, maar zegt erbij dat het model het niet
+    meekrijgt;
+  - uitklapbaar, **Zo krijgt het model het te zien**: de tekst letterlijk zoals
+    hij in de vraag aan het model komt.
+  Er wordt gezocht op de naam en de beschrijving zoals ze op dat moment in het
+  formulier staan. Verbeter je de naam, dan zoek je meteen op de verbeterde
+  naam, zonder eerst op te slaan. Aan de transactie verandert niets.
+- Het blok *Hoe deze indeling tot stand kwam* verschijnt vanuit het nazicht nu
+  ook bij een transactie zonder voorstel, zodat de knop er altijd staat.
+- Staat de webopzoeking uit of ontbreekt de Brave API-sleutel, dan staat er in
+  de plaats van de knop een verwijzing naar *Instellingen › Automatisch
+  indelen*. Zonder die schakelaar verlaat er dus nog altijd niets je netwerk.
+- Nieuw eindpunt `api/webopzoeking/<id>` (POST). Elke opzoeking komt in het
+  logboek, met de zoekvraag en het aantal resultaten.
+
+### Technisch
+- De opzoeking bij Brave staat nu op één plaats in `categorizer/ai.py`
+  (`zoekvraag`, `_brave`, `_als_context`); zowel de bevraging van het model als
+  de knop gebruiken ze. Wat je op het scherm ziet, is dus gegarandeerd wat het
+  model krijgt. Voor het model verandert er niets: dezelfde zoekvraag, dezelfde
+  vijf resultaten, dezelfde grens van 1200 tekens, en een mislukte opzoeking
+  blijft stil.
+- De resultaten komen van buiten en worden in de browser uitsluitend als tekst
+  in de pagina gezet, nooit als HTML; alleen `http`- en `https`-adressen worden
+  een link.
+
+
 ## [0.27.0] — 2026-09-23
 
 ### Toegevoegd

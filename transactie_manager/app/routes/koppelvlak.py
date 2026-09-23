@@ -1,9 +1,11 @@
-"""Kleine JSON-eindpunten voor de schermen: afhankelijke keuzelijsten en het
-op aanvraag bevragen van het AI-model."""
+"""Kleine JSON-eindpunten voor de schermen: afhankelijke keuzelijsten, het
+op aanvraag bevragen van het AI-model, en de webopzoeking die het model
+gebruikt, om zelf te bekijken."""
 
 from __future__ import annotations
 
 import secrets
+from dataclasses import replace
 
 from flask import Blueprint, g, jsonify, request
 
@@ -55,6 +57,42 @@ def regel_proef():
                            huidig_tx=request.form.get("rv_tx", type=int))
     uit["prioriteit"] = samenstelling.prioriteit
     uit["voorwaarden"] = len(samenstelling.voorwaarden)
+    return jsonify(uit)
+
+
+@bp.route("/webopzoeking/<int:tx_id>", methods=["POST"])
+@login_vereist
+def webopzoeking(tx_id: int):
+    """Toont wat Brave Search over de tegenpartij vindt — dezelfde opzoeking
+    die het AI-model meekrijgt.
+
+    Het bewerkscherm stuurt de naam en de beschrijving mee zoals ze op dat
+    moment in het formulier staan: pas je de naam aan, dan zoek je meteen op
+    de verbeterde naam. Zonder die velden geldt wat bewaard is. De opzoeking
+    duurt hoogstens een paar seconden en loopt dus gewoon in de aanvraag.
+    """
+    conn = get_db()
+    crypto = g.crypto
+    tx = haal(conn, crypto, tx_id)
+    if tx is None:
+        return jsonify({"fout": "Die transactie bestaat niet."}), 404
+
+    k = tx.kenmerken
+    naam = request.form.get("naam")
+    beschrijving = request.form.get("beschrijving")
+    if naam is not None:
+        k = replace(k, tegenpartij_naam=naam.strip())
+    if beschrijving is not None:
+        k = replace(k, beschrijving=beschrijving.strip())
+
+    try:
+        uit = ai.webopzoeking(conn, k)
+    except ai.AIFout as exc:
+        return jsonify({"fout": str(exc)}), 400
+    log(conn, crypto, g.gebruiker, "webopzoeking",
+        f"tx={tx_id}; zoekvraag: {uit['zoekvraag']}; "
+        f"{len(uit['resultaten'])} resultaten")
+    conn.commit()
     return jsonify(uit)
 
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import replace
 from datetime import date
+from urllib.parse import urlsplit
 from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, flash, g, redirect, render_template, request, url_for
@@ -13,7 +14,7 @@ from .. import backup, herindeling, veilig_terug
 from ..auth import login_vereist
 from ..categories import boom, keuzelijst, laad_alles, nakomelingen, pad_tekst
 from ..filters import METHODEN, STATUSSEN, Filters, keuzes, rekeningen as alle_rekeningen
-from ..categorizer.ai import maak_regel_van_voorstel
+from ..categorizer.ai import maak_regel_van_voorstel, webopzoeking_klaar
 from ..categorizer.engine import (ONZEKERE_HERKOMSTEN, Motor,
                                   TransactieKenmerken, Voorstel, laad_regels,
                                   regel_past)
@@ -229,10 +230,18 @@ def bewerken(tx_id: int):
         conn.commit()
         return redirect(veilig_terug(request.form.get("terug"), url_for("tx.lijst")))
 
+    terug = veilig_terug(request.args.get("terug"), url_for("tx.lijst"))
+    # Kom je uit het nazicht, dan krijgt het blok "Hoe deze indeling tot stand
+    # kwam" de knop voor de webopzoeking. Het terugadres zegt waar je vandaan
+    # komt; filters en sortering in de vraagstring doen er niet toe.
+    vanuit_nazicht = (urlsplit(terug).path.rstrip("/")
+                      == url_for("tx.nazicht").rstrip("/"))
     return render_template(
         "transactie_bewerken.html",
         tx=tx, rekeningen=_rekeningen(conn, crypto),
-        terug=veilig_terug(request.args.get("terug"), url_for("tx.lijst")),
+        terug=terug,
+        vanuit_nazicht=vanuit_nazicht,
+        web_klaar=vanuit_nazicht and webopzoeking_klaar(conn),
         ai_actief=instelling(conn, "ai_actief", "0") == "1",
         veldnamen=VELDNAMEN, extra_operatoren=EXTRA_OPERATOREN,
         **_herkomst(conn, crypto, tx), **_cat_context(conn, crypto),
