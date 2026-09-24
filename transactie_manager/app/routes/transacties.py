@@ -21,8 +21,8 @@ from ..categorizer.engine import (ONZEKERE_HERKOMSTEN, Motor,
 from ..database import get_db, instelling, log, now_iso
 from .. import regelmaker
 from ..regelonderhoud import (WIS_TOELICHTING, hangende_transacties, herbekijk,
-                              herstel_bewerkte_onzekere_regels, maak_zeker, pas_toe,
-                              verslag)
+                              herstel_bewerkte_onzekere_regels, maak_zeker,
+                              pas_toe_geteld, verslag)
 from .instellingen import EXTRA_OPERATOREN, HERKOMSTEN, VELDNAMEN, _regelrijen
 from ..transacties import bewaar, haal, tel, werk_bij, zoek
 
@@ -220,11 +220,15 @@ def bewerken(tx_id: int):
                             f" ({n} {'voorwaarde' if n == 1 else 'voorwaarden'},"
                             f" prioriteit {samenstelling.prioriteit}).")
                 if request.form.get("rv_toepassen") == "1":
-                    erbij = pas_toe(conn, crypto, regel_id)
-                    if erbij:
-                        melding += (f" Ook toegepast op {erbij} andere "
-                                    f"{'transactie' if erbij == 1 else 'transacties'}"
-                                    " zonder categorie.")
+                    # Ook de gelijkenissen die nog op nazicht staan: je hebt
+                    # net zelf vastgelegd hoe zo'n transactie hoort. Wat met
+                    # de hand of uit een bestand kwam, blijft staan.
+                    telling = pas_toe_geteld(conn, crypto, regel_id,
+                                             ook_onbevestigde_gelijkenis=True)
+                    melding += _toegepast_melding(telling)
+                    log(conn, crypto, g.gebruiker, "regel toegepast",
+                        f"regel={regel_id} zonder={telling['zonder']}"
+                        f" gelijkenis={telling['gelijkenis']}")
         flash(melding, soort)
         log(conn, crypto, g.gebruiker, "transactie_gewijzigd", f"id={tx_id}")
         conn.commit()
@@ -246,6 +250,22 @@ def bewerken(tx_id: int):
         veldnamen=VELDNAMEN, extra_operatoren=EXTRA_OPERATOREN,
         **_herkomst(conn, crypto, tx), **_cat_context(conn, crypto),
     )
+
+
+def _toegepast_melding(telling) -> str:
+    """Wat het toepassen van een nieuwe regel deed, in één zin."""
+    delen = []
+    if telling["zonder"]:
+        n = telling["zonder"]
+        delen.append(f"{n} {'transactie' if n == 1 else 'transacties'} zonder categorie")
+    if telling["gelijkenis"]:
+        n = telling["gelijkenis"]
+        delen.append(f"{n} {'transactie' if n == 1 else 'transacties'} met een nog niet "
+                     "bevestigde gelijkenis")
+    if not delen:
+        return " Er waren geen andere transacties zonder categorie of met een " \
+               "onbevestigde gelijkenis waarop ze past."
+    return " Ook toegepast op " + " en ".join(delen) + "."
 
 
 def _herkomst(conn, crypto, tx) -> dict:

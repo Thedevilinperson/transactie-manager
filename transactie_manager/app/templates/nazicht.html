@@ -49,7 +49,7 @@
     regels, of na het inlezen van een referentielijst.</p>
 
   <form method="post" action="{{ url_for('tx.herindelen') }}"
-        data-bevestig="De motor herschrijft de indeling én de bron ervan. Een transactie die nu 'met de hand' staat, kan daarna 'gelijkenis' of 'vaste regel' zeggen. Er wordt eerst een kopie van de databank gelegd. Doorgaan?">
+        data-bevestig="De motor herschrijft de indeling én de bron ervan van de transacties binnen het gekozen bereik. Wat je met de hand of via een ingelezen bestand indeelde, blijft staan. Er wordt eerst een kopie van de databank gelegd. Doorgaan?">
     <div class="keuzeregel" style="align-items:flex-start;margin-top:6px">
       <input type="radio" id="bereik_leeg" name="bereik" value="zonder_categorie"
              checked style="margin-top:4px">
@@ -76,13 +76,13 @@
         <em>Zonder categorie</em>; twijfelgevallen komen bij de voorstellen.</label>
     </div>
 
-    <p class="klein-detail" style="margin-top:12px">Let op: bij een herindeling
-      gaat de bron van de toewijzing verloren. Een transactie die nu <em>met de
-      hand</em> als methode heeft, kan daarna <em>gelijkenis</em> of <em>vaste
-      regel</em> zeggen — de categorie kan dezelfde blijven, maar waar ze vandaan
-      kwam niet. Daarom wordt er vooraf een kopie van de databank gelegd; via
-      <a href="{{ url_for('instellingen.backups') }}">Kopieën</a> zet je die
-      terug.</p>
+    <p class="klein-detail" style="margin-top:12px">Wat je <em>met de hand</em>
+      indeelde of wat <em>uit het bestand</em> kwam, blijft in elk bereik staan,
+      met die bron erbij. Voor de rest herschrijft de motor de indeling én de
+      bron: een voorstel dat nu <em>gelijkenis</em> zegt, kan daarna <em>vaste
+      regel</em> zeggen. Daarom wordt er vooraf een kopie van de databank
+      gelegd; via <a href="{{ url_for('instellingen.backups') }}">Kopieën</a>
+      zet je die terug.</p>
 
     <button type="submit" class="stil">Opnieuw indelen</button>
   </form>

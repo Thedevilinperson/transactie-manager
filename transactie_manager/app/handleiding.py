@@ -207,7 +207,14 @@ def _lijst(regels: list[str], i: int) -> tuple[int, str]:
                 continue
             break
         diep = len(treffer.group(1)) >= 2
-        inhoud = _inline(treffer.group(2))
+        # Een punt loopt door over de ingesprongen regels eronder. Zonder dit
+        # werd alleen de eerste regel een punt en de rest een losse alinea.
+        tekst = [treffer.group(2).strip()]
+        while (i + 1 < n and regels[i + 1].strip() and regels[i + 1][:1].isspace()
+               and not (_GENUMMERD.match(regels[i + 1]) or _OPSOMMING.match(regels[i + 1]))):
+            i += 1
+            tekst.append(regels[i].strip())
+        inhoud = _inline(" ".join(tekst))
         if diep and not open_sub:
             stukken.append("<ul>")
             open_sub = True

@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.28.0
+Versie 0.29.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -449,6 +449,16 @@ om te zien waarom een bepaalde regel niet herkend werd.
 
 De toepassing probeert vier dingen, in deze volgorde. Zodra er één lukt, stopt ze.
 
+> **Wat je zelf indeelde, blijft van jou.** Een transactie met bron *met de
+> hand* of *uit het bestand* (de indeling stond in een ingelezen historiek) wordt
+> door geen enkele herindeling en door geen enkele regel meer aangeraakt — niet
+> bij *Opnieuw indelen*, niet bij het toevoegen, bewerken, uitzetten of
+> verwijderen van een regel, en niet bij *Alle regels opnieuw toepassen*. Dat
+> geldt ongeacht de status van die transactie. Alleen jij kan ze nog wijzigen,
+> door de transactie zelf te openen. De enige uitzonderingen zijn de handelingen
+> die bewust alles wissen: *Opnieuw beginnen* en een referentielijst *integraal
+> vervangen*.
+
 ### Stap 1: vaste regels
 
 Een regel legt vast: als dit veld deze waarde heeft, dan hoort de transactie in
@@ -603,12 +613,13 @@ bijvoorbeeld een nieuwe Total-regel prioriteit 1, dan verhuizen de bestaande
 Total-transacties pas mee als je op deze knop klikt.
 
 De ingreep loopt over je hele boekhouding, dus er komt eerst een bevestiging.
-Wat je zelf hebt ingedeeld blijft staan, en wat de fuzzy stap of het AI-model
-heeft toegewezen ook. Alleen wat door een regel is ingedeeld, wordt herbekeken.
+Wat je zelf hebt ingedeeld of wat uit een bestand kwam blijft staan, en wat de
+fuzzy stap of het AI-model heeft toegewezen ook. Alleen wat door een regel is ingedeeld, wordt herbekeken.
 
-Drie dingen blijven ongemoeid. Wat je zelf hebt ingedeeld, blijft altijd staan:
-zodra jij een categorie kiest, is de band met de regel verbroken en overschrijft
-een latere wijziging aan die regel jouw keuze niet meer. Wat de fuzzy stap of het
+Drie dingen blijven ongemoeid. Wat je zelf hebt ingedeeld of wat uit een
+ingelezen bestand kwam, blijft altijd staan: zodra jij een categorie kiest, is
+de band met de regel verbroken en overschrijft een latere wijziging aan die
+regel jouw keuze niet meer. Wat de fuzzy stap of het
 AI-model heeft toegewezen, blijft eveneens staan — alleen een toewijzing die van
 déze regel kwam, gaat weg. En handelaar en land blijven zoals ze waren; die staan
 los van de indeling.
@@ -881,8 +892,9 @@ Zo werk je ermee:
   voorwaarde hebben die iets insluit.
 - **Probeer ze uit.** De knop **Op welke transacties past deze regel?** telt
   over je hele boekhouding hoeveel transacties erop passen: hoeveel al in de
-  gekozen categorie staan, hoeveel in een andere en hoeveel zonder categorie,
-  met een paar voorbeelden. Past ze op transacties die je zelf elders
+  gekozen categorie staan, hoeveel in een andere, hoeveel zonder categorie en
+  hoeveel met een nog niet bevestigde gelijkenis, met een paar voorbeelden. De
+  laatste twee groepen zijn wat **Meteen toepassen** bij het opslaan overneemt. Past ze op transacties die je zelf elders
   indeelde, dan zegt het scherm dat de regel misschien te ruim is. Past ze
   niet op de transactie zelf, dan krijg je ook een waarschuwing.
 - **Opslaan.** Pas je iets aan in het venster, dan gaat het vinkje **Bij het
@@ -891,9 +903,22 @@ Zo werk je ermee:
   en dan de regel. Is er geen categorie gekozen, of geen enkele voorwaarde die
   iets insluit, dan wordt de transactie bewaard maar de regel niet, en zegt
   de melding waarom.
-- **Meteen toepassen** (standaard aan) deelt ook de andere transacties zonder
-  categorie in waarop de regel past. Wat al een categorie heeft — en zeker wat
-  je zelf indeelde — blijft staan.
+- **Meteen toepassen** (standaard aan) geeft bij het opslaan ook de andere
+  transacties waarop de regel past de indeling van de regel:
+  - transacties **zonder categorie**;
+  - transacties met een **gelijkenis die nog niet bevestigd is** — de
+    voorstellen met bron *Gelijkenis* in het nazicht. Dat is precies het geval
+    waarvoor je meestal een regel maakt: de gelijkenisstap deelde een
+    tegenpartij verkeerd in, je zet één transactie recht en legt vast hoe het
+    hoort. De andere foute gelijkenissen van die tegenpartij gaan dan mee, en
+    staan daarna als *vaste regel*, bevestigd. Zegt de regel iets over winkel of
+    land, dan vervangt dat ook wat de gelijkenis had meegebracht.
+- **Wat Meteen toepassen niet aanraakt:** wat je met de hand of via een
+  ingelezen bestand indeelde, gelijkenissen die al bevestigd zijn, voorstellen
+  van het AI-model en wat een andere regel indeelde. De melding na het opslaan
+  zegt hoeveel transacties er per soort meegingen. Wil je ook bevestigde
+  gelijkenissen laten herzien, gebruik dan *Opnieuw indelen › Automatisch
+  bevestigde gelijkenissen opnieuw bekijken*.
 
 **De prioriteit.** Leeg laten is meestal het beste. Een regel met meer dan één
 voorwaarde krijgt dan prioriteit 5, zodat ze vóór de algemene regels uit je
@@ -960,6 +985,10 @@ werk zit.
 hebben worden herbekeken. Bevestigde transacties blijven hoe dan ook staan, en
 een treffer via een regel geldt als bevestigd.
 
+In geen enkel bereik wordt wat je *met de hand* indeelde of wat *uit het
+bestand* kwam aangeraakt, ook niet als zo'n transactie om een of andere reden
+niet als bevestigd zou staan.
+
 **Automatisch bevestigde gelijkenissen opnieuw bekijken** — transacties met bron
 *gelijkenis* die als bevestigd staan. Vóór versie 0.25.0 kon de gelijkenisstap
 te ver gaan: een regel met bijkomende voorwaarden werd op de naam alleen
@@ -975,11 +1004,12 @@ indelen*).
 Een regel uitzetten of verwijderen regelt zichzelf: zie *Een regel bewerken,
 uitzetten of verwijderen* hierboven.
 
-**De bron gaat verloren.** Bij een herindeling herschrijft de motor niet alleen
-de categorie maar ook de methode. Een transactie die nu *met de hand* zegt, kan
-daarna *gelijkenis* of *vaste regel* zeggen. De categorie kan dezelfde blijven,
-maar waar ze vandaan kwam niet. Daarom wordt er vooraf een kopie van de databank
-gelegd — zie *Kopieën* verderop.
+**De bron verandert mee.** Bij een herindeling herschrijft de motor niet alleen
+de categorie maar ook de methode. Een voorstel dat nu *gelijkenis* zegt, kan
+daarna *vaste regel* zeggen. De categorie kan dezelfde blijven, maar waar ze
+vandaan kwam niet. Transacties *met de hand* of *uit het bestand* vallen daar
+buiten: die houden hun indeling en hun bron. Er wordt vooraf een kopie van de
+databank gelegd — zie *Kopieën* verderop.
 
 **Wat die melding betekent.** Achteraf staat er hoeveel transacties er opnieuw
 ingedeeld zijn, uitgesplitst per stap: *via vaste regel*, *via gelijkenis*, *via
@@ -1031,7 +1061,12 @@ die ingedeeld werden door een regel die om bevestiging vraagt. Per rij zie je:
   een AI-voorstel staat de zekerheid in procenten; bij een regel die om
   bevestiging vraagt staat *vraagt bevestiging*.
 
-Klopt het, klik dan **Klopt**. Klopt het niet, klik **Aanpassen**. In dat
+Klopt het, klik dan **Klopt**. Klopt het niet, klik **Aanpassen**. Deelde de
+gelijkenisstap een tegenpartij verkeerd in, maak dan in dat scherm meteen een
+vaste regel (zie [Een vaste regel maken vanuit een
+transactie](#een-vaste-regel-maken-vanuit-een-transactie)): met **Meteen
+toepassen** worden de andere onbevestigde gelijkenissen waarop de regel past bij
+het opslaan mee rechtgezet. In dat
 scherm kan je met **Zoek de tegenpartij op het internet** bekijken wat Brave
 over de tegenpartij vindt, dezelfde informatie die het AI-model krijgt (zie
 [Stap 3](#stap-3-het-lokale-ai-model)). Bij een

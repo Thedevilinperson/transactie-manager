@@ -8,6 +8,10 @@ een aparte draad, met een eigen verbinding en zonder aanvraagcontext.
 De telling gaat per stap uiteen, want dat is wat je daarna wil terugvinden: een
 vaste regel, een gelijkenis met de historiek en het AI-model belanden alle drie
 onder een andere *methode* in de lijst.
+
+Wat een mens heeft ingedeeld — met de hand, of zoals het in een ingelezen
+bestand stond — valt buiten elk bereik. Dat staat zowel in de zoekvraag als,
+voor de zekerheid, nog eens in de lus zelf.
 """
 
 from __future__ import annotations
@@ -16,14 +20,22 @@ import collections
 from dataclasses import dataclass, field
 
 from .categorizer.engine import Motor
-from .transacties import rij_naar_object, werk_bij
+from .transacties import (BESCHERMDE_METHODEN, NIET_BESCHERMD_SQL,
+                          rij_naar_object, werk_bij)
 
 # Hoever een herindeling gaat. De eerste is de standaard en het veilige bereik:
 # een transactie die al ergens in zit, is daar meestal met opzet beland.
+#
+# Elk bereik sluit uitdrukkelijk uit wat met de hand of uit een bestand kwam.
+# Voor twee van de drie is dat vandaag al zo door de status (zulke rijen staan
+# altijd als bevestigd), maar dat is een toevalligheid en geen garantie: één
+# plek die ooit een manuele indeling op *nazicht* zet, en ze zou meegaan.
 BEREIKEN = {
     "zonder_categorie": ("alleen transacties zonder categorie",
-                         "categorie_id IS NULL AND status <> 'bevestigd'"),
-    "onbevestigd": ("alles wat nog niet bevestigd is", "status <> 'bevestigd'"),
+                         "categorie_id IS NULL AND status <> 'bevestigd'"
+                         f" AND {NIET_BESCHERMD_SQL}"),
+    "onbevestigd": ("alles wat nog niet bevestigd is",
+                    f"status <> 'bevestigd' AND {NIET_BESCHERMD_SQL}"),
     # Tot versie 0.25.0 kon de fuzzy stap zichzelf versterken en automatisch
     # bevestigen wat niet klopte. Dit bereik laat die rijen opnieuw beoordelen
     # met de strengere motor.
@@ -79,6 +91,9 @@ def voer_uit(conn, crypto, bereik: str = "zonder_categorie", taak=None) -> Uitsl
     stap = max(1, len(rijen) // 100)
 
     for i, row in enumerate(rijen, 1):
+        if row["methode"] in BESCHERMDE_METHODEN:
+            # Kan door de zoekvraag niet voorkomen; staat hier als tweede slot.
+            continue
         tx = rij_naar_object(row, crypto)
         voorstel = motor.beoordeel(tx.kenmerken)
         if voorstel.gevonden and not (

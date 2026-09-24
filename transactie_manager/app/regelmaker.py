@@ -21,7 +21,7 @@ from .categories import laad_alles, pad_tekst
 from .categorizer.engine import Regel, Voorwaarde, regel_past
 from .crypto import normalize
 from .database import now_iso
-from .transacties import rij_naar_object
+from .transacties import BESCHERMDE_METHODEN, rij_naar_object
 
 VELDEN = ("tegenpartij_naam", "tegenpartij_rekening", "beschrijving", "mededeling",
           "sleutel", "alles")
@@ -125,7 +125,7 @@ def proef(conn, crypto, s: Samenstelling, categorie_ids, voorbeelden: int = 6,
     doel = tuple(categorie_ids)
 
     uit = {"aantal": 0, "deze": 0, "zelfde": 0, "anders": 0, "zonder": 0,
-           "handmatig_anders": 0, "voorbeelden": []}
+           "handmatig_anders": 0, "gelijkenis": 0, "voorbeelden": []}
     for row in conn.execute("SELECT * FROM transacties ORDER BY boekdatum DESC, id DESC"):
         tx = rij_naar_object(row, crypto)
         if not regel_past(regel, tx.kenmerken):
@@ -137,16 +137,21 @@ def proef(conn, crypto, s: Samenstelling, categorie_ids, voorbeelden: int = 6,
             # bewaard, dus die telt niet mee als "zonder" of "anders".
             uit["deze"] += 1
             soort = "deze"
-        elif row["categorie_id"] is None:
+        elif row["categorie_id"] is None and row["methode"] not in BESCHERMDE_METHODEN:
             uit["zonder"] += 1
             soort = "zonder"
+        elif row["methode"] == "fuzzy" and row["status"] != "bevestigd":
+            # Een gelijkenis die nog op nazicht staat: die neemt de regel bij
+            # het opslaan over (zie regelonderhoud.pas_toe).
+            uit["gelijkenis"] += 1
+            soort = "gelijkenis"
         elif huidig == doel:
             uit["zelfde"] += 1
             soort = "zelfde"
         else:
             uit["anders"] += 1
             soort = "anders"
-            if row["methode"] == "manueel":
+            if row["methode"] in BESCHERMDE_METHODEN:
                 uit["handmatig_anders"] += 1
         if len(uit["voorbeelden"]) < voorbeelden:
             uit["voorbeelden"].append({
@@ -154,7 +159,8 @@ def proef(conn, crypto, s: Samenstelling, categorie_ids, voorbeelden: int = 6,
                 "tegenpartij": tx.tegenpartij_naam or tx.begunstigde or "",
                 "mededeling": (tx.mededeling or "")[:60],
                 "bedrag": str(tx.bedrag),
-                "categorie": pad_tekst(platte, *huidig) if row["categorie_id"] else "",
+                "categorie": (pad_tekst(platte, *huidig) if row["categorie_id"]
+                              else "bewust zonder categorie gelaten"),
                 "soort": soort,
             })
     return uit

@@ -21,9 +21,12 @@ oude regel hing.
 
 Twee dingen blijven bewust ongemoeid:
 
-* wat je zelf hebt ingedeeld (`methode='manueel'`) en wat de fuzzy stap of het
-  AI-model heeft toegewezen. Alleen een toewijzing die van een regel kwam, gaat
-  weg;
+* wat je zelf hebt ingedeeld (`methode='manueel'`) of wat uit een ingelezen
+  bestand kwam (`methode='bestand'`) — dat blijft hier altijd staan, zie
+  `BESCHERMDE_METHODEN` — en wat de fuzzy stap of het AI-model heeft
+  toegewezen. Alleen een toewijzing die van een regel kwam, gaat weg. De enige
+  uitzondering is een gelijkenis die nog niet bevestigd is: een regel die je
+  vanuit een transactie maakt, mag die overnemen (zie `pas_toe`);
 * handelaar en land. Die staan los van de indeling, en een regel is meestal niet
   de enige plek waar ze vandaan komen.
 """
@@ -31,11 +34,13 @@ Twee dingen blijven bewust ongemoeid:
 from __future__ import annotations
 
 import re
+from collections import Counter
 from dataclasses import dataclass
 
 from .categorizer.engine import Regelboek, laad_regels, naar_voorstel
 from .database import now_iso
-from .transacties import rij_naar_object, werk_bij
+from .transacties import (BESCHERMDE_METHODEN, NIET_BESCHERMD_SQL,
+                          rij_naar_object, werk_bij)
 
 WIS_TOELICHTING = "De regel die deze transactie indeelde, bestaat niet meer."
 UIT_TOELICHTING = "De regel die deze transactie indeelde, staat uit."
@@ -108,7 +113,8 @@ def herbekijk(conn, crypto, tx_ids: list[int], *,
 
     for tx_id in tx_ids:
         row = conn.execute("SELECT * FROM transacties WHERE id = ?", (tx_id,)).fetchone()
-        if row is None or row["methode"] != "regel":
+        if (row is None or row["methode"] != "regel"
+                or row["methode"] in BESCHERMDE_METHODEN):
             # Ondertussen zelf ingedeeld of verwijderd: afblijven.
             continue
         tx = rij_naar_object(row, crypto)
@@ -163,34 +169,54 @@ def herbekijk(conn, crypto, tx_ids: list[int], *,
     return uit
 
 
-def pas_toe(conn, crypto, regel_id: int | None = None) -> int:
-    """Laat de regels los op wat nog geen categorie heeft.
+# Wat `pas_toe` mag aanraken. Een gelijkenis die nog niet bevestigd is, is een
+# gok van de motor die op jouw oordeel wacht; een regel die je zelf opstelt is
+# precies dat oordeel. Een automatisch bevestigde gelijkenis blijft wel staan:
+# daarvoor is er *Opnieuw indelen › Automatisch bevestigde gelijkenissen*.
+ZONDER_CATEGORIE_SQL = "(categorie_id IS NULL AND methode IN ('geen', 'regel'))"
+ONBEVESTIGDE_GELIJKENIS_SQL = "(methode = 'fuzzy' AND status <> 'bevestigd')"
 
-    Met een `regel_id` alleen die ene regel — voor wanneer je hem weer aanzet,
-    of hem zo bewerkt dat hij breder wordt. Zonder, alle actieve regels samen.
 
-    Raakt alleen transacties zonder categorie: wat elders al is ingedeeld, en
-    zeker wat jij zelf hebt ingedeeld, blijft staan.
+def pas_toe_geteld(conn, crypto, regel_id: int | None = None, *,
+                   ook_onbevestigde_gelijkenis: bool = False) -> Counter:
+    """Laat de regels los en telt per soort wat er een categorie kreeg.
+
+    De sleutels van de telling zijn `zonder` (had geen categorie) en
+    `gelijkenis` (had een nog niet bevestigde gelijkenis, die nu vervangen is
+    door de regel). Zie `pas_toe` voor wat er wel en niet geraakt wordt.
     """
+    telling: Counter = Counter()
     regels = laad_regels(conn, crypto)
     if regel_id is not None:
         regels = [r for r in regels if r.id == regel_id]
     if not regels:
-        return 0
+        return telling
     boek = Regelboek(regels)
 
-    aangepast = 0
+    waar = ZONDER_CATEGORIE_SQL
+    if ook_onbevestigde_gelijkenis:
+        waar = f"({waar} OR {ONBEVESTIGDE_GELIJKENIS_SQL})"
     rijen = conn.execute(
-        "SELECT * FROM transacties WHERE categorie_id IS NULL"
-        " AND methode IN ('geen', 'regel')"
+        f"SELECT * FROM transacties WHERE {waar} AND {NIET_BESCHERMD_SQL}"
     ).fetchall()
 
     for row in rijen:
+        if row["methode"] in BESCHERMDE_METHODEN:
+            continue
         tx = rij_naar_object(row, crypto)
         regel = boek.beste(tx.kenmerken)
         if regel is None:
             continue
         voorstel = naar_voorstel(regel)
+        extra = {}
+        if row["methode"] == "fuzzy":
+            # De gelijkenis bracht ook een winkel en een land mee, van de
+            # transactie waarop ze leek. Zegt de regel er iets over, dan geldt
+            # de regel; anders blijft staan wat er stond.
+            if voorstel.handelaar:
+                extra["handelaar"] = voorstel.handelaar
+            if voorstel.land:
+                extra["land"] = voorstel.land
         werk_bij(
             conn, crypto, tx.id,
             categorie_id=voorstel.categorie_id,
@@ -201,9 +227,28 @@ def pas_toe(conn, crypto, regel_id: int | None = None) -> int:
             status=voorstel.status,
             toelichting=voorstel.toelichting,
             regel_id=regel.id,
+            **extra,
         )
-        aangepast += 1
-    return aangepast
+        telling["gelijkenis" if row["methode"] == "fuzzy" else "zonder"] += 1
+    return telling
+
+
+def pas_toe(conn, crypto, regel_id: int | None = None, *,
+            ook_onbevestigde_gelijkenis: bool = False) -> int:
+    """Laat de regels los op wat nog geen categorie heeft.
+
+    Met een `regel_id` alleen die ene regel — voor wanneer je hem weer aanzet,
+    of hem zo bewerkt dat hij breder wordt. Zonder, alle actieve regels samen.
+
+    Raakt standaard alleen transacties zonder categorie. Met
+    `ook_onbevestigde_gelijkenis` ook die met een gelijkenis die nog op
+    nazicht staat — dat gebeurt wanneer je vanuit een transactie een regel
+    maakt. Wat met de hand of uit een bestand is ingedeeld, blijft hoe dan
+    ook staan, net als wat al bevestigd is.
+    """
+    return sum(pas_toe_geteld(
+        conn, crypto, regel_id,
+        ook_onbevestigde_gelijkenis=ook_onbevestigde_gelijkenis).values())
 
 
 def herbekijk_alles(conn, crypto) -> Uitkomst:

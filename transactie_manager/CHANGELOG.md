@@ -4,6 +4,69 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.29.0] — 2026-09-24
+
+### Gewijzigd
+- **Een regel die je vanuit een transactie maakt, neemt bij het opslaan ook de
+  onbevestigde gelijkenissen over.** Pas je in het nazicht een transactie aan
+  omdat de gelijkenisstap (fuzzy) ze verkeerd indeelde, en maak je er een vaste
+  regel van, dan kreeg die regel met **Meteen toepassen** alleen de transacties
+  *zonder* categorie. De andere transacties waarop dezelfde fout gelijkenis was
+  toegepast, bleven met die foute indeling op nazicht staan, terwijl je net zelf
+  had vastgelegd hoe ze horen. Nu krijgen ook alle transacties met bron
+  *gelijkenis* die nog niet bevestigd zijn en waarop de regel past, de indeling
+  van de regel (bron *vaste regel*, bevestigd). Zegt de regel iets over winkel of
+  land, dan vervangt dat ook wat de gelijkenis had meegebracht.
+- **Meteen toepassen** staat nog altijd standaard aan. De melding na het opslaan
+  zegt apart hoeveel transacties zonder categorie en hoeveel met een
+  onbevestigde gelijkenis de regel kregen; de toepassing komt ook in het
+  logboek (*regel toegepast*).
+- **Op welke transacties past deze regel?** telt de onbevestigde gelijkenissen
+  nu apart en zegt vooraf hoeveel transacties de regel bij het opslaan zal
+  overnemen. Transacties die je met de hand of via een ingelezen bestand
+  *zonder* categorie liet, tellen niet meer als "zonder categorie": die raakt
+  de regel niet.
+
+### Blijft staan
+- Automatisch bevestigde gelijkenissen, voorstellen van het AI-model en
+  indelingen van andere regels. Daarvoor zijn er *Opnieuw indelen* en *Alle
+  regels opnieuw toepassen*.
+
+### Beveiliging
+- **Wat je met de hand indeelde of wat uit een ingelezen bestand kwam, wordt
+  door een herindeling of het toepassen van regels nooit meer aangeraakt.**
+  Nagekeken over alle wegen die de indeling in bulk herschrijven: de drie
+  bereiken van *Opnieuw indelen* (ook na het afleiden van regels uit je
+  historiek), een regel toevoegen, bewerken, uitzetten, aanzetten of
+  verwijderen, *Alle regels opnieuw toepassen*, *Ze klopt* / *Ze klopt niet* en
+  het eenmalige herstel van onzekere regels. In de praktijk gebeurde het niet,
+  maar bij *Alles wat nog niet bevestigd is* hing dat alleen af van het feit dat
+  zulke transacties altijd als bevestigd staan. Nu sluit elk bereik de bronnen
+  *met de hand* en *uit het bestand* uitdrukkelijk uit, ongeacht de status, en
+  controleert de lus dat nog eens per rij.
+- Buiten dit slot vallen alleen de handelingen die bewust alles wissen:
+  *Opnieuw beginnen* en een referentielijst *integraal vervangen* (daar
+  verdwijnen de categorieën zelf). Beide waarschuwen daar vooraf voor en leggen
+  eerst een kopie van de databank.
+- De teksten bij *Opnieuw indelen* zeiden nog dat een transactie *met de hand*
+  na een herindeling *gelijkenis* of *vaste regel* kon zeggen. Dat klopt niet
+  meer en is aangepast.
+
+### Opgelost
+- **De handleiding in de toepassing brak elke opsomming af na de eerste
+  regel.** Een punt dat over meerdere regels liep, werd een punt met één regel
+  tekst en daaronder een losse alinea met de rest. De weergave neemt de
+  ingesprongen regels onder een punt nu mee in dat punt, ook in een geneste
+  opsomming. Het bestand zelf verandert daarvoor niet.
+
+### Technisch
+- `BESCHERMDE_METHODEN` en `NIET_BESCHERMD_SQL` in `app/transacties.py`; de
+  herindeling, het regelonderhoud en de regelproef gebruiken ze.
+- `regelonderhoud.pas_toe_geteld()` met de optie
+  `ook_onbevestigde_gelijkenis`; `pas_toe()` blijft zich voor de bestaande
+  aanroepers gedragen zoals voordien.
+
+
 ## [0.28.0] — 2026-09-23
 
 ### Toegevoegd

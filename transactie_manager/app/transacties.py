@@ -9,6 +9,13 @@ from decimal import Decimal
 from .categorizer.engine import TransactieKenmerken, Voorstel
 from .database import now_iso
 
+# Indelingen die een mens gemaakt heeft: met de hand, of zoals ze in een
+# ingelezen bestand stonden. Een herindeling of het toepassen van regels raakt
+# ze nooit aan — ongeacht hun status. Alleen jij kan ze nog wijzigen, door de
+# transactie zelf te openen.
+BESCHERMDE_METHODEN = ("manueel", "bestand")
+NIET_BESCHERMD_SQL = "methode NOT IN ('manueel', 'bestand')"
+
 
 @dataclass
 class Transactie:

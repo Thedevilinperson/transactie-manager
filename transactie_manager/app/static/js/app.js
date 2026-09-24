@@ -866,16 +866,25 @@
             regel("Let op: deze regel past niet op de transactie die je nu bewerkt.", true);
           }
           var andere = d.aantal - d.deze;
+          var gelijkenis = d.gelijkenis || 0;
           regel("Past op " + (d.deze ? "deze transactie en " : "") + andere +
                 (andere === 1 ? " andere" : " andere") + ": " + d.zelfde +
                 " al in de gekozen categorie, " + d.anders + " in een andere, " +
-                d.zonder + " zonder categorie.", true);
+                d.zonder + " zonder categorie" +
+                (gelijkenis ? ", " + gelijkenis + " met een nog niet bevestigde gelijkenis" : "") +
+                ".", true);
+          if (d.zonder || gelijkenis) {
+            regel("Met Meteen toepassen aangevinkt krijgen de " +
+                  (d.zonder + gelijkenis) + " transacties zonder categorie of met een " +
+                  "onbevestigde gelijkenis bij het opslaan de indeling van deze regel.");
+          }
           if (d.anders) {
             regel("Transacties die al in een andere categorie staan, blijven daar: " +
                   "de regel geldt voor nieuwe transacties en, als je dat aanvinkt, " +
-                  "voor wat nog geen categorie heeft." +
+                  "voor wat nog geen categorie of alleen een onbevestigde gelijkenis heeft." +
                   (d.handmatig_anders ? " " + d.handmatig_anders +
-                   " daarvan heb je zelf ingedeeld — misschien is de regel te ruim." : ""));
+                   " daarvan heb je zelf of via een ingelezen bestand ingedeeld — " +
+                   "misschien is de regel te ruim." : ""));
           }
           regel("Prioriteit " + d.prioriteit + ", " + d.voorwaarden +
                 (d.voorwaarden === 1 ? " voorwaarde." : " voorwaarden die samen moeten kloppen."));
@@ -887,6 +896,7 @@
               (v.mededeling ? " — " + v.mededeling : "") + " · " + v.bedrag + " € · " +
               (v.soort === "deze" ? "deze transactie" :
                v.soort === "zonder" ? "zonder categorie" :
+               v.soort === "gelijkenis" ? "onbevestigde gelijkenis: " + v.categorie :
                (v.soort === "zelfde" ? "al in deze categorie" : "nu: " + v.categorie));
             lijst.appendChild(li);
           });
