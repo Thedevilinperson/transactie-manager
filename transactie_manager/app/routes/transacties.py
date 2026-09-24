@@ -190,6 +190,7 @@ def bewerken(tx_id: int):
             tegenpartij_naam=request.form.get("tegenpartij_naam", "").strip(),
             status="bevestigd",
             methode="manueel",
+            nagekeken=1,
             zekerheid=1.0,
             toelichting="Manueel aangepast.",
             # Wie zelf indeelt, maakt de band met de regel los: een latere
@@ -338,6 +339,10 @@ def nazicht():
     conn = get_db()
     crypto = g.crypto
 
+    # Eenmalig: wat je vóór schemaversie 10 al bevestigde, als nagekeken
+    # markeren (gebeurt normaal al bij het aanmelden).
+    herindeling.markeer_eerder_nagekeken(conn, crypto)
+
     # Eenmalig: onzekere regels die je al bewerkt had, alsnog zeker maken.
     hersteld = herstel_bewerkte_onzekere_regels(conn, crypto)
     if hersteld is not None:
@@ -393,7 +398,10 @@ def nazicht():
 def bevestigen(tx_id: int):
     conn = get_db()
     crypto = g.crypto
-    werk_bij(conn, crypto, tx_id, status="bevestigd", zekerheid=1.0)
+    # nagekeken=1: jij hebt dit voorstel goedgekeurd. Daardoor blijft het
+    # staan bij elke latere herindeling, ook bij het herbekijken van de
+    # automatisch bevestigde gelijkenissen.
+    werk_bij(conn, crypto, tx_id, status="bevestigd", zekerheid=1.0, nagekeken=1)
     if instelling(conn, "leer_van_bevestiging", "1") == "1":
         tx = haal(conn, crypto, tx_id)
         if tx and tx.categorie_id:
@@ -420,7 +428,7 @@ def alles_bevestigen():
     """
     conn = get_db()
     ids = [i for i in request.form.getlist("id", type=int) if i]
-    sql = ("UPDATE transacties SET status='bevestigd', zekerheid=1.0"
+    sql = ("UPDATE transacties SET status='bevestigd', zekerheid=1.0, nagekeken=1"
            " WHERE status='nazicht' AND categorie_id IS NOT NULL")
     params: list = []
     if ids:
@@ -526,7 +534,7 @@ def regel_oordeel(tx_id: int):
             # De transactie is akkoord, en de regel draagt voortaan jouw
             # goedkeuring. Vroeg ze om nazicht, dan hoeft dat niet meer.
             werk_bij(conn, crypto, tx_id, status="bevestigd", zekerheid=1.0,
-                     toelichting="Regel bevestigd.")
+                     toelichting="Regel bevestigd.", nagekeken=1)
             gepromoveerd = regel["herkomst"] in ONZEKERE_HERKOMSTEN
             conn.execute("UPDATE regels SET bevestigd_op = ?, bevestigd_door = ?"
                          " WHERE id = ?", (now_iso(), g.gebruiker, regel["id"]))

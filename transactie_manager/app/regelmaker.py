@@ -21,7 +21,7 @@ from .categories import laad_alles, pad_tekst
 from .categorizer.engine import Regel, Voorwaarde, regel_past
 from .crypto import normalize
 from .database import now_iso
-from .transacties import BESCHERMDE_METHODEN, rij_naar_object
+from .transacties import is_beschermd, rij_naar_object
 
 VELDEN = ("tegenpartij_naam", "tegenpartij_rekening", "beschrijving", "mededeling",
           "sleutel", "alles")
@@ -137,10 +137,11 @@ def proef(conn, crypto, s: Samenstelling, categorie_ids, voorbeelden: int = 6,
             # bewaard, dus die telt niet mee als "zonder" of "anders".
             uit["deze"] += 1
             soort = "deze"
-        elif row["categorie_id"] is None and row["methode"] not in BESCHERMDE_METHODEN:
+        elif row["categorie_id"] is None and not is_beschermd(row):
             uit["zonder"] += 1
             soort = "zonder"
-        elif row["methode"] == "fuzzy" and row["status"] != "bevestigd":
+        elif (row["methode"] == "fuzzy" and row["status"] != "bevestigd"
+              and not is_beschermd(row)):
             # Een gelijkenis die nog op nazicht staat: die neemt de regel bij
             # het opslaan over (zie regelonderhoud.pas_toe).
             uit["gelijkenis"] += 1
@@ -151,7 +152,7 @@ def proef(conn, crypto, s: Samenstelling, categorie_ids, voorbeelden: int = 6,
         else:
             uit["anders"] += 1
             soort = "anders"
-            if row["methode"] in BESCHERMDE_METHODEN:
+            if is_beschermd(row):
                 uit["handmatig_anders"] += 1
         if len(uit["voorbeelden"]) < voorbeelden:
             uit["voorbeelden"].append({

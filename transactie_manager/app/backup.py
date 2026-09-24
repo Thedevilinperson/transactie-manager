@@ -179,6 +179,11 @@ def herstel(kopie: Kopie) -> bool:
         for verbinding in (bron, doel):
             if verbinding is not None:
                 verbinding.close()
+    # Een kopie van een oudere versie mist kolommen die er sindsdien bij
+    # kwamen. Zonder dit bleef de toepassing tot de volgende herstart tegen
+    # een oud schema praten, en liep elk scherm dat zo'n kolom gebruikt vast.
+    from .database import init_db
+    init_db()
     return True
 
 

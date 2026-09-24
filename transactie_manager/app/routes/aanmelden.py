@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import time
 
-from flask import (Blueprint, flash, g, redirect, render_template, request, session,
-                   url_for)
+from flask import (Blueprint, current_app, flash, g, redirect, render_template, request,
+                   session, url_for)
 
 from .. import veilig_terug
 from .. import crypto as cryptomod
 from .. import lokaal, mail
-from .. import backup
+from .. import backup, herindeling
 from ..auth import (HERSTELCODE_MINUTEN, beeindig_sessie, controleer_aanmelding,
                     herstel_wachtwoord, huidige_sessie, login_vereist, maak_gebruiker,
                     maak_herstelcode, start_sessie, zet_herstelsleutel)
@@ -100,6 +100,13 @@ def login():
             # Eén kopie per dag, bij de eerste aanmelding. Een vaste taak zou
             # hier niets toevoegen: wat niet gebruikt wordt, verandert ook niet.
             backup.dagelijks()
+            # Eenmalig na de update naar schemaversie 10: wat je vroeger al
+            # bevestigde, als nagekeken markeren. Dat vraagt de sleutel, en
+            # die is er pas nu.
+            try:
+                herindeling.markeer_eerder_nagekeken(get_db(), cryptomod.Crypto(dek))
+            except Exception:  # noqa: BLE001 — aanmelden mag hier nooit op vastlopen
+                current_app.logger.exception("Markeren van nagekeken transacties mislukt")
             return redirect(veilig_terug(volgende, url_for("dashboard.index")))
 
     return render_template("aanmelden.html", volgende=volgende)

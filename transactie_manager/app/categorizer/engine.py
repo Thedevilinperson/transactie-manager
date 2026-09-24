@@ -330,7 +330,8 @@ def bouw_geschiedenis(conn, crypto, regels: list["Regel"] | None = None,
 
     Twee bronnen:
 
-    * transacties die een mens heeft ingedeeld (zie MENSELIJKE_METHODEN);
+    * transacties die een mens heeft ingedeeld (zie MENSELIJKE_METHODEN) of
+      waarvan hij het voorstel met *Klopt* goedkeurde (`nagekeken`);
     * regels die enkel op de naam van de tegenpartij (of de gecombineerde
       sleutel) werken. Een regel met bijkomende voorwaarden of een bedragvork
       doet niet mee: de fuzzy stap vergelijkt alleen namen, en zou zo'n regel
@@ -367,7 +368,7 @@ def bouw_geschiedenis(conn, crypto, regels: list["Regel"] | None = None,
         "SELECT tegenpartij_naam_enc, handelaar_enc, land_enc, bedrag_enc, richting,"
         " categorie_id, subcategorie_id, subsub_id"
         " FROM transacties WHERE status='bevestigd' AND categorie_id IS NOT NULL"
-        f" AND methode IN ({plaatsen})"
+        f" AND (methode IN ({plaatsen}) OR nagekeken = 1)"
         " ORDER BY id DESC LIMIT ?",
         (*MENSELIJKE_METHODEN, limiet),
     ).fetchall()

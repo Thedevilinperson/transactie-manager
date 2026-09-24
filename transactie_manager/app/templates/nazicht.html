@@ -49,7 +49,7 @@
     regels, of na het inlezen van een referentielijst.</p>
 
   <form method="post" action="{{ url_for('tx.herindelen') }}"
-        data-bevestig="De motor herschrijft de indeling én de bron ervan van de transacties binnen het gekozen bereik. Wat je met de hand of via een ingelezen bestand indeelde, blijft staan. Er wordt eerst een kopie van de databank gelegd. Doorgaan?">
+        data-bevestig="De motor herschrijft de indeling én de bron ervan van de transacties binnen het gekozen bereik. Wat je met de hand of via een ingelezen bestand indeelde, en wat je met Klopt bevestigde, blijft staan. Er wordt eerst een kopie van de databank gelegd. Doorgaan?">
     <div class="keuzeregel" style="align-items:flex-start;margin-top:6px">
       <input type="radio" id="bereik_leeg" name="bereik" value="zonder_categorie"
              checked style="margin-top:4px">
@@ -69,16 +69,18 @@
       <input type="radio" id="bereik_gelijkenis" name="bereik" value="gelijkenis_bevestigd"
              style="margin-top:4px">
       <label for="bereik_gelijkenis"><strong>Automatisch bevestigde gelijkenissen
-        opnieuw bekijken.</strong> Transacties met bron <em>gelijkenis</em> die als
-        bevestigd staan. Vóór versie 0.25.0 kon de gelijkenisstap te ver gaan en
-        dat zelf bevestigen. Wat nu niet meer door een regel of een betrouwbare
+        opnieuw bekijken.</strong> Transacties met bron <em>gelijkenis</em> die de
+        motor zelf als bevestigd zette. Vóór versie 0.25.0 kon de gelijkenisstap
+        te ver gaan en dat zelf bevestigen. Wat jij met <strong>Klopt</strong>
+        bevestigde, blijft staan. Wat nu niet meer door een regel of een betrouwbare
         gelijkenis gedragen wordt, verliest zijn categorie en komt bij
         <em>Zonder categorie</em>; twijfelgevallen komen bij de voorstellen.</label>
     </div>
 
     <p class="klein-detail" style="margin-top:12px">Wat je <em>met de hand</em>
-      indeelde of wat <em>uit het bestand</em> kwam, blijft in elk bereik staan,
-      met die bron erbij. Voor de rest herschrijft de motor de indeling én de
+      indeelde, wat <em>uit het bestand</em> kwam en elk voorstel dat je met
+      <strong>Klopt</strong> bevestigde, blijft in elk bereik staan, met die bron
+      erbij. Voor de rest herschrijft de motor de indeling én de
       bron: een voorstel dat nu <em>gelijkenis</em> zegt, kan daarna <em>vaste
       regel</em> zeggen. Daarom wordt er vooraf een kopie van de databank
       gelegd; via <a href="{{ url_for('instellingen.backups') }}">Kopieën</a>

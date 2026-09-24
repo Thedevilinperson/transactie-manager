@@ -9,12 +9,18 @@ from decimal import Decimal
 from .categorizer.engine import TransactieKenmerken, Voorstel
 from .database import now_iso
 
-# Indelingen die een mens gemaakt heeft: met de hand, of zoals ze in een
-# ingelezen bestand stonden. Een herindeling of het toepassen van regels raakt
-# ze nooit aan — ongeacht hun status. Alleen jij kan ze nog wijzigen, door de
-# transactie zelf te openen.
+# Indelingen die een mens gemaakt of goedgekeurd heeft: met de hand, zoals ze
+# in een ingelezen bestand stonden, of een voorstel dat je met *Klopt*
+# bevestigde (kolom `nagekeken`). Een herindeling of het toepassen van regels
+# raakt ze nooit aan — ongeacht hun status. Alleen jij kan ze nog wijzigen, door
+# de transactie zelf te openen.
 BESCHERMDE_METHODEN = ("manueel", "bestand")
-NIET_BESCHERMD_SQL = "methode NOT IN ('manueel', 'bestand')"
+NIET_BESCHERMD_SQL = "(methode NOT IN ('manueel', 'bestand') AND nagekeken = 0)"
+
+
+def is_beschermd(row) -> bool:
+    """Dezelfde vraag als NIET_BESCHERMD_SQL, voor een rij die al opgehaald is."""
+    return row["methode"] in BESCHERMDE_METHODEN or bool(row["nagekeken"])
 
 
 @dataclass
@@ -388,6 +394,7 @@ def werk_bij(conn, crypto, tx_id: int, **velden) -> None:
         "regel_id": ("regel_id", None),
         "tegenboeking_tx_id": ("tegenboeking_tx_id", None),
         "status": ("status", None),
+        "nagekeken": ("nagekeken", None),
         "beschrijving": ("beschrijving_enc", "enc"),
         "referentie": ("referentie_enc", "enc"),
         "tegenpartij_rekening": ("tegenpartij_rek_enc", "enc"),
@@ -401,6 +408,11 @@ def werk_bij(conn, crypto, tx_id: int, **velden) -> None:
         "boekdatum": ("boekdatum", None),
         "rekening_id": ("rekening_id", None),
     }
+    # Schrijft de motor een nieuwe indeling weg (hij zet altijd een methode),
+    # dan heeft niemand die nog nagekeken. Wie een mens laat bevestigen of
+    # zelf indelen, geeft `nagekeken` uitdrukkelijk mee.
+    if "methode" in velden and "nagekeken" not in velden:
+        velden = {**velden, "nagekeken": 0}
     stukken, waarden = [], []
     for sleutel, waarde in velden.items():
         if sleutel not in kolommen:

@@ -4,6 +4,64 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.30.0] — 2026-09-24
+
+### Opgelost
+- **Wat je met *Klopt* bevestigde, ging bij *Automatisch bevestigde
+  gelijkenissen opnieuw bekijken* terug naar het nazicht.** Een gelijkenis die
+  jij goedkeurde en een die de motor zelf bevestigde, stonden in de databank
+  precies hetzelfde: bron *gelijkenis*, status *bevestigd*. Dat bereik nam ze
+  dus allebei mee, en omdat de motor jouw goedkeuring niet meetelde, kwam de
+  transactie opnieuw als voorstel terug. Versie 0.29.0 verhielp dat niet; die
+  beschermde alleen *met de hand* en *uit het bestand*.
+- **De vaste regel die bij *Klopt* bijgeleerd werd, paste niet op de transactie
+  zelf.** Ze werd gemaakt op de winkel uit het voorstel, en bij een gelijkenis
+  is dat de winkel van de transactie waarop ze leek: een betaling aan *MAES
+  EERNEGEM* leverde een regel "naam bevat *maes olsene olsene-vakantie
+  tanken*" op. Daardoor kon die regel ook bij een herindeling niets opvangen.
+  De regel komt nu op de naam van de tegenpartij van de bevestigde transactie;
+  alleen zonder naam valt ze terug op de winkel. De controle op een al
+  bestaande regel keek bovendien naar de ongenormaliseerde naam en vond ze dus
+  nooit; ook dat is rechtgezet.
+- **Een kopie van een oudere versie terugzetten** liet de databank op het oude
+  schema staan tot de add-on herstartte, waardoor schermen die een nieuwere
+  kolom gebruiken vastliepen. Na het terugzetten wordt het schema nu meteen
+  bijgewerkt.
+
+### Toegevoegd
+- **Een transactie onthoudt of een mens haar indeling heeft nagekeken.**
+  *Klopt*, *Alle voorstellen bevestigen*, *Ze klopt* bij een regel en zelf
+  aanpassen zetten dat merkteken; een nieuwe indeling door de motor haalt het
+  weg. Een nagekeken transactie wordt door geen enkele herindeling en door geen
+  enkele regel meer aangeraakt — net zoals wat met de hand of uit een bestand
+  kwam. Dat geldt ook bij het bewerken, uitzetten of verwijderen van een regel
+  en bij *Alle regels opnieuw toepassen*: een regeltreffer die je bevestigde,
+  blijft in de categorie die je goedkeurde.
+- Nagekeken transacties tellen voortaan mee als vergelijkingsmateriaal voor de
+  gelijkenisstap, zoals wat je met de hand indeelde.
+- **Eenmalig herstel.** Bij de eerste aanmelding na de update (en voor de
+  zekerheid ook bij het openen van het nazicht en vóór elke herindeling) wordt
+  afgeleid wat je vroeger al bevestigde: bevestigde AI-voorstellen, bevestigde
+  gelijkenissen waarvan de toelichting niet met "Sterke gelijkenis" begint
+  (de motor bevestigt alleen onder die toelichting), en bevestigde treffers van
+  onzekere regels. Dat gebeurt na het aanmelden omdat de toelichting
+  versleuteld is.
+
+### Gewijzigd
+- De teksten bij *Opnieuw indelen* zeggen nu dat ook wat je met **Klopt**
+  bevestigde, in elk bereik blijft staan.
+- **Schemaversie 10**: kolom `nagekeken` op de transactietabel. Bestaande
+  databanken krijgen ze bij het opstarten.
+
+### Terug te halen
+- Transacties die door dit probleem al terug op nazicht stonden, zijn niet
+  vanzelf terug te zetten: de herindeling heeft hun toelichting overschreven.
+  Bevestig ze opnieuw met **Klopt**, of zet bij *Instellingen › Kopieën* de
+  kopie van vlak vóór die herindeling terug (wat je sindsdien veranderde, gaat
+  dan wel verloren). Na het terugzetten worden ze herkend als nagekeken zodra
+  je het nazicht opent of opnieuw aanmeldt.
+
+
 ## [0.29.0] — 2026-09-24
 
 ### Gewijzigd

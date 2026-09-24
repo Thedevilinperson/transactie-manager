@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.29.0
+Versie 0.30.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -449,9 +449,11 @@ om te zien waarom een bepaalde regel niet herkend werd.
 
 De toepassing probeert vier dingen, in deze volgorde. Zodra er één lukt, stopt ze.
 
-> **Wat je zelf indeelde, blijft van jou.** Een transactie met bron *met de
-> hand* of *uit het bestand* (de indeling stond in een ingelezen historiek) wordt
-> door geen enkele herindeling en door geen enkele regel meer aangeraakt — niet
+> **Wat je zelf indeelde of goedkeurde, blijft van jou.** Een transactie met
+> bron *met de hand* of *uit het bestand* (de indeling stond in een ingelezen
+> historiek), en elk voorstel dat je met **Klopt** of **Alle voorstellen
+> bevestigen** goedkeurde, wordt door geen enkele herindeling en door geen
+> enkele regel meer aangeraakt — niet
 > bij *Opnieuw indelen*, niet bij het toevoegen, bewerken, uitzetten of
 > verwijderen van een regel, en niet bij *Alle regels opnieuw toepassen*. Dat
 > geldt ongeacht de status van die transactie. Alleen jij kan ze nog wijzigen,
@@ -985,8 +987,8 @@ werk zit.
 hebben worden herbekeken. Bevestigde transacties blijven hoe dan ook staan, en
 een treffer via een regel geldt als bevestigd.
 
-In geen enkel bereik wordt wat je *met de hand* indeelde of wat *uit het
-bestand* kwam aangeraakt, ook niet als zo'n transactie om een of andere reden
+In geen enkel bereik wordt wat je *met de hand* indeelde, wat *uit het
+bestand* kwam of wat je met **Klopt** bevestigde aangeraakt, ook niet als zo'n transactie om een of andere reden
 niet als bevestigd zou staan.
 
 **Automatisch bevestigde gelijkenissen opnieuw bekijken** — transacties met bron
@@ -996,10 +998,13 @@ toegepast, en wat de motor zelf had ingedeeld versterkte de volgende gok. Met
 dit bereik worden die transacties opnieuw beoordeeld door de strengere motor.
 Past er een regel, dan neemt die het over; is er alleen nog een twijfelachtige
 gelijkenis, dan komt de transactie bij de voorstellen; is er niets meer, dan
-verliest ze haar categorie en komt ze bij *Zonder categorie*. Wat je zelf ooit
-met **Klopt** bevestigde, blijft normaal staan: bij die bevestiging werd een
-vaste regel bijgeleerd (tenzij je dat uitschakelde bij *Automatisch
-indelen*).
+verliest ze haar categorie en komt ze bij *Zonder categorie*. Het gaat alleen
+om gelijkenissen die de motor **zelf** bevestigde: wat jij met **Klopt** (of
+met de bulkknop) goedkeurde, staat als *nagekeken* en blijft staan. Sinds
+versie 0.30.0 onthoudt elke transactie dat. Transacties die je vóór die versie
+al bevestigde, worden bij de eerste aanmelding na de update herkend aan hun
+toelichting: de motor bevestigt een gelijkenis alleen onder "Sterke
+gelijkenis", dus een andere toelichting betekent dat jij ze goedkeurde.
 
 Een regel uitzetten of verwijderen regelt zichzelf: zie *Een regel bewerken,
 uitzetten of verwijderen* hierboven.
@@ -1061,7 +1066,12 @@ die ingedeeld werden door een regel die om bevestiging vraagt. Per rij zie je:
   een AI-voorstel staat de zekerheid in procenten; bij een regel die om
   bevestiging vraagt staat *vraagt bevestiging*.
 
-Klopt het, klik dan **Klopt**. Klopt het niet, klik **Aanpassen**. Deelde de
+Klopt het, klik dan **Klopt**. De transactie staat dan als *nagekeken*: geen
+herindeling en geen regel komt er nog aan. Staat *Bij elke bevestiging een vaste
+regel bijleren* aan (*Instellingen › Automatisch indelen*), dan komt er meteen
+een regel bij op de naam van de tegenpartij van déze transactie — niet op de
+winkel die de gelijkenis voorstelde, want die kwam van een andere transactie.
+Klopt het niet, klik **Aanpassen**. Deelde de
 gelijkenisstap een tegenpartij verkeerd in, maak dan in dat scherm meteen een
 vaste regel (zie [Een vaste regel maken vanuit een
 transactie](#een-vaste-regel-maken-vanuit-een-transactie)): met **Meteen

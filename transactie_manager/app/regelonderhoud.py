@@ -21,9 +21,9 @@ oude regel hing.
 
 Twee dingen blijven bewust ongemoeid:
 
-* wat je zelf hebt ingedeeld (`methode='manueel'`) of wat uit een ingelezen
-  bestand kwam (`methode='bestand'`) — dat blijft hier altijd staan, zie
-  `BESCHERMDE_METHODEN` — en wat de fuzzy stap of het AI-model heeft
+* wat je zelf hebt ingedeeld (`methode='manueel'`), wat uit een ingelezen
+  bestand kwam (`methode='bestand'`) en wat je met *Klopt* bevestigde
+  (`nagekeken=1`) — dat blijft hier altijd staan, zie `is_beschermd` — en wat de fuzzy stap of het AI-model heeft
   toegewezen. Alleen een toewijzing die van een regel kwam, gaat weg. De enige
   uitzondering is een gelijkenis die nog niet bevestigd is: een regel die je
   vanuit een transactie maakt, mag die overnemen (zie `pas_toe`);
@@ -39,8 +39,8 @@ from dataclasses import dataclass
 
 from .categorizer.engine import Regelboek, laad_regels, naar_voorstel
 from .database import now_iso
-from .transacties import (BESCHERMDE_METHODEN, NIET_BESCHERMD_SQL,
-                          rij_naar_object, werk_bij)
+from .transacties import (NIET_BESCHERMD_SQL, is_beschermd, rij_naar_object,
+                          werk_bij)
 
 WIS_TOELICHTING = "De regel die deze transactie indeelde, bestaat niet meer."
 UIT_TOELICHTING = "De regel die deze transactie indeelde, staat uit."
@@ -113,9 +113,9 @@ def herbekijk(conn, crypto, tx_ids: list[int], *,
 
     for tx_id in tx_ids:
         row = conn.execute("SELECT * FROM transacties WHERE id = ?", (tx_id,)).fetchone()
-        if (row is None or row["methode"] != "regel"
-                or row["methode"] in BESCHERMDE_METHODEN):
-            # Ondertussen zelf ingedeeld of verwijderd: afblijven.
+        if row is None or row["methode"] != "regel" or is_beschermd(row):
+            # Ondertussen zelf ingedeeld, met Klopt bevestigd, of verwijderd:
+            # afblijven.
             continue
         tx = rij_naar_object(row, crypto)
         vervanger = boek.beste(tx.kenmerken)
@@ -201,7 +201,7 @@ def pas_toe_geteld(conn, crypto, regel_id: int | None = None, *,
     ).fetchall()
 
     for row in rijen:
-        if row["methode"] in BESCHERMDE_METHODEN:
+        if is_beschermd(row):
             continue
         tx = rij_naar_object(row, crypto)
         regel = boek.beste(tx.kenmerken)

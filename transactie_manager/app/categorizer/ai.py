@@ -657,13 +657,18 @@ def maak_regel_van_voorstel(conn, crypto, k: TransactieKenmerken, voorstel: Voor
     """Legt een bevestigd AI- of fuzzy-voorstel vast als vaste regel."""
     from ..database import now_iso
 
-    waarde = (voorstel.handelaar or k.tegenpartij_naam or "").strip()
+    # De naam van déze transactie, niet de winkel uit het voorstel. Die winkel
+    # komt bij een gelijkenis van de transactie waarop ze leek ("MAES OLSENE"
+    # bij een betaling aan "MAES EERNEGEM"); een regel daarop past niet eens op
+    # de transactie die je net bevestigde. Alleen zonder naam valt het terug op
+    # de winkel.
+    waarde = " ".join((k.tegenpartij_naam or voorstel.handelaar or "").split())
     if not waarde:
         return
     bestaand = conn.execute(
         "SELECT id FROM regels WHERE waarde_idx = ? AND veld='tegenpartij_naam'"
         " AND IFNULL(categorie_id,0)=IFNULL(?,0) AND IFNULL(subcategorie_id,0)=IFNULL(?,0)",
-        (crypto.blind(waarde), voorstel.categorie_id, voorstel.subcategorie_id),
+        (crypto.blind(normalize(waarde)), voorstel.categorie_id, voorstel.subcategorie_id),
     ).fetchone()
     if bestaand:
         return

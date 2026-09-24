@@ -9,7 +9,7 @@ from flask import g
 
 from .config import DB_PATH, DEFAULT_SETTINGS
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS app_meta (
@@ -183,6 +183,7 @@ CREATE TABLE IF NOT EXISTS transacties (
     regel_id                 INTEGER REFERENCES regels(id) ON DELETE SET NULL,
     tegenboeking_tx_id       INTEGER REFERENCES transacties(id) ON DELETE SET NULL,
     kaartafrekening          INTEGER,
+    nagekeken                INTEGER NOT NULL DEFAULT 0,
     aangemaakt_op            TEXT NOT NULL,
     gewijzigd_op             TEXT NOT NULL
 );
@@ -306,6 +307,16 @@ def _migreer(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE transacties ADD COLUMN kaartafrekening INTEGER")
     conn.execute("CREATE INDEX IF NOT EXISTS ix_tx_kaartafrekening"
                  " ON transacties(kaartafrekening)")
+
+    # Schemaversie 10: een transactie onthoudt of een mens haar indeling heeft
+    # nagekeken (Klopt, bulkbevestiging, zelf aangepast). De status alleen zei
+    # dat niet: een gelijkenis die jij bevestigde en een die de motor zelf
+    # bevestigde, stonden allebei als methode 'fuzzy' met status 'bevestigd'.
+    # Bestaande rijen krijgen 0; bij de eerstvolgende aanmelding wordt uit de
+    # toelichting afgeleid welke al nagekeken waren (zie
+    # herindeling.markeer_eerder_nagekeken), want die staat versleuteld.
+    if "nagekeken" not in tx_kolommen:
+        conn.execute("ALTER TABLE transacties ADD COLUMN nagekeken INTEGER NOT NULL DEFAULT 0")
 
     # Schemaversie 9: een categorie kan een omschrijving hebben — wat jij
     # eronder verstaat, in trefwoorden. Die gaat mee naar het AI-model, dat
