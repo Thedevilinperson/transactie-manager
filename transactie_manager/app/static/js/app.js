@@ -71,7 +71,7 @@
   }
 
   /* Bij het wisselen tussen inkomst en uitgave blijven alleen de passende
-     hoofdcategorieën over. */
+     hoofdcategorieën over. Een lege keuze (Allebei) toont ze allemaal. */
   function koppelRichtingfilter(wortel) {
     var hoofd = wortel.querySelector("[data-cat-niveau='0']");
     var knoppen = wortel.querySelectorAll("[name='richting']");
@@ -89,7 +89,8 @@
       var huidig = hoofd.value;
       hoofd.innerHTML = "";
       alle.forEach(function (optie) {
-        if (optie.waarde && optie.soort && optie.soort !== gekozen && optie.soort !== "beide") return;
+        if (gekozen && optie.waarde && optie.soort &&
+            optie.soort !== gekozen && optie.soort !== "beide") return;
         var el = document.createElement("option");
         el.value = optie.waarde;
         el.textContent = optie.tekst;

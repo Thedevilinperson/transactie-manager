@@ -4,6 +4,20 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.30.1] — 2026-09-27
+
+### Opgelost
+- **Bij *Regel toevoegen* kon je niet kiezen dat een regel voor zowel uitgaven
+  als inkomsten geldt.** Onder *Soort* stonden alleen *Uitgave* en *Inkomst*,
+  terwijl bij het bewerken van een regel ook *Allebei* bestond. Het formulier
+  voor een nieuwe regel heeft nu dezelfde drie keuzes; *Uitgave* blijft de
+  standaard.
+- **Met *Allebei* gekozen verdwenen de meeste hoofdcategorieën uit de
+  keuzelijst.** Het filter dat bij *Uitgave* of *Inkomst* alleen de passende
+  categorieën toont, liet bij een lege keuze enkel de categorieën van soort
+  *beide* over. Bij *Allebei* staan nu alle hoofdcategorieën in de lijst. Dat
+  gold ook al voor het bewerkscherm van een regel.
+
 ## [0.30.0] — 2026-09-24
 
 ### Opgelost

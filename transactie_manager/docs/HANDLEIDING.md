@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.30.0
+Versie 0.30.1
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -480,6 +480,14 @@ dezelfde tegenpartij verschillende dingen betekent:
 
 De ondergrens telt mee, de bovengrens niet. `tot 10` betekent dus alles onder
 tien euro. Deze twee regels staan als voorbeeld klaar.
+
+**Soort.** Bij *Soort* kies je of de regel alleen voor **uitgaven**, alleen voor
+**inkomsten** of voor **allebei** geldt. Een nieuwe regel staat vooraf op
+*Uitgave*. Kies *Allebei* voor een tegenpartij waarmee het geld in beide
+richtingen gaat, zoals een terugbetaling door dezelfde winkel of een
+spaarrekening waar je op stort en van afhaalt. De keuzelijst met
+hoofdcategorieën toont dan alle categorieën, ongeacht hun soort. Dezelfde keuze
+vind je terug bij het bewerken van een regel.
 
 **Velden combineren.** Onder *En ook* zet je bijkomende voorwaarden. Ze moeten
 dan allemaal kloppen. Daarmee deel je één tegenpartij op naar wat er in de

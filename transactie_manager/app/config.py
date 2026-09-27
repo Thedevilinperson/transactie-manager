@@ -7,7 +7,7 @@ import secrets
 from pathlib import Path
 
 APP_NAME = "Transactie Manager"
-VERSION = "0.30.0"
+VERSION = "0.30.1"
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
