@@ -24,9 +24,11 @@ Twee dingen blijven bewust ongemoeid:
 * wat je zelf hebt ingedeeld (`methode='manueel'`), wat uit een ingelezen
   bestand kwam (`methode='bestand'`) en wat je met *Klopt* bevestigde
   (`nagekeken=1`) — dat blijft hier altijd staan, zie `is_beschermd` — en wat de fuzzy stap of het AI-model heeft
-  toegewezen. Alleen een toewijzing die van een regel kwam, gaat weg. De enige
-  uitzondering is een gelijkenis die nog niet bevestigd is: een regel die je
-  vanuit een transactie maakt, mag die overnemen (zie `pas_toe`);
+  toegewezen. Alleen een toewijzing die van een regel kwam, gaat weg. De
+  uitzondering is een voorstel dat nog niet bevestigd is: een regel die je
+  vanuit een transactie maakt, mag een onbevestigde gelijkenis overnemen (zie
+  `pas_toe`), en *Alle regels opnieuw toepassen* ook een onbevestigd
+  AI-voorstel (zie `herbekijk_alles`);
 * handelaar en land. Die staan los van de indeling, en een regel is meestal niet
   de enige plek waar ze vandaan komen.
 """
@@ -56,6 +58,7 @@ class Uitkomst:
     gewist: int = 0        # geen enkele regel past nog: categorie weg, op nazicht
     ongewijzigd: int = 0   # de regel die erop past, wijst nog naar hetzelfde
     erbij: int = 0         # had geen categorie en kreeg er alsnog een
+    vervangen: int = 0     # onbevestigde gelijkenis of AI-voorstel, nu door een regel
     bevestigd: int = 0     # zelfde categorie, maar niet langer op nazicht
 
 
@@ -175,15 +178,26 @@ def herbekijk(conn, crypto, tx_ids: list[int], *,
 # daarvoor is er *Opnieuw indelen › Automatisch bevestigde gelijkenissen*.
 ZONDER_CATEGORIE_SQL = "(categorie_id IS NULL AND methode IN ('geen', 'regel'))"
 ONBEVESTIGDE_GELIJKENIS_SQL = "(methode = 'fuzzy' AND status <> 'bevestigd')"
+# Een AI-voorstel staat altijd op nazicht tot je het met *Klopt* bevestigt, en
+# dan is het nagekeken en dus beschermd. De statusvoorwaarde staat er toch, voor
+# het geval dat ooit verandert.
+ONBEVESTIGD_AI_SQL = "(methode = 'ai' AND status <> 'bevestigd')"
+
+# Deze methoden brengen een winkel en een land mee van hun eigen gok. Neemt een
+# regel het over, dan gelden de winkel en het land van de regel, als ze er een
+# heeft.
+GOKMETHODEN = ("fuzzy", "ai")
 
 
 def pas_toe_geteld(conn, crypto, regel_id: int | None = None, *,
-                   ook_onbevestigde_gelijkenis: bool = False) -> Counter:
+                   ook_onbevestigde_gelijkenis: bool = False,
+                   ook_onbevestigd_ai: bool = False) -> Counter:
     """Laat de regels los en telt per soort wat er een categorie kreeg.
 
-    De sleutels van de telling zijn `zonder` (had geen categorie) en
+    De sleutels van de telling zijn `zonder` (had geen categorie),
     `gelijkenis` (had een nog niet bevestigde gelijkenis, die nu vervangen is
-    door de regel). Zie `pas_toe` voor wat er wel en niet geraakt wordt.
+    door de regel) en `ai` (had een nog niet bevestigd AI-voorstel). Zie
+    `pas_toe` voor wat er wel en niet geraakt wordt.
     """
     telling: Counter = Counter()
     regels = laad_regels(conn, crypto)
@@ -193,9 +207,12 @@ def pas_toe_geteld(conn, crypto, regel_id: int | None = None, *,
         return telling
     boek = Regelboek(regels)
 
-    waar = ZONDER_CATEGORIE_SQL
+    delen = [ZONDER_CATEGORIE_SQL]
     if ook_onbevestigde_gelijkenis:
-        waar = f"({waar} OR {ONBEVESTIGDE_GELIJKENIS_SQL})"
+        delen.append(ONBEVESTIGDE_GELIJKENIS_SQL)
+    if ook_onbevestigd_ai:
+        delen.append(ONBEVESTIGD_AI_SQL)
+    waar = "(" + " OR ".join(delen) + ")"
     rijen = conn.execute(
         f"SELECT * FROM transacties WHERE {waar} AND {NIET_BESCHERMD_SQL}"
     ).fetchall()
@@ -209,10 +226,11 @@ def pas_toe_geteld(conn, crypto, regel_id: int | None = None, *,
             continue
         voorstel = naar_voorstel(regel)
         extra = {}
-        if row["methode"] == "fuzzy":
+        if row["methode"] in GOKMETHODEN:
             # De gelijkenis bracht ook een winkel en een land mee, van de
-            # transactie waarop ze leek. Zegt de regel er iets over, dan geldt
-            # de regel; anders blijft staan wat er stond.
+            # transactie waarop ze leek; het AI-model deed hetzelfde. Zegt de
+            # regel er iets over, dan geldt de regel; anders blijft staan wat
+            # er stond.
             if voorstel.handelaar:
                 extra["handelaar"] = voorstel.handelaar
             if voorstel.land:
@@ -229,12 +247,13 @@ def pas_toe_geteld(conn, crypto, regel_id: int | None = None, *,
             regel_id=regel.id,
             **extra,
         )
-        telling["gelijkenis" if row["methode"] == "fuzzy" else "zonder"] += 1
+        telling[{"fuzzy": "gelijkenis", "ai": "ai"}.get(row["methode"], "zonder")] += 1
     return telling
 
 
 def pas_toe(conn, crypto, regel_id: int | None = None, *,
-            ook_onbevestigde_gelijkenis: bool = False) -> int:
+            ook_onbevestigde_gelijkenis: bool = False,
+            ook_onbevestigd_ai: bool = False) -> int:
     """Laat de regels los op wat nog geen categorie heeft.
 
     Met een `regel_id` alleen die ene regel — voor wanneer je hem weer aanzet,
@@ -243,12 +262,14 @@ def pas_toe(conn, crypto, regel_id: int | None = None, *,
     Raakt standaard alleen transacties zonder categorie. Met
     `ook_onbevestigde_gelijkenis` ook die met een gelijkenis die nog op
     nazicht staat — dat gebeurt wanneer je vanuit een transactie een regel
-    maakt. Wat met de hand of uit een bestand is ingedeeld, blijft hoe dan
-    ook staan, net als wat al bevestigd is.
+    maakt. Met `ook_onbevestigd_ai` ook een AI-voorstel dat nog op nazicht
+    staat. Wat met de hand of uit een bestand is ingedeeld, blijft hoe dan
+    ook staan, net als wat al bevestigd of nagekeken is.
     """
     return sum(pas_toe_geteld(
         conn, crypto, regel_id,
-        ook_onbevestigde_gelijkenis=ook_onbevestigde_gelijkenis).values())
+        ook_onbevestigde_gelijkenis=ook_onbevestigde_gelijkenis,
+        ook_onbevestigd_ai=ook_onbevestigd_ai).values())
 
 
 def herbekijk_alles(conn, crypto) -> Uitkomst:
@@ -259,14 +280,26 @@ def herbekijk_alles(conn, crypto) -> Uitkomst:
     wat aan díe regel hing: een transactie die correct aan een andere regel
     hangt, blijft daar hangen, ook als jouw aangepaste regel nu voorgaat.
 
+    Daarna gaan de regels ook over alles wat nog op een oordeel wacht: wat
+    geen categorie heeft, en een gelijkenis of AI-voorstel dat nog niet
+    bevestigd is. Past er een regel, dan neemt die het over. Tot versie 0.30.1
+    bleef zo'n onbevestigd voorstel hier staan, ook als er intussen een regel
+    was die er precies op paste.
+
     Dit is een grove ingreep — ze loopt over je hele boekhouding — en staat
-    daarom achter een aparte knop. Wat je zelf hebt ingedeeld, en wat de fuzzy
-    stap of het AI-model heeft toegewezen, blijft ook hier staan.
+    daarom achter een aparte knop. Wat blijft staan: wat je zelf hebt
+    ingedeeld, wat uit een ingelezen bestand kwam, wat je met *Klopt*
+    bevestigde (`is_beschermd`), en een gelijkenis die de motor zelf zeker
+    genoeg vond om te bevestigen — die herbekijk je met *Opnieuw indelen ›
+    Automatisch bevestigde gelijkenissen*.
     """
     ids = [r["id"] for r in conn.execute(
         "SELECT id FROM transacties WHERE methode = 'regel'")]
     uit = herbekijk(conn, crypto, ids, toelichting=GEEN_REGEL_TOELICHTING)
-    uit.erbij = pas_toe(conn, crypto)
+    telling = pas_toe_geteld(conn, crypto, ook_onbevestigde_gelijkenis=True,
+                             ook_onbevestigd_ai=True)
+    uit.erbij = telling["zonder"]
+    uit.vervangen = telling["gelijkenis"] + telling["ai"]
     return uit
 
 
@@ -283,6 +316,10 @@ def verslag(uit: Uitkomst) -> str:
     if uit.erbij:
         stukken.append(f"{uit.erbij} {'kreeg' if uit.erbij == 1 else 'kregen'}"
                        " er alsnog een categorie bij")
+    if uit.vervangen:
+        stukken.append(f"{uit.vervangen} onbevestigde "
+                       f"{'gelijkenis of AI-voorstel werd' if uit.vervangen == 1 else 'gelijkenissen of AI-voorstellen werden'}"
+                       " vervangen door een regel")
     if uit.bevestigd:
         stukken.append(f"{uit.bevestigd} {'staat' if uit.bevestigd == 1 else 'staan'}"
                        " niet langer op nazicht")

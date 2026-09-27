@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.30.1
+Versie 0.31.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -612,8 +612,13 @@ kolom *Treffers* laat zien welke regels werk doen en welke nooit aanslaan.
 
 **Alle regels opnieuw toepassen.** Boven de tabel staat daar een knop voor. Elke
 transactie die door een regel is ingedeeld, wordt opnieuw beoordeeld met de
-regels zoals ze nu staan, en daarna worden de regels nog losgelaten op alles wat
-geen categorie heeft.
+regels zoals ze nu staan. Daarna gaan de regels over alles wat nog op je oordeel
+wacht: transacties zonder categorie, en gelijkenissen of AI-voorstellen die nog
+niet bevestigd zijn. Past er een regel op, dan neemt die de indeling over — ook
+als de gelijkenis al een categorie voorstelde. Maak je dus een regel
+"mededeling bevat *aanvul zicht E*", dan komt een transactie met die mededeling
+die als gelijkenis op nazicht stond, na een klik op deze knop in de categorie
+van je regel.
 
 Je hebt die knop nodig wanneer je prioriteiten hebt verschoven of meerdere regels
 na elkaar hebt aangepast. Een regel aanpassen kijkt namelijk alleen naar wat aan
@@ -623,8 +628,20 @@ bijvoorbeeld een nieuwe Total-regel prioriteit 1, dan verhuizen de bestaande
 Total-transacties pas mee als je op deze knop klikt.
 
 De ingreep loopt over je hele boekhouding, dus er komt eerst een bevestiging.
-Wat je zelf hebt ingedeeld of wat uit een bestand kwam blijft staan, en wat de
-fuzzy stap of het AI-model heeft toegewezen ook. Alleen wat door een regel is ingedeeld, wordt herbekeken.
+Wat blijft staan:
+
+- wat je zelf hebt ingedeeld of wat uit een ingelezen bestand kwam;
+- wat je met *Klopt*, *Alle voorstellen bevestigen* of *Ze klopt* hebt
+  bevestigd;
+- een gelijkenis die de motor zelf zeker genoeg vond om meteen te bevestigen.
+  Die herbekijk je met *Opnieuw indelen › Automatisch bevestigde
+  gelijkenissen*;
+- een onbevestigde gelijkenis of een AI-voorstel waar geen enkele regel op
+  past. Dat blijft gewoon op nazicht staan.
+
+Neemt een regel een gelijkenis of AI-voorstel over, dan krijgt de transactie ook
+de winkel en het land van de regel, als de regel er een heeft. Heeft ze er geen,
+dan blijven winkel en land staan zoals de gelijkenis ze had ingevuld.
 
 Drie dingen blijven ongemoeid. Wat je zelf hebt ingedeeld of wat uit een
 ingelezen bestand kwam, blijft altijd staan: zodra jij een categorie kiest, is

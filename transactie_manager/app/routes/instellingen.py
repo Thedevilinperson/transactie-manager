@@ -452,7 +452,8 @@ def regels():
             uit = herbekijk_alles(conn, crypto)
             conn.commit()
             log(conn, crypto, g.gebruiker, "regels opnieuw toegepast",
-                f"gewist={uit.gewist} anders={uit.overgenomen} erbij={uit.erbij}")
+                f"gewist={uit.gewist} anders={uit.overgenomen} erbij={uit.erbij}"
+                f" vervangen={uit.vervangen}")
             flash("Alle regels opnieuw toegepast. " + verslag(uit), "goed")
 
         return redirect(bestemming)

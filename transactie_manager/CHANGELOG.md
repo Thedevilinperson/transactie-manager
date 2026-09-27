@@ -4,6 +4,27 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.31.0] — 2026-09-27
+
+### Gewijzigd
+- ***Alle regels opnieuw toepassen* herbekijkt nu ook onbevestigde
+  gelijkenissen en AI-voorstellen.** Tot nu toe keek die knop alleen naar
+  transacties die al door een regel waren ingedeeld, en naar transacties zonder
+  categorie. Een gelijkenis die op nazicht stond, bleef staan, ook als er
+  intussen een regel was die er precies op paste: een regel "mededeling bevat
+  *aanvul zicht E*" liet een transactie met mededeling *Aanvul zicht E* die als
+  gelijkenis van 91 % was ingedeeld, ongemoeid, en de melding luidde dat er
+  niets veranderd was. Nu neemt een passende regel zo'n onbevestigd voorstel
+  over. Blijven staan: wat je zelf indeelde, wat uit een ingelezen bestand
+  kwam, wat je met *Klopt* of *Ze klopt* bevestigde, en een gelijkenis die de
+  motor zelf bevestigde (daarvoor dient *Opnieuw indelen › Automatisch
+  bevestigde gelijkenissen*).
+- De melding na het opnieuw toepassen zegt ook hoeveel onbevestigde
+  gelijkenissen of AI-voorstellen door een regel vervangen werden, en het
+  logboek houdt dat aantal bij.
+- De uitleg bij de knop, de bevestigingsvraag en de handleiding beschrijven wat
+  er nu wel en niet herbekeken wordt.
+
 ## [0.30.1] — 2026-09-27
 
 ### Opgelost
