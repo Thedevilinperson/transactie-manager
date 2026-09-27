@@ -1,11 +1,11 @@
 {% extends "basis.html" %}
 {% from "_instellingentabs.html" import instellingentabs %}
-{% block titel %}Referentielijst nakijken{% endblock %}
+{% block titel %}Categorielijst nakijken{% endblock %}
 
 {% block inhoud %}
 {{ instellingentabs(is_beheerder) }}
 <div class="kop">
-  <h1>Referentielijst nakijken</h1>
+  <h1>Categorielijst nakijken</h1>
   <p>{{ naam }} · {{ analyse.rijen }} rijen</p>
 </div>
 
@@ -16,26 +16,12 @@
     <div class="cijfer"><b>{{ analyse.categorieen }}</b><span>categorieën</span></div>
     <div class="cijfer"><b>{{ analyse.subcategorieen }}</b><span>subcategorieën</span></div>
   </div>
-  <div class="balans" style="margin-top:22px">
-    <div class="cijfer in"><b>{{ analyse.sleutelregels }}</b>
-      <span>regels op de volledige sleutel</span></div>
-    <div class="cijfer"><b>{{ analyse.partijregels }}</b>
-      <span>regels op enkel de tegenpartij</span></div>
-    <div class="cijfer uit"><b>{{ analyse.overgeslagen }}</b>
-      <span>rijen zonder hoofdcategorie</span></div>
-  </div>
+  {% if analyse.overgeslagen %}
+    <p class="klein-detail" style="margin-top:12px">{{ analyse.overgeslagen }} rijen
+      zonder hoofdcategorie worden overgeslagen.</p>
+  {% endif %}
 </div>
 
-{% if analyse.botsingen %}
-  <div class="vlak">
-    <h2>Tegenpartijen met meer dan één indeling</h2>
-    <p>Voor {{ analyse.botsingen }} tegenpartijen verwijst de lijst naar
-      verschillende categorieën. Voor die tegenpartijen wordt geen brede regel
-      gemaakt, alleen de exacte sleutelregels. De fuzzy stap vangt ze verder op.</p>
-    <p class="klein-detail" style="margin-top:10px">
-      {{ analyse.voorbeeld_botsingen|join(' · ') }}</p>
-  </div>
-{% endif %}
 
 <div class="vlak">
   <h2>De boom die hieruit volgt</h2>
@@ -66,7 +52,7 @@
   </div>
 </div>
 
-<form method="post" action="{{ url_for('bijzonder.referentielijst_uitvoeren') }}">
+<form method="post" action="{{ url_for('bijzonder.categorielijst_uitvoeren') }}">
   <input type="hidden" name="token" value="{{ token }}">
   {% if staat.transacties or staat.categorieen %}
     <div class="melding fout" style="margin-bottom:16px">
@@ -74,45 +60,12 @@
       Er staan {{ staat.categorieen }} categorieën, {{ staat.regels }} regels en
       {{ staat.transacties }} transacties, waarvan er {{ staat.ingedeeld }} een
       categorie hebben{% if staat.handmatig %} en {{ staat.handmatig }} met de hand
-      zijn ingedeeld{% endif %}. Een referentielijst inlezen raakt dat werk.
+      zijn ingedeeld{% endif %}. Met <em>integraal vervangen</em> raakt een
+      categorielijst dat werk.
       Lees hieronder eerst wat elke keuze doet. Er wordt sowieso een kopie van de
       databank gelegd voor er iets verandert.
     </div>
   {% endif %}
-
-  <div class="vlak">
-    <h2>Wat overnemen uit de lijst</h2>
-    {% if analyse.met_sleutels %}
-      <div class="keuzeregel" style="align-items:flex-start;margin-top:6px">
-        <input type="radio" id="omvang_volledig" name="omvang" value="volledig" checked
-               style="margin-top:4px">
-        <label for="omvang_volledig"><strong>De volledige referentielijst.</strong>
-          Categorieën én de koppeling met de beschrijvingen, waaruit
-          {{ analyse.sleutelregels }} regels worden afgeleid. Kies dit wanneer de
-          lijst ook je manier van indelen beschrijft.</label>
-      </div>
-      <div class="keuzeregel" style="align-items:flex-start;margin-top:10px">
-        <input type="radio" id="omvang_boom" name="omvang" value="boom"
-               style="margin-top:4px">
-        <label for="omvang_boom"><strong>Alleen de boomstructuur.</strong>
-          Enkel de categorieën, hun onderverdelingen en hun volgorde. Er worden geen
-          regels afgeleid, dus je indeling blijft je eigen werk. Kies dit wanneer de
-          lijst je categorieën beschrijft maar niet hoe je transacties erin
-          terechtkomen.</label>
-      </div>
-    {% else %}
-      <input type="hidden" name="omvang" value="boom">
-      <p><strong>Alleen de boomstructuur.</strong> Dit bestand bevat geen kolom
-        met beschrijvingen of tegenpartijen, dus er valt geen enkele regel uit af
-        te leiden. Wat overgenomen wordt zijn de categorieën, hun
-        onderverdelingen en hun volgorde.</p>
-      <p class="klein-detail">Wil je ook regels laten afleiden, voeg dan een
-        kolom toe met de omschrijving zoals ze op je afschrift staat — kop
-        <em>Sleutel</em>, <em>Omschrijving</em> of <em>Beschrijving</em>. De
-        kolommen worden op hun kopregel herkend, dus hun volgorde doet er niet
-        toe.</p>
-    {% endif %}
-  </div>
 
   <div class="vlak">
     <h2>Wat met je huidige categorieën</h2>
@@ -120,14 +73,15 @@
       <input type="radio" id="vervang_nee" name="vervang" value="0" checked
              style="margin-top:4px">
       <label for="vervang_nee"><strong>Behouden en aanvullen.</strong>
-        Wat er al staat blijft; nieuwe categorieën en regels komen erbij.
-        Bestaande indelingen van transacties blijven ongemoeid.</label>
+        Wat er al staat blijft; nieuwe categorieën komen erbij. Je regels en de
+        indelingen van je transacties blijven ongemoeid.</label>
     </div>
     <div class="keuzeregel" style="align-items:flex-start;margin-top:10px">
       <input type="radio" id="vervang_ja" name="vervang" value="1"
              style="margin-top:4px">
       <label for="vervang_ja"><strong>Integraal vervangen.</strong>
-        Alle categorieën en regels worden gewist en vervangen door deze lijst.
+        Alle categorieën worden gewist en vervangen door deze lijst. Omdat regels
+        naar categorieën wijzen, gaan ook alle regels weg.
         {% if staat.ingedeeld %}
           <span class="waarschuwing">Je {{ staat.ingedeeld }} ingedeelde
           transacties verliezen daarbij hun categorie — ook de
@@ -140,43 +94,11 @@
       </label>
     </div>
 
-    <div class="keuzeregel" style="margin-top:14px">
-      <input type="checkbox" id="partijregels" name="partijregels" value="1"
-             {{ 'checked' if analyse.met_sleutels }}
-             {{ 'disabled' if not analyse.met_sleutels }}>
-      <label for="partijregels">Ook brede regels maken op enkel de tegenpartij
-        <span class="klein-detail">(niet van toepassing bij “alleen de
-        boomstructuur”)</span></label>
-    </div>
   </div>
 
-  <div class="vlak">
-    <h2>Daarna opnieuw indelen</h2>
-    <div class="keuzeregel" style="align-items:flex-start;margin-top:6px">
-      <input type="radio" id="her_leeg" name="herindelen" value="zonder_categorie"
-             checked style="margin-top:4px">
-      <label for="her_leeg"><strong>Alleen wat geen categorie heeft.</strong>
-        Het veilige bereik: wat al ergens in zit blijft staan zoals het staat,
-        met de bron erbij.</label>
-    </div>
-    <div class="keuzeregel" style="align-items:flex-start;margin-top:10px">
-      <input type="radio" id="her_alles" name="herindelen" value="onbevestigd"
-             style="margin-top:4px">
-      <label for="her_alles"><strong>Alles wat nog niet bevestigd is.</strong>
-        Ook transacties die al een categorie hebben. De bron van de toewijzing
-        gaat daarbij verloren.</label>
-    </div>
-    <div class="keuzeregel" style="align-items:flex-start;margin-top:10px">
-      <input type="radio" id="her_niet" name="herindelen" value="geen"
-             style="margin-top:4px">
-      <label for="her_niet"><strong>Niet opnieuw indelen.</strong>
-        Alleen de categorieën en regels inlezen. Je kan later nog opnieuw indelen
-        vanuit het nazichtscherm.</label>
-    </div>
-  </div>
   <div class="knoppen">
-    <button type="submit">Referentielijst inlezen</button>
-    <a class="knop stil" href="{{ url_for('bijzonder.referentielijst') }}">Annuleren</a>
+    <button type="submit">Categorielijst inlezen</button>
+    <a class="knop stil" href="{{ url_for('bijzonder.categorielijst') }}">Annuleren</a>
   </div>
 </form>
 {% endblock %}

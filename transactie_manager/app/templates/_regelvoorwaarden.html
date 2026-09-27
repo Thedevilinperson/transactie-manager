@@ -1,19 +1,37 @@
 {# Rijen voor de bijkomende voorwaarden van een regel.
 
-   De eerste voorwaarde staat in het hoofdformulier; wat hier staat komt er met
-   EN bovenop. Lege rijen worden bij het bewaren overgeslagen, dus er staan er
-   altijd een paar klaar. #}
+   De eerste voorwaarde staat in het hoofdformulier. Elke rij hier hangt met EN
+   of met OF aan de rij ervoor. EN gaat voor OF: "A en B of C" betekent
+   "(A en B) of C" (zie engine.groepen). Lege rijen worden bij het bewaren
+   overgeslagen, dus er staan er altijd een paar klaar. #}
+
+{% macro koppelkeuze(gekozen='en') %}
+  <select name="extra_koppeling" aria-label="Koppeling met de vorige voorwaarde"
+          class="koppelkeuze">
+    <option value="en" {{ 'selected' if gekozen != 'of' }}>EN</option>
+    <option value="of" {{ 'selected' if gekozen == 'of' }}>OF</option>
+  </select>
+{% endmacro %}
 
 {% macro extra_voorwaarden(veldnamen, extra_operatoren, bestaande=[], vrij=3) %}
   <fieldset class="voorwaarden">
-    <legend>En ook</legend>
-    <p class="klein-detail">Elke ingevulde rij moet óók kloppen. Laat ze leeg en
+    <legend>Bijkomende voorwaarden</legend>
+    <p class="klein-detail">Elke ingevulde rij hangt met <strong>EN</strong> of
+      <strong>OF</strong> aan de rij erboven. Met EN moet ze óók kloppen; met OF
+      volstaat het dat zij (en wat er met EN aan hangt) klopt. EN gaat voor OF:
+      <em>A EN B OF C</em> betekent <em>(A en B) of C</em>. Laat de rijen leeg en
       de regel kijkt alleen naar de voorwaarde hierboven. Met <em>bevat niet</em>
       sluit je net iets uit: alles van Total, behalve wanneer er CARWASH in de
       mededeling staat.</p>
+    <p class="klein-detail"><em>Bevat</em> kijkt per woord: alle woorden van de
+      waarde moeten in het veld staan, in welke volgorde ook en ook midden in
+      een ander woord. <em>ober merelbeke</em> past dus op
+      <em>ober 78 merelbeker</em>, op <em>merelbeke ober</em> en op
+      <em>obermerelbeke</em>.</p>
 
     {% for vw in bestaande %}
       <div class="voorwaarderij">
+        {{ koppelkeuze(vw.koppeling) }}
         <select name="extra_veld" aria-label="Veld">
           {% for sleutel, label in veldnamen.items() %}
             <option value="{{ sleutel }}" {{ 'selected' if vw.veld == sleutel }}>
@@ -33,6 +51,7 @@
 
     {% for _ in range(vrij) %}
       <div class="voorwaarderij">
+        {{ koppelkeuze('en') }}
         <select name="extra_veld" aria-label="Veld">
           {% for sleutel, label in veldnamen.items() %}
             <option value="{{ sleutel }}"
@@ -56,8 +75,17 @@
   <span class="voorwaarde">{{ veldnamen.get(r.veld, r.veld.replace('_', ' ')) }}
     {{ operatoren.get(r.operator, r.operator) }} “{{ r.waarde }}”</span>
   {% for vw in r.extra %}
-    <span class="voorwaarde vervolg"><strong>en</strong>
+    <span class="voorwaarde vervolg"><strong>{{ 'of' if vw.koppeling == 'of' else 'en' }}</strong>
       {{ veldnamen.get(vw.veld, vw.veld.replace('_', ' ')) }}
       {{ extra_operatoren.get(vw.operator, vw.operator) }} “{{ vw.waarde }}”</span>
   {% endfor %}
+{% endmacro %}
+
+{# Herkomst en bevestiging van een regel, als twee merkjes. #}
+{% macro regelstatus(r) %}
+  {% if r.bevestigd_op %}
+    <span class="merkje zeker" title="Bevestigd op {{ r.bevestigd_op[:10] }}{% if r.bevestigd_door %} door {{ r.bevestigd_door }}{% endif %}">✓ bevestigd</span>
+  {% else %}
+    <span class="merkje onzeker" title="Wat deze regel indeelt, komt op nazicht">onbevestigd</span>
+  {% endif %}
 {% endmacro %}

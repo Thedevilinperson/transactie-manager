@@ -14,9 +14,13 @@ from .. import backup, veilig_terug
 from ..config import VERSION
 from .. import handleiding as hl
 from ..database import connect, get_db, instelling, log, now_iso, zet_instelling
+from ..categorizer.engine import Voorwaarde, fout_in_voorwaarden
 from ..regelonderhoud import (BEWERKT_TOELICHTING, UIT_TOELICHTING, WIS_TOELICHTING,
                               Uitkomst, hangende_transacties, herbekijk,
-                              maak_zeker, pas_alle_regels_opnieuw_toe, pas_toe, verslag)
+                              pas_alle_regels_opnieuw_toe, pas_toe, pas_toe_geteld,
+                              verslag)
+from ..regelopslag import (HERKOMSTEN, HERKOMSTEN_KORT, schrijf_voorwaarden,
+                           zet_bevestiging)
 
 bp = Blueprint("instellingen", __name__, url_prefix="/instellingen")
 
@@ -236,29 +240,39 @@ SORTEERSLEUTELS = {
     "actief": lambda r: (not r["actief"], r["prioriteit"]),
     "bevestigd": lambda r: (r["bevestigd_op"] is None, r["bevestigd_op"] or ""),
     "treffers": lambda r: (-r["treffers"], r["prioriteit"]),
+    "herkomst": lambda r: (r["herkomst_kort"], r["prioriteit"]),
 }
 
 
 def _regelvelden(form, crypto):
     """De velden van het formulier, klaar om weg te schrijven.
 
-    Geeft (velden, extra) terug, of (None, None) wanneer de eerste voorwaarde
-    leeg is; zonder waarde kan een regel nergens op passen. Lege extra
-    voorwaarden worden stilzwijgend overgeslagen — dat zijn de ongebruikte
-    rijen van het formulier.
+    Geeft (velden, extra, fout) terug. `velden` zijn de kolommen van de
+    regeltabel met de eerste voorwaarde, `extra` de bijkomende voorwaarden als
+    Voorwaarde-objecten, elk met hun koppeling (EN of OF) aan de vorige. Lege
+    extra rijen worden stilzwijgend overgeslagen — dat zijn de ongebruikte rijen
+    van het formulier. Bij een fout zijn velden en extra None.
     """
     waarde = form.get("waarde", "").strip()
     if not waarde:
-        return None, None
+        return None, None, "Geef aan waarop de regel moet passen."
     handelaar = form.get("handelaar", "").strip()
     land = form.get("land", "").strip()
+    veld = form.get("veld", "tegenpartij_naam")
+    if veld not in VELDNAMEN:
+        veld = "tegenpartij_naam"
+    operator = form.get("operator", "bevat")
+    if operator not in OPERATOREN:
+        operator = "bevat"
     velden = {
-        "naam_enc": crypto.enc(form.get("naam", "").strip() or waarde),
+        "naam_enc": crypto.enc(" ".join(form.get("naam", "").split())
+                               or " ".join(waarde.split())),
         "prioriteit": form.get("prioriteit", 100, type=int),
-        "veld": form.get("veld", "tegenpartij_naam"),
-        "operator": form.get("operator", "bevat"),
+        "veld": veld,
+        "operator": operator,
         "waarde_enc": crypto.enc(waarde),
-        "waarde_idx": crypto.blind(normalize(waarde)),
+        "waarde_idx": crypto.blind(normalize_iban(waarde) if veld == "tegenpartij_rekening"
+                                   else normalize(waarde)),
         "bedrag_min": form.get("bedrag_min", type=float),
         "bedrag_max": form.get("bedrag_max", type=float),
         "richting": form.get("richting") or None,
@@ -269,38 +283,27 @@ def _regelvelden(form, crypto):
         "land_enc": crypto.enc(land) if land else None,
     }
 
-    extra = []
+    extra: list[Voorwaarde] = []
     velden_lijst = form.getlist("extra_veld")
     operatoren = form.getlist("extra_operator")
+    koppelingen = form.getlist("extra_koppeling")
     waarden = form.getlist("extra_waarde")
     for i, rauw in enumerate(waarden):
         w = rauw.strip()
         if not w:
             continue
-        extra.append({
-            "volgorde": len(extra),
-            "veld": velden_lijst[i] if i < len(velden_lijst) else "mededeling",
-            "operator": (operatoren[i] if i < len(operatoren)
-                         and operatoren[i] in EXTRA_OPERATOREN else "bevat"),
-            "waarde_enc": crypto.enc(w),
-            "waarde_idx": crypto.blind(normalize(w)),
-        })
-    return velden, extra
-
-
-def _schrijf_voorwaarden(conn, regel_id: int, extra: list[dict]) -> None:
-    """Vervangt de bijkomende voorwaarden van een regel.
-
-    Ze horen bij de regel en hebben geen eigen leven: bij het bewaren worden ze
-    in hun geheel opnieuw gezet, zodat een verwijderde rij ook echt weg is.
-    """
-    conn.execute("DELETE FROM regel_voorwaarden WHERE regel_id = ?", (regel_id,))
-    for vw in extra:
-        conn.execute(
-            "INSERT INTO regel_voorwaarden (regel_id, volgorde, veld, operator,"
-            " waarde_enc, waarde_idx) VALUES (?,?,?,?,?,?)",
-            (regel_id, vw["volgorde"], vw["veld"], vw["operator"],
-             vw["waarde_enc"], vw["waarde_idx"]))
+        extra.append(Voorwaarde(
+            veld=(velden_lijst[i] if i < len(velden_lijst)
+                  and velden_lijst[i] in VELDNAMEN else "mededeling"),
+            operator=(operatoren[i] if i < len(operatoren)
+                      and operatoren[i] in EXTRA_OPERATOREN else "bevat"),
+            waarde=w,
+            koppeling="of" if i < len(koppelingen) and koppelingen[i] == "of" else "en",
+        ))
+    fout = fout_in_voorwaarden([Voorwaarde(veld, operator, waarde)] + extra)
+    if fout:
+        return None, None, fout
+    return velden, extra, None
 
 
 def _regelfilters(args):
@@ -313,6 +316,7 @@ def _regelfilters(args):
         "vork": args.get("vork_f", ""),
         "combi": args.get("combi_f", ""),
         "bevestigd": args.get("bevestigd_f", ""),
+        "herkomst": args.get("herkomst_f", ""),
         "sorteer": args.get("sorteer", "prioriteit"),
         "omgekeerd": args.get("omgekeerd") == "1",
     }
@@ -338,6 +342,8 @@ def _past_op_filter(rij, f) -> bool:
     # Een regel "gebruikt een bedragvork" zodra ze een onder- of een bovengrens
     # heeft. Eén grens volstaat: het paar "tot 10" en "vanaf 10" is juist de
     # gewone vorm van zo'n vork.
+    if f["herkomst"] and rij["herkomst"] != f["herkomst"]:
+        return False
     if f["bevestigd"] == "ja" and not rij["bevestigd_op"]:
         return False
     if f["bevestigd"] == "nee" and rij["bevestigd_op"]:
@@ -377,28 +383,50 @@ def regels():
                                   url_for("instellingen.regels"))
 
         if actie == "toevoegen":
-            velden, extra = _regelvelden(request.form, crypto)
+            velden, extra, fout = _regelvelden(request.form, crypto)
             if velden is None:
-                flash("Geef aan waarop de regel moet passen.", "fout")
+                flash(fout, "fout")
             else:
-                kolommen = list(velden) + ["aangemaakt_op"]
+                bevestigd = request.form.get("bevestigd") == "1"
+                tijdstip = now_iso()
+                velden.update({
+                    "herkomst": "handmatig", "aangemaakt_op": tijdstip,
+                    "bevestigd_op": tijdstip if bevestigd else None,
+                    "bevestigd_door": g.gebruiker if bevestigd else None,
+                })
                 cur = conn.execute(
-                    f"INSERT INTO regels ({', '.join(kolommen)})"
-                    f" VALUES ({', '.join('?' * len(kolommen))})",
-                    tuple(velden.values()) + (now_iso(),),
+                    f"INSERT INTO regels ({', '.join(velden)})"
+                    f" VALUES ({', '.join('?' * len(velden))})",
+                    tuple(velden.values()),
                 )
-                _schrijf_voorwaarden(conn, cur.lastrowid, extra)
+                regel_id = cur.lastrowid
+                schrijf_voorwaarden(conn, crypto, regel_id, extra)
+                # Meteen loslaten op wat nog op een oordeel wacht: zonder
+                # categorie, of een gelijkenis of AI-voorstel dat nog niet
+                # bevestigd is. Tot versie 0.33.0 gebeurde er bij het toevoegen
+                # niets, en moest je daarna nog zelf alle regels toepassen.
+                telling = pas_toe_geteld(conn, crypto, regel_id,
+                                         ook_onbevestigde_gelijkenis=True,
+                                         ook_onbevestigd_ai=True)
+                log(conn, crypto, g.gebruiker, "regel toegevoegd",
+                    f"regel={regel_id} bevestigd={int(bevestigd)}"
+                    f" toegepast={sum(telling.values())}")
                 conn.commit()
-                flash("Regel toegevoegd." + (
-                    f" Ze combineert {len(extra) + 1} voorwaarden." if extra else ""),
-                    "goed")
+                n = sum(telling.values())
+                flash("Regel toegevoegd" + (" en bevestigd" if bevestigd else
+                                            ", nog niet bevestigd") + "."
+                      + (f" Ze combineert {len(extra) + 1} voorwaarden." if extra else "")
+                      + (f" {n} {'transactie kreeg' if n == 1 else 'transacties kregen'}"
+                         " meteen haar indeling." if n else ""),
+                      "goed")
 
         elif actie == "bewerken":
             regel_id = request.form.get("id", type=int)
-            velden, extra = _regelvelden(request.form, crypto)
+            velden, extra, fout = _regelvelden(request.form, crypto)
             if velden is None:
-                flash("Geef aan waarop de regel moet passen.", "fout")
-                return redirect(url_for("instellingen.regel_bewerken", regel_id=regel_id))
+                flash(fout, "fout")
+                return redirect(url_for("instellingen.regel_bewerken", regel_id=regel_id,
+                                        terug=request.form.get("terug") or None))
             # Dezelfde weg als verwijderen: eerst opzoeken wat eraan hing,
             # zolang de oude definitie nog geldt.
             hingen = hangende_transacties(conn, crypto, regel_id)
@@ -406,18 +434,24 @@ def regels():
                 f"UPDATE regels SET {', '.join(k + ' = ?' for k in velden)} WHERE id = ?",
                 tuple(velden.values()) + (regel_id,),
             )
-            _schrijf_voorwaarden(conn, regel_id, extra)
-            # Wie een regel bewerkt, heeft zelf gekozen waar ze naartoe wijst.
-            # Wees ze in de historiek of de referentielijst naar meer dan één
-            # categorie, dan is die twijfel nu voorbij: ze hoeft niet langer om
-            # nazicht te vragen. Vóór het herbekijken, zodat de transacties die
-            # eraan hangen meteen als bevestigd uit de herbeoordeling komen.
-            maak_zeker(conn, regel_id)
+            schrijf_voorwaarden(conn, crypto, regel_id, extra)
+            # Bevestigd of niet: dat kies je in het formulier. Vóór het
+            # herbekijken, zodat de transacties die eraan hangen meteen met de
+            # juiste status uit de herbeoordeling komen.
+            bevestigd = request.form.get("bevestigd") == "1"
+            zet_bevestiging(conn, regel_id, bevestigd, g.gebruiker)
             uit = herbekijk(conn, crypto, hingen, toelichting=BEWERKT_TOELICHTING)
-            uit.erbij = pas_toe(conn, crypto, regel_id)
+            telling = pas_toe_geteld(conn, crypto, regel_id,
+                                     ook_onbevestigde_gelijkenis=True,
+                                     ook_onbevestigd_ai=True)
+            uit.erbij = telling["zonder"]
+            uit.vervangen = telling["gelijkenis"] + telling["ai"]
             conn.commit()
-            log(conn, crypto, g.gebruiker, "regel bewerkt", f"regel={regel_id}")
-            flash("Regel aangepast. " + verslag(uit), "goed")
+            log(conn, crypto, g.gebruiker, "regel bewerkt",
+                f"regel={regel_id} bevestigd={int(bevestigd)}")
+            flash(("Regel bewaard en bevestigd. " if bevestigd else
+                   "Regel bewaard, maar niet bevestigd: wat ze indeelt, komt op "
+                   "nazicht. ") + verslag(uit), "goed")
 
         elif actie == "verwijderen":
             regel_id = request.form.get("id", type=int)
@@ -463,7 +497,7 @@ def regels():
     return render_template(
         "instellingen_regels.html", rijen=getoond, totaal=len(rijen),
         filters=filters, veldnamen=VELDNAMEN, operatoren=OPERATOREN,
-        extra_operatoren=EXTRA_OPERATOREN,
+        extra_operatoren=EXTRA_OPERATOREN, herkomsten=HERKOMSTEN,
         hoofdcategorieen=[k for k in keuzelijst(boom(conn, crypto))
                           if k["niveau"] == 0],
         keuzes=keuzelijst(boom(conn, crypto, alleen_actief=True)),
@@ -487,6 +521,7 @@ def _regelrijen(conn, crypto, regel_id: int | None = None) -> list[dict]:
         extra.setdefault(vw["regel_id"], []).append({
             "veld": vw["veld"], "operator": vw["operator"],
             "waarde": crypto.dec(vw["waarde_enc"]) or "",
+            "koppeling": vw["koppeling"] if vw["koppeling"] == "of" else "en",
         })
 
     # Het aantal treffers werd in een kolom bijgehouden die nooit werd
@@ -514,6 +549,8 @@ def _regelrijen(conn, crypto, regel_id: int | None = None) -> list[dict]:
             "handelaar": crypto.dec(r["handelaar_enc"]) or "",
             "land": crypto.dec(r["land_enc"]) or "",
             "treffers": treffers.get(r["id"], 0), "herkomst": r["herkomst"],
+            "herkomst_tekst": HERKOMSTEN.get(r["herkomst"], r["herkomst"]),
+            "herkomst_kort": HERKOMSTEN_KORT.get(r["herkomst"], r["herkomst"]),
             "bevestigd_op": r["bevestigd_op"], "bevestigd_door": r["bevestigd_door"],
             "aangemaakt_op": r["aangemaakt_op"],
             "extra": extra.get(r["id"], []),
@@ -521,14 +558,7 @@ def _regelrijen(conn, crypto, regel_id: int | None = None) -> list[dict]:
     return rijen
 
 
-# Waar een regel vandaan komt, in woorden.
-HERKOMSTEN = {
-    "handmatig": "Zelf aangemaakt",
-    "historiek": "Afgeleid uit je historiek",
-    "historiek_onzeker": "Afgeleid uit je historiek — wees daar naar meer dan één categorie",
-    "referentie": "Uit de referentielijst",
-    "referentie_onzeker": "Uit de referentielijst — stond daar onder meer dan één categorie",
-}
+# Waar een regel vandaan komt, in woorden: zie regelopslag.HERKOMSTEN.
 
 
 @bp.route("/regels/<int:regel_id>")
@@ -540,10 +570,15 @@ def regel_bewerken(regel_id: int):
     if regel is None:
         flash("Die regel bestaat niet meer.", "fout")
         return redirect(url_for("instellingen.regels"))
+    # Kom je hier na Klopt in het nazicht, dan is de regel net gemaakt en
+    # nog niet bevestigd. Het scherm zegt dat, en brengt je na het bewaren
+    # terug naar het nazicht.
     return render_template(
         "instellingen_regel.html", regel=regel, veldnamen=VELDNAMEN,
         operatoren=OPERATOREN, extra_operatoren=EXTRA_OPERATOREN,
         keuzes=keuzelijst(boom(conn, crypto, alleen_actief=True)),
+        nieuw=request.args.get("nieuw") == "1",
+        terug=veilig_terug(request.args.get("terug"), "") if request.args.get("terug") else "",
     )
 
 

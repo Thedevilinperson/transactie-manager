@@ -1,13 +1,13 @@
 {% extends "basis.html" %}
 {% from "_instellingentabs.html" import instellingentabs %}
 {% from "_kiezer.html" import categoriekiezer %}
-{% from "_regelvoorwaarden.html" import extra_voorwaarden %}
+{% from "_regelvoorwaarden.html" import extra_voorwaarden, regelstatus %}
 {% block titel %}Regel bewerken{% endblock %}
 
 {% block inhoud %}
 {{ instellingentabs(is_beheerder) }}
 <div class="kop">
-  <h1>Regel bewerken</h1>
+  <h1>{{ 'Nieuwe regel nakijken' if nieuw else 'Regel bewerken' }}</h1>
   <p>Bewaren volgt dezelfde weg als verwijderen: de transacties die aan deze
     regel hingen, worden opnieuw beoordeeld met de regels zoals ze daarna zijn.
     Past de aangepaste regel er nog op, dan blijft alles staan. Past hij er niet
@@ -15,10 +15,26 @@
     zonder categorie. Wat je zelf hebt ingedeeld, blijft altijd staan.</p>
 </div>
 
+{% if nieuw %}
+  <div class="melding goed">
+    <strong>Deze regel is net gemaakt uit je bevestiging in het nazicht.</strong>
+    Kijk na of ze klopt en pas ze aan waar nodig: vaak is een trefwoord uit de
+    mededeling of een bedragvork nodig om ze niet te breed te maken. Vink
+    <strong>Regel bevestigd</strong> aan als ze goed is; wat ze indeelt, staat
+    dan meteen als bevestigd. Bewaar je zonder vinkje, of ga je hier gewoon weg,
+    dan blijft de regel onbevestigd en komt wat ze indeelt op nazicht.
+  </div>
+{% endif %}
+
 <div class="vlak">
+  <p style="margin-bottom:12px"><span class="merkje herkomst">{{ regel.herkomst_tekst }}</span>
+    {{ regelstatus(regel) }}
+    <span class="klein-detail" style="display:inline">· aangemaakt op
+      {{ regel.aangemaakt_op[:10] }}</span></p>
   <form method="post" action="{{ url_for('instellingen.regels') }}" data-categoriekiezer>
     <input type="hidden" name="actie" value="bewerken">
     <input type="hidden" name="id" value="{{ regel.id }}">
+    {% if terug %}<input type="hidden" name="terug" value="{{ terug }}">{% endif %}
 
     <div class="rooster drie">
       <div class="veld">
@@ -95,9 +111,17 @@
 
     {{ categoriekiezer(keuzes, regel.categorie_id, regel.subcategorie_id, regel.subsub_id) }}
 
+    <div class="keuzeregel" style="margin:4px 0 12px">
+      <input type="checkbox" id="regel_bevestigd" name="bevestigd" value="1"
+             {{ 'checked' if regel.bevestigd_op and not nieuw }}>
+      <label for="regel_bevestigd"><strong>Regel bevestigd</strong> — wat ze
+        indeelt, staat meteen als bevestigd. Zonder vinkje komt het op nazicht.</label>
+    </div>
+
     <div class="knoppen">
       <button type="submit">Bewaren</button>
-      <a class="knop stil" href="{{ url_for('instellingen.regels') }}#regels">Annuleren</a>
+      <a class="knop stil" href="{{ terug or url_for('instellingen.regels') ~ '#regels' }}">
+        {{ 'Later nakijken' if nieuw else 'Annuleren' }}</a>
     </div>
   </form>
 </div>

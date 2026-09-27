@@ -17,30 +17,60 @@
   </div>
 {% endif %}
 
-<form method="post" enctype="multipart/form-data" class="smal">
-  <div class="vlak">
-    <h2>Bestand kiezen</h2>
-    <div class="veld">
-      <label for="bestand">Afschrift (.xlsx, .xlsm of .csv)</label>
-      <input type="file" id="bestand" name="bestand"
-             accept=".xlsx,.xlsm,.csv,.txt,.tsv" required>
+<div class="rooster twee">
+  <form method="post" enctype="multipart/form-data">
+    <div class="vlak">
+      <h2>Bankafschrift</h2>
+      <p class="klein-detail">Een uittreksel zoals je bank het aanlevert. De
+        transacties worden meteen door de regels en de gelijkenisstap gehaald.</p>
+      <div class="veld" style="margin-top:10px">
+        <label for="bestand">Afschrift (.xlsx, .xlsm of .csv)</label>
+        <input type="file" id="bestand" name="bestand"
+               accept=".xlsx,.xlsm,.csv,.txt,.tsv" required>
+      </div>
+      <div class="veld">
+        <label for="profiel">Bank</label>
+        <select id="profiel" name="profiel">
+          {% for sleutel, profiel in profielen.items() %}
+            <option value="{{ sleutel }}">{{ profiel.naam }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <p class="klein-detail">Staat je bank er niet bij? Kies “Automatisch
+        herkennen”; je kan de kolommen daarna alsnog zelf aanduiden.</p>
+      <div class="knoppen" style="margin-top:12px">
+        <button type="submit" {{ 'disabled' if not rekeningen }}>Kolommen bekijken</button>
+      </div>
     </div>
-    <div class="veld">
-      <label for="profiel">Bank</label>
-      <select id="profiel" name="profiel">
-        {% for sleutel, profiel in profielen.items() %}
-          <option value="{{ sleutel }}">{{ profiel.naam }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <p class="klein-detail">Staat je bank er niet bij? Kies “Automatisch herkennen”;
-      je kan de kolommen daarna alsnog zelf aanduiden.</p>
-  </div>
+  </form>
 
-  <div class="knoppen">
-    <button type="submit" {{ 'disabled' if not rekeningen }}>Kolommen bekijken</button>
-  </div>
-</form>
+  <form method="post" enctype="multipart/form-data">
+    <input type="hidden" name="profiel" value="historiek">
+    <div class="vlak">
+      <h2>Historiek met indeling</h2>
+      <p class="klein-detail">Transacties die je elders al hebt ingedeeld, met
+        kolommen voor <strong>Hoofdcategorie</strong>, <strong>Subcategorie</strong>,
+        <strong>Sub-subcategorie</strong>, <strong>Winkel</strong> en
+        <strong>Land</strong>. Ze komen meteen als bevestigd binnen. Daarna maak je
+        er regels uit bij <a href="{{ url_for('bijzonder.regels_uit_historiek') }}">Regels
+        uit historiek</a>.</p>
+      <div class="veld" style="margin-top:10px">
+        <label for="bestand_historiek">Historiek (.xlsx, .xlsm of .csv)</label>
+        <input type="file" id="bestand_historiek" name="bestand"
+               accept=".xlsx,.xlsm,.csv,.txt,.tsv" required>
+      </div>
+      <p class="klein-detail">Wil je je categorieën eerst zelf vastleggen, lees dan
+        vooraf een <a href="{{ url_for('bijzonder.categorielijst') }}">categorielijst</a>
+        in.</p>
+      <div class="knoppen" style="margin-top:12px">
+        <button type="submit" {{ 'disabled' if not rekeningen }}>Kolommen bekijken</button>
+        <a class="knop stil"
+           href="{{ url_for('bijzonder.voorbeeldbestand', naam='historiek') }}">
+          Voorbeeldbestand</a>
+      </div>
+    </div>
+  </form>
+</div>
 
 <div class="vlak">
   <h2>Welke kolommen</h2>
@@ -69,24 +99,13 @@
 
 <div class="vlak">
   <h2>Historiek met de indeling er al in</h2>
-  <p>Heb je je transacties elders al ingedeeld, dan kan je die indeling
-    meteen mee inlezen. Voeg dan vijf kolommen toe:
-    <strong>Hoofdcategorie</strong>, <strong>Subcategorie</strong>,
-    <strong>Sub-subcategorie</strong>, <strong>Winkel</strong> en
-    <strong>Land</strong>. Categorieën die nog niet bestaan worden vanzelf
-    aangemaakt, en die transacties komen meteen als bevestigd binnen — ze gaan
-    niet door het nazicht.</p>
-  <p style="margin-top:10px">Daarna kan je uit die historiek in één keer een
-    referentielijst laten opbouwen, bij
+  <p>De volgorde die het best werkt: eerst eventueel een
+    <a href="{{ url_for('bijzonder.categorielijst') }}">categorielijst</a> (alleen
+    categorieën), dan je historiek hierboven rechts, en daarna
     <a href="{{ url_for('bijzonder.regels_uit_historiek') }}">Regels uit
-    historiek</a>.</p>
-  <div class="knoppen" style="margin-top:14px">
-    <a class="knop stil"
-       href="{{ url_for('bijzonder.voorbeeldbestand', naam='historiek') }}">
-      Voorbeeldbestand downloaden</a>
-  </div>
-  <p class="klein-detail" style="margin-top:10px">In dat bestand staat een tweede
-    werkblad met per kolom een toelichting.</p>
+    historiek</a>. Categorieën die in de historiek staan en nog niet bestaan,
+    worden vanzelf aangemaakt. In het voorbeeldbestand staat een tweede werkblad
+    met per kolom een toelichting.</p>
 </div>
 
 <div class="vlak">

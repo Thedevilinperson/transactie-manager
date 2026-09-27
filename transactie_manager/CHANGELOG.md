@@ -4,6 +4,95 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.33.0] — 2026-09-27
+
+Een herschrijving van hoe regels ontstaan, bevestigd worden en toegepast
+worden, en van de gelijkenisstap. Schemaversie 12.
+
+### Toegevoegd
+- **Regels uit historiek: je kiest zelf de kolommen.** Vink *Beschrijving*,
+  *Naam tegenpartij*, *Rekening tegenpartij* en/of *Mededeling* aan. Elke
+  combinatie van waarden die in je historiek voorkomt, wordt één regel. Wijst
+  ze naar één categorie, dan is het een bevestigde regel met prioriteit 5; wijst
+  ze naar meer dan één, dan een onbevestigde regel (prioriteit 90). Kies ook
+  waarop je baseert (alleen de ingelezen historiek, of alles wat een mens
+  indeelde) en of inkomsten en uitgaven apart blijven. Het overzicht toont een
+  greep uit de regels met naam en voorwaarden.
+- **Wat de app zelf afleidt, is strikt begrensd.** Alleen voor transacties die
+  je keuze niet eenduidig dekt, alleen combinaties van minstens twee velden
+  (datum en inkomst/uitgave tellen niet mee, een bedragvork wel), alleen als de
+  combinatie in de hele historiek naar één categorie wijst en op minstens twee
+  transacties steunt. Zulke regels zijn altijd onbevestigd.
+- **Regelnamen** volgen één patroon: de categoriestructuur, gevolgd door de
+  mededeling als die korter is dan 30 tekens, en anders de tegenpartij.
+- **EN en OF bij bijkomende voorwaarden**, zowel bij *Instellingen › Regels* als
+  in het regelvenster van een transactie. EN gaat voor OF. Elke groep moet een
+  voorwaarde hebben die iets insluit; anders weigert het scherm de regel.
+- **Bevestigde en onbevestigde regels.** Een vinkje *Regel bevestigd* bij het
+  toevoegen en bewerken. Wat een onbevestigde regel indeelt, komt op nazicht.
+  Een bevestiging intrekken zet de transacties van die regel weer op nazicht.
+- **Herkomst van elke regel**, als kolom en filter in de regeltabel en bovenaan
+  het bewerkscherm: uit de historiek, uit de historiek met meerdere
+  categorieën, door de app afgeleid, met de hand, uit een gelijkenis of
+  AI-voorstel via *Klopt*, vanuit een transactie, of uit de vroegere
+  referentielijst.
+- **Klopt in het nazicht leidt je naar de bijgeleerde regel.** Bij een
+  gelijkenis of AI-voorstel maakt *Klopt* een onbevestigde regel met prioriteit
+  5 en opent meteen *Nieuwe regel nakijken*. Bevestig je ze daar, dan geldt ze
+  als bevestigd; bewaar je zonder vinkje of ga je weg, dan blijft ze
+  onbevestigd. Daarna kom je terug op het nazicht.
+- **Historiek met indeling is een apart blok** op *Bestand inlezen*, naast
+  *Bankafschrift*. Ze staat niet meer in de lijst met banken. Het eindscherm
+  van zo'n invoer heeft een knop naar *Regels uit historiek*.
+- Een nieuw voorbeeldbestand voor de categorielijst.
+
+### Gewijzigd
+- **Referentielijst heet nu categorielijst en maakt alleen categorieën aan.**
+  De opties om er regels uit te maken zijn weg; regels komen voortaan uit je
+  historiek. Een oudere lijst met een kolom *Sleutel* kan nog, die kolom wordt
+  genegeerd. Het oude adres stuurt door.
+- **Bevat kijkt per woord.** Alle woorden van de waarde moeten in het veld staan,
+  in welke volgorde ook en ook midden in een ander woord: *ober merelbeke*
+  past op *ober 78 merelbeker* en *obermerelbeke*. *Bevat niet* is het
+  omgekeerde.
+- **Een nieuwe regel werkt meteen.** Toevoegen of bewerken past de regel toe op
+  transacties zonder categorie en op onbevestigde gelijkenissen en
+  AI-voorstellen. Voordien gebeurde er bij het toevoegen niets.
+- **Of een regel zeker indeelt, hangt af van haar bevestiging**, niet meer van
+  haar herkomst. De herkomst verandert niet meer bij bewerken of bevestigen.
+  Bij de update krijgen alle regels die tot nu toe zeker indeelden een
+  bevestiging op hun aanmaakdatum, zodat alles blijft werken zoals ervoor.
+- **De gelijkenisstap is herschreven:**
+  - ze vergelijkt naam met naam. De geschiedenis werd op de *winkel* bewaard
+    en een nieuwe transactie op haar tegenpartij vergeleken, waardoor een
+    betaling aan een persoon met een winkel erbij niet meer teruggevonden werd;
+  - ze vergelijkt niet meer de hele tekst als er geen naam is;
+  - filiaalnummers, kaartnummers, datums en rechtsvormen tellen niet mee;
+  - het eerste woord moet overeenkomen, zodat *Axelle Huyge* niet meer op
+    *Elaine Huyge* lijkt;
+  - het rekeningnummer van de tegenpartij weegt mee, en kan zonder gelijkende
+    naam zelf een voorstel geven;
+  - ze bevestigt pas zelf als de treffer eenduidig is: geen andere naam die
+    bijna even goed lijkt en elders thuishoort, meer dan één eerdere
+    transactie (of een exact gelijke naam), en een bedrag dat niet meer dan
+    drie keer afwijkt. De uitleg zegt anders waarom het op nazicht staat;
+  - winkel en land neemt ze alleen over als die bij die naam altijd dezelfde
+    waren;
+  - bij het inlezen van een grote historiek wordt het vergelijkingsmateriaal
+    ter plaatse bijgewerkt in plaats van na elke rij volledig herbouwd.
+- Alle regels worden op één plek weggeschreven (`regelopslag.py`), met herkomst
+  en bevestiging.
+- Het regelvenster van een transactie en de proefknop nemen ook onbevestigde
+  AI-voorstellen mee.
+
+### Opgelost
+- Twee exacte regels op dezelfde waarde, één voor inkomsten en één voor
+  uitgaven: de tweede werd nooit gevonden.
+- Een regel op de volledige mededeling met *is precies gelijk aan* werd door de
+  snelle opzoeking overgeslagen.
+- De regels uit de historiek op een gestructureerde mededeling pasten nooit:
+  ze vergeleken het nummer met de hele mededeling.
+
 ## [0.32.0] — 2026-09-27
 
 ### Toegevoegd

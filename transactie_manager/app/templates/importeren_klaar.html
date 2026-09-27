@@ -16,9 +16,14 @@
   {% if uit_bestand %}
     <p style="margin-top:18px">{{ uit_bestand }} daarvan kregen hun indeling
       rechtstreeks uit het bestand en staan meteen bevestigd. Uit die historiek
-      kan je nu een referentielijst laten opbouwen bij
+      kan je nu regels laten maken bij
       <a href="{{ url_for('bijzonder.regels_uit_historiek') }}">Regels uit
-      historiek</a>.</p>
+      historiek</a>: daar kies je welke kolommen samen naar een categorie
+      wijzen.</p>
+    <div class="knoppen" style="margin-top:12px">
+      <a class="knop" href="{{ url_for('bijzonder.regels_uit_historiek') }}">Regels
+        uit historiek maken</a>
+    </div>
   {% endif %}
 </div>
 

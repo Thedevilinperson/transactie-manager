@@ -6,7 +6,7 @@
 /* Het versienummer staat hier zodat de toepassing kan nagaan of de browser wel
    het juiste stijlblad gebruikt. Bijwerken met scripts/versie.py. */
 :root {
-  --stijl-versie: "0.32.0";
+  --stijl-versie: "0.33.0";
   --inkt: #17202e;
   --inkt-zacht: #5a6675;
   --papier: #f1f3f6;
@@ -231,6 +231,8 @@ tr.status-bevestigd td:first-child { box-shadow: inset 3px 0 0 var(--in); }
 .merkje.manueel { background: #eef1f4; border-color: var(--lijn-sterk); color: var(--inkt-zacht); }
 .merkje.geen { background: #fff; border-color: var(--lijn-sterk); color: var(--inkt-zacht); }
 .merkje.zeker { background: var(--in-licht); border-color: #b7d9c7; color: var(--in); }
+.merkje.onzeker { background: var(--nazicht-licht); border-color: #e4cb9c; color: #7d5412; }
+.merkje.herkomst { background: #fff; border-color: var(--lijn-sterk); color: var(--inkt-zacht); font-weight: normal; }
 
 /* ------------------------------------------------------------- kerncijfers */
 
@@ -557,6 +559,7 @@ tfoot td { font-weight: 600; border-top: 2px solid var(--lijn-sterk); border-bot
   display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;
 }
 .voorwaarderij select { flex: 0 1 190px; min-width: 0; }
+.voorwaarderij select.koppelkeuze { flex: 0 0 70px; font-weight: 600; }
 .voorwaarderij input { flex: 1 1 200px; min-width: 0; }
 .voorwaarde { display: block; }
 .voorwaarde.vervolg { padding-left: 10px; color: var(--inkt-zacht); }

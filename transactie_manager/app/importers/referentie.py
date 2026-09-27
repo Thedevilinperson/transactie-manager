@@ -1,25 +1,13 @@
-"""Inlezen van de referentielijst met categorieën.
+"""Inlezen van de categorielijst.
 
-Het bestand `categorieën.xlsx` bevat per regel:
+Een categorielijst beschrijft je categorieën in drie niveaus: hoofdcategorie,
+categorie en subcategorie. Hieruit wordt alleen de categorieboom opgebouwd.
 
-| kolom | inhoud                                                      |
-|-------|-------------------------------------------------------------|
-| A     | referentiesleutel: beschrijving en tegenpartij, met `-` ertussen |
-| B     | hoofdcategorie                                              |
-| C     | categorie (eerste subniveau)                                |
-| D     | subcategorie (tweede subniveau)                             |
-| E     | winkel, of bij vakantie het land van bestemming             |
-
-Uit dat bestand worden twee dingen opgebouwd:
-
-1. de categorieboom van drie niveaus;
-2. de regels waarmee de motor transacties indeelt.
-
-Per sleutel komt er een regel die exact op die sleutel past. Daarnaast komt er
-een bredere regel op enkel de tegenpartij, maar alleen wanneer die tegenpartij
-in het hele bestand naar één en dezelfde indeling verwijst. Zo verhindert een
-tegenpartij die soms bij boodschappen en soms bij vakantie hoort dat er een
-verkeerde regel ontstaat.
+Tot versie 0.33.0 heette dit de *referentielijst*, en kon dezelfde lijst ook
+regels maken uit een kolom met "beschrijving-tegenpartij". Dat is weg: regels
+komen voortaan uit je ingelezen historiek (zie importers/regelbouwer.py), waar
+je zelf kiest welke kolommen samen naar een categorie wijzen. Een oudere lijst
+met die kolom kan nog altijd ingelezen worden; de kolom wordt dan genegeerd.
 """
 
 from __future__ import annotations
@@ -253,24 +241,17 @@ def analyseer(rijen: list[tuple]) -> Analyse:
 # Wegschrijven
 # --------------------------------------------------------------------------
 
-def importeer(conn, crypto, rijen: list[tuple], *, vervang: bool = True,
-              maak_partijregels: bool = True, maak_regels: bool = True) -> dict:
-    """Zet de referentielijst om in categorieën en regels.
+def importeer(conn, crypto, rijen: list[tuple], *, vervang: bool = False) -> dict:
+    """Zet de categorielijst om in categorieën.
 
-    Met `maak_regels=False` wordt alleen de boomstructuur van de categorieën
-    overgenomen en blijft de koppeling met de beschrijvingen buiten beschouwing.
-    Dat is wat je wil wanneer de lijst je categorieën beschrijft maar niet je
-    manier van indelen — bijvoorbeeld een lijst die je elders hebt opgesteld.
+    Met `vervang` worden eerst alle categorieën gewist. Regels en indelingen
+    van transacties wijzen naar categorieën, dus die gaan dan mee weg: de
+    transacties blijven bestaan maar verliezen hun categorie.
     """
-    beschrijvingen = leer_beschrijvingen(rijen)
-
-    if not maak_regels:
-        maak_partijregels = False
-
     if vervang:
         conn.execute("UPDATE transacties SET categorie_id=NULL, subcategorie_id=NULL,"
                      " subsub_id=NULL, status='niet_toegewezen', methode='geen',"
-                     " regel_id=NULL")
+                     " regel_id=NULL, nagekeken=0")
         conn.execute("DELETE FROM regels")
         conn.execute("DELETE FROM categorieen")
 
@@ -287,7 +268,7 @@ def importeer(conn, crypto, rijen: list[tuple], *, vervang: bool = True,
     bestaand: dict[tuple[int | None, str], int] = {}
     for row in conn.execute("SELECT id, ouder_id, naam_enc FROM categorieen"):
         bestaand[(row["ouder_id"], normalize(crypto.dec(row["naam_enc"])))] = row["id"]
-
+    aantal_categorieen = len(bestaand)
     volgorde: collections.Counter = collections.Counter()
 
     def categorie_id(naam_genormaliseerd: str, niveau: int, ouder_id: int | None) -> int | None:
@@ -307,87 +288,18 @@ def importeer(conn, crypto, rijen: list[tuple], *, vervang: bool = True,
         bestaand[sleutel] = cur.lastrowid
         return cur.lastrowid
 
-    # Eerst de boom, dan de regels.
-    paden: dict[tuple, tuple] = {}
-    per_partij: dict[str, set] = collections.defaultdict(set)
-    telling_per_partij: dict[str, collections.Counter] = collections.defaultdict(
-        collections.Counter)
-    partij_gegevens: dict[str, tuple] = {}
-    aantal_categorieen = len(bestaand)
-
-    def ids_van(alle_paden, gevonden):
-        return alle_paden[next(iter(gevonden))]
-
+    gezien: set[tuple] = set()
     for rij in rijen:
         hoofd = normalize(_schoon(rij[1]))
         if not hoofd:
             continue
-        cat = normalize(_schoon(rij[2]))
-        sub = normalize(_schoon(rij[3]))
-        pad = (hoofd, cat, sub)
-        if pad not in paden:
-            hid = categorie_id(hoofd, 0, None)
-            cid = categorie_id(cat, 1, hid)
-            sid = categorie_id(sub, 2, cid) if cid else None
-            paden[pad] = (hid, cid, sid)
-
-        _, partij = splits(_schoon(rij[0]), beschrijvingen)
-        genormaliseerd = normalize(partij)
-        if genormaliseerd:
-            per_partij[genormaliseerd].add(pad)
-            telling_per_partij[genormaliseerd][pad] += 1
-            partij_gegevens[genormaliseerd] = (partij, _schoon(rij[4]))
-
-    tijdstip = now_iso()
-    gemaakt_sleutel = gemaakt_partij = 0
-
-    def regel(naam, prioriteit, veld, waarde, ids, winkel, herkomst):
-        conn.execute(
-            "INSERT INTO regels (naam_enc, prioriteit, veld, operator, waarde_enc, waarde_idx,"
-            " categorie_id, subcategorie_id, subsub_id, handelaar_enc, herkomst, aangemaakt_op)"
-            " VALUES (?,?,?,'gelijk',?,?,?,?,?,?,?,?)",
-            (crypto.enc(naam), prioriteit, veld,
-             crypto.enc(waarde), crypto.blind(normalize(waarde)),
-             ids[0], ids[1], ids[2],
-             crypto.enc(winkel) if winkel else None, herkomst, tijdstip),
-        )
-
-    gezien_sleutels: set[str] = set()
-    for rij in rijen if maak_regels else []:
-        sleutel = _schoon(rij[0])
-        hoofd = normalize(_schoon(rij[1]))
-        if not hoofd or not sleutel:
+        pad = (hoofd, normalize(_schoon(rij[2])), normalize(_schoon(rij[3])))
+        if pad in gezien:
             continue
-        genormaliseerd = normalize(sleutel)
-        if genormaliseerd in gezien_sleutels:
-            continue
-        gezien_sleutels.add(genormaliseerd)
-        ids = paden[(hoofd, normalize(_schoon(rij[2])), normalize(_schoon(rij[3])))]
-        regel(sleutel[:80], 10, "sleutel", sleutel, ids, _schoon(rij[4]), "referentie")
-        gemaakt_sleutel += 1
+        gezien.add(pad)
+        hid = categorie_id(pad[0], 0, None)
+        cid = categorie_id(pad[1], 1, hid)
+        if cid:
+            categorie_id(pad[2], 2, cid)
 
-    gemaakt_onzeker = 0
-    if maak_partijregels:
-        for genormaliseerd, gevonden in per_partij.items():
-            oorspronkelijk, winkel = partij_gegevens[genormaliseerd]
-            if len(gevonden) == 1:
-                regel(f"Tegenpartij {oorspronkelijk[:60]}", 60, "tegenpartij_naam",
-                      oorspronkelijk, ids_van(paden, gevonden), winkel, "referentie")
-                gemaakt_partij += 1
-            else:
-                # Deze tegenpartij hoort in de lijst bij meer dan één categorie.
-                # We leggen wel een regel aan, maar gemarkeerd als onzeker, zodat
-                # de transactie in het nazicht belandt in plaats van blind te
-                # worden toegewezen.
-                keuze = telling_per_partij[genormaliseerd].most_common(1)[0][0]
-                regel(f"Tegenpartij {oorspronkelijk[:60]}", 90, "tegenpartij_naam",
-                      oorspronkelijk, paden[keuze], winkel, "referentie_onzeker")
-                gemaakt_onzeker += 1
-
-    return {
-        "categorieen": len(bestaand) - aantal_categorieen,
-        "sleutelregels": gemaakt_sleutel,
-        "partijregels": gemaakt_partij,
-        "onzekere_regels": gemaakt_onzeker,
-        "botsingen": sum(1 for paden_ in per_partij.values() if len(paden_) > 1),
-    }
+    return {"categorieen": len(bestaand) - aantal_categorieen}

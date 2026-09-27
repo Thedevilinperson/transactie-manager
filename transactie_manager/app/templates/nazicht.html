@@ -46,7 +46,7 @@
 <div class="vlak">
   <h2>Opnieuw indelen</h2>
   <p>Laat de motor nog eens over je transacties gaan — na het toevoegen van
-    regels, of na het inlezen van een referentielijst.</p>
+    regels, of na het inlezen van een historiek.</p>
 
   <form method="post" action="{{ url_for('tx.herindelen') }}"
         data-bevestig="De motor herschrijft de indeling én de bron ervan van de transacties binnen het gekozen bereik. Wat je met de hand of via een ingelezen bestand indeelde, en wat je met Klopt bevestigde, blijft staan. Er wordt eerst een kopie van de databank gelegd. Doorgaan?">
@@ -55,8 +55,7 @@
              checked style="margin-top:4px">
       <label for="bereik_leeg"><strong>Alleen wat nog geen categorie heeft.</strong>
         Alles wat al ergens in zit blijft staan, met de bron erbij. Dit is wat je
-        wil na het inlezen van een referentielijst of een historiek waarin al
-        werk zit.</label>
+        wil na het inlezen van een historiek waarin al werk zit.</label>
     </div>
     <div class="keuzeregel" style="align-items:flex-start;margin-top:10px">
       <input type="radio" id="bereik_alles" name="bereik" value="onbevestigd"

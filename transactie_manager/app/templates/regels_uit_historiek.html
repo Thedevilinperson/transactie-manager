@@ -6,39 +6,80 @@
 {{ instellingentabs(is_beheerder) }}
 <div class="kop">
   <h1>Regels uit historiek</h1>
-  <p>Een referentielijst afleiden uit wat je al ingedeeld hebt.</p>
+  <p>Van je ingelezen historiek vaste regels maken.</p>
 </div>
 
 <div class="vlak">
   <h2>Hoe dit werkt</h2>
-  <p>Er wordt gekeken naar elke transactie die al een categorie heeft, en per
-    veld nagegaan of dat veld steeds naar dezelfde indeling verwijst. Is dat zo,
-    dan wordt er een regel van gemaakt. Wijst een veld naar meerdere indelingen,
-    dan wordt eerst geprobeerd of het bedrag de gevallen scheidt; lukt dat niet,
-    dan komt er een regel die om bevestiging blijft vragen.</p>
+  <p>Je kiest hieronder naar welke kolommen er gekeken wordt. Elke combinatie van
+    waarden in die kolommen die in je historiek voorkomt, wordt één regel. Wijst
+    een combinatie altijd naar dezelfde categorie, dan wordt het een
+    <strong>bevestigde</strong> regel met prioriteit 5. Wijst ze naar meer dan
+    één categorie, dan wordt het een <strong>onbevestigde</strong> regel naar de
+    categorie die het vaakst voorkwam: wat ze indeelt, komt op nazicht.</p>
+  <p style="margin-top:10px">Daarnaast kan de app zelf regels afleiden voor de
+    transacties die je keuze niet eenduidig dekt. Die combineren altijd minstens
+    twee velden (datum en inkomst of uitgave tellen niet mee; het bedrag als
+    bedragvork wel), steunen op minstens twee transacties en zijn altijd
+    <strong>onbevestigd</strong>.</p>
+  <p class="klein-detail" style="margin-top:10px">De naam van elke regel is de
+    categorie, gevolgd door de mededeling als die korter is dan 30 tekens, en
+    anders door de tegenpartij.</p>
 </div>
 
-<div class="vlak">
-  <form method="get" class="filterbalk">
-    <div>
-      <label for="alleen_bevestigd">Waarop baseren</label>
-      <select id="alleen_bevestigd" name="alleen_bevestigd">
-        <option value="1" {{ 'selected' if alleen_bevestigd }}>
-          Alleen bevestigde transacties</option>
-        <option value="0" {{ 'selected' if not alleen_bevestigd }}>
-          Alles met een categorie, ook wat nog nazicht vraagt</option>
+<form method="get" class="vlak">
+  <input type="hidden" name="ingevuld" value="1">
+  <h2>Waarnaar kijken</h2>
+  <fieldset class="voorwaarden" style="margin-top:6px">
+    <legend>Kolommen die samen naar een categorie wijzen</legend>
+    {% for sleutel, label in kolommen.items() %}
+      <div class="keuzeregel" style="margin-top:6px">
+        <input type="checkbox" id="kolom_{{ sleutel }}" name="kolom" value="{{ sleutel }}"
+               {{ 'checked' if sleutel in inst.kolommen }}>
+        <label for="kolom_{{ sleutel }}">{{ label }}</label>
+      </div>
+    {% endfor %}
+    <p class="klein-detail" style="margin-top:8px">Kies er één of meer. Met
+      <em>Naam tegenpartij</em> alleen krijg je een regel per tegenpartij; met
+      <em>Beschrijving</em> erbij houd je bijvoorbeeld een kaartbetaling bij Colruyt
+      apart van een overschrijving aan Colruyt. Een transactie waarbij een van de
+      gekozen kolommen leeg is, wordt overgeslagen.</p>
+  </fieldset>
+  <div class="rooster" style="margin-top:12px">
+    <div class="veld">
+      <label for="bron">Waarop baseren</label>
+      <select id="bron" name="bron">
+        {% for sleutel, label in bronnen.items() %}
+          <option value="{{ sleutel }}" {{ 'selected' if inst.bron == sleutel }}>{{ label }}</option>
+        {% endfor %}
       </select>
     </div>
-    <div class="acties"><button type="submit">Opnieuw berekenen</button></div>
-  </form>
-</div>
+    <div class="veld">
+      <div class="keuzeregel" style="margin-top:22px">
+        <input type="checkbox" id="richting_apart" name="richting_apart" value="1"
+               {{ 'checked' if inst.richting_apart }}>
+        <label for="richting_apart">Inkomsten en uitgaven apart houden</label>
+      </div>
+      <div class="keuzeregel" style="margin-top:6px">
+        <input type="checkbox" id="afleiden" name="afleiden" value="1"
+               {{ 'checked' if inst.afleiden }}>
+        <label for="afleiden">De app mag zelf bijkomende regels afleiden
+          (onbevestigd)</label>
+      </div>
+    </div>
+  </div>
+  <div class="knoppen" style="margin-top:12px">
+    <button type="submit" class="stil">Opnieuw berekenen</button>
+  </div>
+</form>
 
 {% if analyse.transacties == 0 %}
   <div class="vlak">
     <div class="leeg">
       <strong>Nog niets om uit te leren</strong>
-      Er staan geen ingedeelde transacties. Lees eerst je historiek in, of
-      bevestig een aantal voorstellen in het nazicht.
+      Er staan geen ingedeelde transacties voor deze keuze. Lees eerst je
+      historiek in bij <a href="{{ url_for('importeren.start') }}">Bestand
+      inlezen</a>.
     </div>
   </div>
 {% else %}
@@ -47,79 +88,97 @@
     <div class="balans">
       <div class="cijfer"><b>{{ analyse.transacties }}</b>
         <span>transacties bekeken</span></div>
-      <div class="cijfer in"><b>{{ analyse.regels|length }}</b>
-        <span>regels afgeleid</span></div>
-      <div class="cijfer"><b>{{ analyse.botsingen_opgelost }}</b>
-        <span>opgelost met een bedragvork</span></div>
-      <div class="cijfer uit"><b>{{ analyse.onzeker }}</b>
-        <span>blijven om bevestiging vragen</span></div>
+      <div class="cijfer in"><b>{{ analyse.bevestigd }}</b>
+        <span>bevestigde regels</span></div>
+      <div class="cijfer uit"><b>{{ analyse.onbevestigd }}</b>
+        <span>onbevestigd, meerdere categorieën</span></div>
+      <div class="cijfer"><b>{{ analyse.afgeleid_totaal }}</b>
+        <span>door de app afgeleid</span></div>
     </div>
+    <p class="klein-detail" style="margin-top:12px">
+      {{ analyse.overgeslagen }} transacties overgeslagen omdat een gekozen kolom
+      leeg was.
+      {% if analyse.ongedekt %}{{ analyse.ongedekt }} transacties hebben ook na het
+        afleiden geen eenduidige regel; die vangt de gelijkenisstap of het nazicht
+        op.{% endif %}</p>
+    {% if analyse.afgeleid %}
+      <div class="tabel-omhulsel" style="margin-top:12px">
+        <table>
+          <thead><tr><th>Door de app afgeleid op</th><th class="getal">Regels</th></tr></thead>
+          <tbody>
+            {% for naam, aantal in analyse.afgeleid.items() %}
+              <tr><td>{{ naam }}</td><td class="getal">{{ aantal }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
   </div>
 
-  <div class="vlak">
-    <h2>Welke velden wat opleverden</h2>
-    <div class="tabel-omhulsel">
-      <table>
-        <thead><tr><th>Aanwijzing</th><th class="getal">Regels</th></tr></thead>
-        <tbody>
-          {% for naam, aantal in analyse.per_veld.items() %}
-            <tr><td>{{ naam }}</td><td class="getal">{{ aantal }}</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    <p class="klein-detail" style="margin-top:12px">Een rekeningnummer weegt het
-      zwaarst: dat hoort bij één partij en verandert niet. Een tegenpartij alleen
-      is het breedst inzetbaar maar botst het vaakst.</p>
-  </div>
-
-  {% if analyse.voorbeelden_bedragsplitsing %}
+  {% if voorbeelden %}
     <div class="vlak">
-      <h2>Gesplitst op bedrag</h2>
-      <p>Bij deze tegenpartijen wees het bedrag de weg. Kleine en grote bedragen
-        bleken steevast naar een andere categorie te gaan, dus is er een grens
-        tussen gelegd.</p>
-      <ul style="margin-top:10px">
-        {% for v in analyse.voorbeelden_bedragsplitsing %}<li>{{ v }}</li>{% endfor %}
-      </ul>
+      <h2>Een greep uit de regels</h2>
+      <div class="tabel-omhulsel">
+        <table>
+          <thead><tr><th>Naam</th><th>Voorwaarden</th><th class="getal">Transacties</th>
+            <th>Status</th></tr></thead>
+          <tbody>
+            {% for v in voorbeelden %}
+              <tr>
+                <td>{{ v.naam }}</td>
+                <td class="klein-detail">{{ v.voorwaarden }}</td>
+                <td class="getal">{{ v.aantal }}</td>
+                <td>{% if v.bevestigd %}<span class="merkje zeker">✓ bevestigd</span>
+                  {% else %}<span class="merkje onzeker">onbevestigd</span>{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
   {% endif %}
 
   <form method="post">
     <input type="hidden" name="actie" value="wegschrijven">
-    <input type="hidden" name="alleen_bevestigd" value="{{ '1' if alleen_bevestigd else '0' }}">
+    <input type="hidden" name="ingevuld" value="1">
+    {% for k in inst.kolommen %}<input type="hidden" name="kolom" value="{{ k }}">{% endfor %}
+    <input type="hidden" name="bron" value="{{ inst.bron }}">
+    {% if inst.richting_apart %}<input type="hidden" name="richting_apart" value="1">{% endif %}
+    {% if inst.afleiden %}<input type="hidden" name="afleiden" value="1">{% endif %}
     <div class="vlak">
       <h2>Wegschrijven</h2>
       <div class="keuzeregel">
         <input type="checkbox" id="vervang_geleerd" name="vervang_geleerd" value="1" checked>
-        <label for="vervang_geleerd">Wat een vorige keer uit de historiek is
-          afgeleid eerst wissen</label>
+        <label for="vervang_geleerd">De {{ bestaand }} regels die eerder uit de
+          historiek zijn gemaakt, eerst wissen</label>
       </div>
-      <p class="klein-detail">Regels die je zelf hebt ingevoerd en regels uit een
-        categorieënbestand blijven hoe dan ook staan.</p>
-      <div class="keuzeregel" style="margin-top:12px">
-        <input type="checkbox" id="herindelen" name="herindelen" value="1" checked>
-        <label for="herindelen">Daarna meteen opnieuw indelen</label>
-      </div>
-      <div class="keuzeregel" style="align-items:flex-start;margin-top:8px;padding-left:26px">
-        <input type="radio" id="bereik_leeg" name="bereik" value="zonder_categorie"
-               checked style="margin-top:4px">
-        <label for="bereik_leeg">Alleen wat nog geen categorie heeft
-          <span class="klein-detail">het veilige bereik: wat al ergens in zit
-            blijft staan, met de bron erbij</span></label>
-      </div>
-      <div class="keuzeregel" style="align-items:flex-start;margin-top:8px;padding-left:26px">
-        <input type="radio" id="bereik_alles" name="bereik" value="onbevestigd"
+      <p class="klein-detail">Vink dit uit om een tweede reeks toe te voegen, op
+        andere kolommen. Regels die je zelf maakte, die uit een transactie of uit het
+        nazicht komen, blijven hoe dan ook staan.</p>
+      <p style="margin-top:12px"><strong>Daarna</strong></p>
+      <div class="keuzeregel" style="align-items:flex-start;margin-top:6px">
+        <input type="radio" id="nadien_regels" name="nadien" value="regels" checked
                style="margin-top:4px">
-        <label for="bereik_alles">Alles wat nog niet bevestigd is
-          <span class="klein-detail">ook transacties die al een categorie hebben;
-            de bron van de toewijzing gaat daarbij verloren. Wat je met de hand
-            of via een bestand indeelde, blijft staan</span></label>
+        <label for="nadien_regels">Alle regels opnieuw toepassen
+          <span class="klein-detail">op wat nog niet bevestigd is, niet met de hand
+            en niet uit een bestand komt</span></label>
+      </div>
+      <div class="keuzeregel" style="align-items:flex-start;margin-top:6px">
+        <input type="radio" id="nadien_alles" name="nadien" value="onbevestigd"
+               style="margin-top:4px">
+        <label for="nadien_alles">Opnieuw indelen met de hele motor
+          <span class="klein-detail">regels, gelijkenissen, voor alles wat nog niet
+            bevestigd is</span></label>
+      </div>
+      <div class="keuzeregel" style="align-items:flex-start;margin-top:6px">
+        <input type="radio" id="nadien_niets" name="nadien" value="geen"
+               style="margin-top:4px">
+        <label for="nadien_niets">Niets toepassen</label>
       </div>
       <p class="klein-detail" style="margin-top:12px">Het wegschrijven loopt in de
-        achtergrond, met een voortgangsmeter. Bij duizenden regels duurt dat even;
-        je mag het venster gerust open laten staan. Vooraf wordt er een kopie van
-        de databank gelegd.</p>
+        achtergrond, met een voortgangsmeter. Vooraf wordt er een kopie van de
+        databank gelegd. De historiek zelf blijft altijd staan zoals ze is
+        ingelezen.</p>
     </div>
     <div class="knoppen">
       <button type="submit">{{ analyse.regels|length }} regels wegschrijven</button>

@@ -7,10 +7,13 @@ stel je de regel samen uit de gegevens van de transactie zelf: welke velden,
 welke vergelijking, inkomst of uitgave, eventueel een bedragvork.
 
 Het formulier (zie _regelmaker.html) heeft een reeks rijen met telkens een
-vinkje, een veld, een vergelijking en een waarde. Alleen aangevinkte rijen met
-een waarde tellen. De eerste daarvan wordt de hoofdvoorwaarde van de regel, de
-rest komt er met EN bovenop — net zoals bij *Instellingen › Regels*. Een
-hoofdvoorwaarde mag geen "bevat niet" zijn: zo'n regel paste op zowat alles.
+vinkje, EN of OF, een veld, een vergelijking en een waarde. Alleen aangevinkte
+rijen met een waarde tellen. De eerste daarvan wordt de hoofdvoorwaarde van de
+regel, de rest hangt er met EN of OF aan — net zoals bij *Instellingen ›
+Regels*. Elke groep (wat met OF gescheiden is) heeft een voorwaarde nodig die
+iets insluit: met enkel "bevat niet" paste de regel op zowat alles.
+
+Zo'n regel krijgt als herkomst "transactie" (zie regelopslag.HERKOMSTEN).
 """
 
 from __future__ import annotations
@@ -18,7 +21,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .categories import laad_alles, pad_tekst
-from .categorizer.engine import Regel, Voorwaarde, regel_past
+from .categorizer.engine import (Regel, Voorwaarde, fout_in_voorwaarden, ordenen,
+                                regel_past)
 from .crypto import normalize
 from .database import now_iso
 from .transacties import is_beschermd, rij_naar_object
@@ -28,12 +32,11 @@ VELDEN = ("tegenpartij_naam", "tegenpartij_rekening", "beschrijving", "mededelin
 OPERATOREN = ("bevat", "gelijk", "regex", "bevat_niet")
 
 
-# Lage prioriteit gaat voor. De regels uit je referentielijst en historiek
-# krijgen 10 tot 90 (zie importers/regelbouwer.py). Een regel die je zelf
-# samenstelt uit meerdere voorwaarden is specifieker dan elk daarvan, en moet
-# dus voorgaan — anders wint "alles van Axelle" altijd van "Axelle én
-# drinkgeld". Met één voorwaarde blijft het 50, zoals de regels die de
-# toepassing bij een bevestiging zelf bijleert.
+# Lage prioriteit gaat voor. De bevestigde regels uit je historiek krijgen 5,
+# wat de app zelf afleidt 40 tot 50, onbevestigde historiekregels 90 (zie
+# regelopslag.py). Een regel die je zelf samenstelt uit meerdere voorwaarden
+# krijgt 5, even hoog als de bevestigde historiekregels; bij gelijke prioriteit
+# gaat de oudste voor. Met één voorwaarde blijft het 50.
 PRIORITEIT_COMBINATIE = 5
 PRIORITEIT_ENKEL = 50
 
@@ -51,6 +54,7 @@ class Samenstelling:
     richting: str | None
     bedrag_min: float | None
     bedrag_max: float | None
+    bevestigd: bool = True
 
 
 def _getal(tekst: str | None) -> float | None:
@@ -66,6 +70,7 @@ def lees(form) -> tuple[Samenstelling | None, str]:
     gebruikt = set(form.getlist("rv_gebruik"))
     velden = form.getlist("rv_veld")
     operatoren = form.getlist("rv_operator")
+    koppelingen = form.getlist("rv_koppeling")
     waarden = form.getlist("rv_waarde")
 
     voorwaarden: list[Voorwaarde] = []
@@ -76,14 +81,21 @@ def lees(form) -> tuple[Samenstelling | None, str]:
         veld = velden[i] if i < len(velden) and velden[i] in VELDEN else "mededeling"
         operator = (operatoren[i] if i < len(operatoren) and operatoren[i] in OPERATOREN
                     else "bevat")
-        voorwaarden.append(Voorwaarde(veld, operator, waarde))
+        koppeling = "of" if i < len(koppelingen) and koppelingen[i] == "of" else "en"
+        voorwaarden.append(Voorwaarde(veld, operator, waarde, koppeling))
 
-    # De hoofdvoorwaarde mag geen uitsluiting zijn.
-    hoofd = next((i for i, v in enumerate(voorwaarden) if v.operator != "bevat_niet"), None)
-    if hoofd is None:
+    if not voorwaarden:
         return None, ("Vink minstens één voorwaarde aan die iets insluit "
                       "(bevat, is gelijk aan of een reguliere expressie).")
-    voorwaarden.insert(0, voorwaarden.pop(hoofd))
+    # De eerste aangevinkte rij hangt nergens aan.
+    voorwaarden[0] = Voorwaarde(voorwaarden[0].veld, voorwaarden[0].operator,
+                                voorwaarden[0].waarde, "en")
+    fout = fout_in_voorwaarden(voorwaarden)
+    if fout:
+        return None, fout
+    # De hoofdvoorwaarde mag geen uitsluiting zijn; binnen de eerste EN-groep
+    # mag er geschoven worden.
+    voorwaarden = ordenen(voorwaarden)
 
     richting = form.get("rv_richting")
     try:
@@ -96,6 +108,7 @@ def lees(form) -> tuple[Samenstelling | None, str]:
         richting=richting if richting in ("in", "uit") else None,
         bedrag_min=_getal(form.get("rv_bedrag_min")),
         bedrag_max=_getal(form.get("rv_bedrag_max")),
+        bevestigd=form.get("rv_bevestigd") == "1",
     ), ""
 
 
@@ -140,10 +153,10 @@ def proef(conn, crypto, s: Samenstelling, categorie_ids, voorbeelden: int = 6,
         elif row["categorie_id"] is None and not is_beschermd(row):
             uit["zonder"] += 1
             soort = "zonder"
-        elif (row["methode"] == "fuzzy" and row["status"] != "bevestigd"
+        elif (row["methode"] in ("fuzzy", "ai") and row["status"] != "bevestigd"
               and not is_beschermd(row)):
-            # Een gelijkenis die nog op nazicht staat: die neemt de regel bij
-            # het opslaan over (zie regelonderhoud.pas_toe).
+            # Een gelijkenis of AI-voorstel dat nog op nazicht staat: dat neemt
+            # de regel bij het opslaan over (zie regelonderhoud.pas_toe).
             uit["gelijkenis"] += 1
             soort = "gelijkenis"
         elif huidig == doel:
@@ -168,34 +181,12 @@ def proef(conn, crypto, s: Samenstelling, categorie_ids, voorbeelden: int = 6,
 
 
 def bewaar(conn, crypto, s: Samenstelling, categorie_ids, handelaar: str | None,
-           land: str | None) -> int:
-    """Schrijft de regel weg, met dezelfde velden als *Instellingen › Regels*."""
-    from .routes.instellingen import _schrijf_voorwaarden
+           land: str | None, gebruiker: str | None = None) -> int:
+    """Schrijft de regel weg, met herkomst "transactie"."""
+    from .regelopslag import schrijf_regel
 
-    eerste, *rest = s.voorwaarden
-    velden = {
-        "naam_enc": crypto.enc(s.naam),
-        "prioriteit": s.prioriteit,
-        "veld": eerste.veld,
-        "operator": eerste.operator,
-        "waarde_enc": crypto.enc(eerste.waarde),
-        "waarde_idx": crypto.blind(normalize(eerste.waarde)),
-        "bedrag_min": s.bedrag_min,
-        "bedrag_max": s.bedrag_max,
-        "richting": s.richting,
-        "categorie_id": categorie_ids[0],
-        "subcategorie_id": categorie_ids[1],
-        "subsub_id": categorie_ids[2],
-        "handelaar_enc": crypto.enc(handelaar) if handelaar else None,
-        "land_enc": crypto.enc(land) if land else None,
-        "herkomst": "handmatig",
-        "aangemaakt_op": now_iso(),
-    }
-    cur = conn.execute(
-        f"INSERT INTO regels ({', '.join(velden)}) VALUES ({', '.join('?' * len(velden))})",
-        tuple(velden.values()))
-    _schrijf_voorwaarden(conn, cur.lastrowid, [
-        {"volgorde": i, "veld": v.veld, "operator": v.operator,
-         "waarde_enc": crypto.enc(v.waarde), "waarde_idx": crypto.blind(normalize(v.waarde))}
-        for i, v in enumerate(rest)])
-    return cur.lastrowid
+    return schrijf_regel(
+        conn, crypto, naam=s.naam, prioriteit=s.prioriteit, voorwaarden=s.voorwaarden,
+        ids=categorie_ids, richting=s.richting, bedrag_min=s.bedrag_min,
+        bedrag_max=s.bedrag_max, handelaar=handelaar, land=land,
+        herkomst="transactie", bevestigd=s.bevestigd, gebruiker=gebruiker)

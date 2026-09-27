@@ -1,5 +1,5 @@
-"""Twee bijzondere invoerwegen: de referentielijst met categorieën, en de
-kredietkaartuittreksels in PDF."""
+"""Bijzondere invoerwegen: de categorielijst, de kredietkaartuittreksels in
+PDF, en regels afleiden uit je ingelezen historiek."""
 
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ from ..database import connect, get_db, log, now_iso
 from ..importers import kredietkaart as kk
 from ..importers import referentie as ref
 from ..importers import regelbouwer
+from ..regelonderhoud import verslag
 from ..transacties import bewaar, haal, werk_bij
 
 bp = Blueprint("bijzonder", __name__)
@@ -43,45 +44,49 @@ def _zoek_upload(token: str) -> Path | None:
 
 
 # ==========================================================================
-# Referentielijst met categorieën
+# Categorielijst (vroeger: referentielijst)
 # ==========================================================================
 
-@bp.route("/instellingen/referentielijst", methods=["GET", "POST"])
+@bp.route("/instellingen/referentielijst")
 @login_vereist
-def referentielijst():
+def referentielijst_oud():
+    """Het oude adres, voor bladwijzers van vóór versie 0.33.0."""
+    return redirect(url_for("bijzonder.categorielijst"))
+
+
+@bp.route("/instellingen/categorielijst", methods=["GET", "POST"])
+@login_vereist
+def categorielijst():
     if request.method == "POST":
         bestand = request.files.get("bestand")
         if not bestand or not bestand.filename:
             flash("Kies eerst een bestand.", "fout")
-            return redirect(url_for("bijzonder.referentielijst"))
+            return redirect(url_for("bijzonder.categorielijst"))
         bewaard = _bewaar_upload(bestand, {".xlsx", ".xlsm"})
         if bewaard is None:
             flash("Gebruik een Excel-bestand (.xlsx).", "fout")
-            return redirect(url_for("bijzonder.referentielijst"))
+            return redirect(url_for("bijzonder.categorielijst"))
         naam, pad = bewaard
-        return redirect(url_for("bijzonder.referentielijst_voorbeeld",
+        return redirect(url_for("bijzonder.categorielijst_voorbeeld",
                                 token=pad.stem, naam=naam))
 
     conn = get_db()
-    aantal_regels = conn.execute(
-        "SELECT COUNT(*) n FROM regels WHERE herkomst='referentie'").fetchone()["n"]
     aantal_cats = conn.execute("SELECT COUNT(*) n FROM categorieen").fetchone()["n"]
-    return render_template("referentielijst.html", aantal_regels=aantal_regels,
-                           aantal_cats=aantal_cats)
+    return render_template("referentielijst.html", aantal_cats=aantal_cats)
 
 
-@bp.route("/instellingen/referentielijst/<token>")
+@bp.route("/instellingen/categorielijst/<token>")
 @login_vereist
-def referentielijst_voorbeeld(token: str):
+def categorielijst_voorbeeld(token: str):
     pad = _zoek_upload(token)
     if pad is None:
         flash("Het bestand is niet meer beschikbaar. Probeer opnieuw.", "fout")
-        return redirect(url_for("bijzonder.referentielijst"))
+        return redirect(url_for("bijzonder.categorielijst"))
     try:
         rijen = ref.lees(pad)
     except Exception as exc:  # noqa: BLE001
         flash(f"Het bestand kon niet gelezen worden: {exc}", "fout")
-        return redirect(url_for("bijzonder.referentielijst"))
+        return redirect(url_for("bijzonder.categorielijst"))
 
     return render_template(
         "referentielijst_voorbeeld.html",
@@ -90,30 +95,24 @@ def referentielijst_voorbeeld(token: str):
     )
 
 
-@bp.route("/instellingen/referentielijst/uitvoeren", methods=["POST"])
+@bp.route("/instellingen/categorielijst/uitvoeren", methods=["POST"])
 @login_vereist
-def referentielijst_uitvoeren():
+def categorielijst_uitvoeren():
     pad = _zoek_upload(request.form.get("token", ""))
     if pad is None:
         flash("Het bestand is niet meer beschikbaar.", "fout")
-        return redirect(url_for("bijzonder.referentielijst"))
+        return redirect(url_for("bijzonder.categorielijst"))
 
     conn = get_db()
     crypto = g.crypto
     vervang = request.form.get("vervang") == "1"
-    maak_regels = request.form.get("omvang", "volledig") != "boom"
 
-    # Een referentielijst kan in één keer je hele indeling herschrijven. Vóór
-    # die ingreep gaat er een kopie van de databank op de plank.
-    kopie = backup.maak("referentielijst")
+    # Integraal vervangen wist ook je regels en indelingen. Vóór die ingreep
+    # gaat er een kopie van de databank op de plank.
+    kopie = backup.maak("categorielijst")
 
-    resultaat = ref.importeer(
-        conn, crypto, ref.lees(pad),
-        vervang=vervang,
-        maak_partijregels=request.form.get("partijregels") == "1",
-        maak_regels=maak_regels,
-    )
-    log(conn, crypto, g.gebruiker, "referentielijst_ingelezen", str(resultaat))
+    resultaat = ref.importeer(conn, crypto, ref.lees(pad), vervang=vervang)
+    log(conn, crypto, g.gebruiker, "categorielijst_ingelezen", str(resultaat))
     conn.commit()
 
     try:
@@ -121,20 +120,12 @@ def referentielijst_uitvoeren():
     except OSError:
         pass
 
-    gemaakt = resultaat["sleutelregels"] + resultaat["partijregels"]
     flash(
-        f"{resultaat['categorieen']} categorieën"
-        + (f" en {gemaakt} regels" if maak_regels else " ingelezen, zonder regels")
-        + (" ingelezen." if maak_regels else ".")
+        f"{resultaat['categorieen']} categorieën ingelezen."
         + (" Er staat een kopie van je databank van vlak hiervoor klaar."
            if kopie else " Let op: er kon geen kopie van de databank gelegd worden."),
         "goed",
     )
-
-    bereik = request.form.get("herindelen", "geen")
-    if bereik in ("zonder_categorie", "onbevestigd"):
-        return render_template("herindelen_bevestigen.html", bereik=bereik,
-                               vanwaar="referentielijst")
     return redirect(url_for("instellingen.categorieen"))
 
 
@@ -409,8 +400,8 @@ def losmaken(tx_id: int):
 VOORBEELDEN = {
     "historiek": ("voorbeeld_historiek_met_categorieen.xlsx",
                   "Historiek met kolommen en al toegekende indeling"),
-    "referentielijst": ("voorbeeld_referentielijst.xlsx",
-                        "Referentielijst met vijf kolommen"),
+    "categorielijst": ("voorbeeld_categorielijst.xlsx",
+                       "Categorielijst met drie kolommen"),
 }
 
 
@@ -426,77 +417,100 @@ def voorbeeldbestand(naam: str):
 
 
 # ==========================================================================
-# Referentielijst opbouwen uit de historiek
+# Regels maken uit de ingelezen historiek
 # ==========================================================================
+
+def _historiek_instellingen(bron) -> dict:
+    """De keuzes van het scherm, uit de vraag of het formulier."""
+    kolommen = [k for k in bron.getlist("kolom") if k in regelbouwer.KOLOMMEN]
+    return {
+        "kolommen": tuple(kolommen) or regelbouwer.STANDAARD_KOLOMMEN,
+        "bron": bron.get("bron") if bron.get("bron") in regelbouwer.BRONNEN else "bestand",
+        # Een formulier stuurt een niet-aangevinkt vakje niet mee. Het verborgen
+        # veld "ingevuld" zegt of de keuzes al eens verstuurd zijn.
+        "richting_apart": (bron.get("richting_apart") == "1"
+                           if bron.get("ingevuld") else True),
+        "afleiden": bron.get("afleiden") == "1" if bron.get("ingevuld") else True,
+    }
+
 
 @bp.route("/instellingen/regels-uit-historiek", methods=["GET", "POST"])
 @login_vereist
 def regels_uit_historiek():
     conn = get_db()
     crypto = g.crypto
-    alleen_bevestigd = request.values.get("alleen_bevestigd", "1") == "1"
+    inst = _historiek_instellingen(request.values)
 
     if request.method == "POST" and request.form.get("actie") == "wegschrijven":
-        # Duizenden regels wegschrijven en daarna herindelen duurt te lang om de
-        # browser op te laten wachten: die toont ondertussen een lege bladzijde
-        # en je weet niet of er iets gebeurt. Het werk loopt daarom in een
-        # aparte draad, met dezelfde voortgangsmeter als een bestandsinvoer.
+        # Duizenden regels wegschrijven en daarna toepassen duurt te lang om de
+        # browser op te laten wachten. Het werk loopt daarom in een aparte
+        # draad, met dezelfde voortgangsmeter als een bestandsinvoer.
         token = secrets.token_hex(8)
+        nadien = request.form.get("nadien", "regels")
         taken.start(
-            token, "Regels afleiden uit je historiek", _verwerk_historiek, crypto,
-            {
-                "alleen_bevestigd": alleen_bevestigd,
-                "vervang_geleerd": request.form.get("vervang_geleerd", "1") == "1",
-                "bereik": (request.form.get("bereik")
-                           if request.form.get("herindelen") == "1" else None),
-                "gebruiker": g.gebruiker,
-            })
+            token, "Regels maken uit je historiek", _verwerk_historiek, crypto,
+            dict(inst, vervang_geleerd=request.form.get("vervang_geleerd") == "1",
+                 nadien=nadien if nadien in ("regels", "onbevestigd") else None,
+                 gebruiker=g.gebruiker))
         return redirect(url_for("bijzonder.historiek_bezig", token=token))
 
-    analyse = regelbouwer.analyseer(conn, crypto, alleen_bevestigd)
-    return render_template("regels_uit_historiek.html", analyse=analyse,
-                           alleen_bevestigd=alleen_bevestigd,
-                           veldnaam=regelbouwer.VELDNAAM)
+    analyse = regelbouwer.analyseer(
+        conn, crypto, inst["kolommen"], bron=inst["bron"],
+        richting_apart=inst["richting_apart"], afleiden=inst["afleiden"])
+    return render_template(
+        "regels_uit_historiek.html", analyse=analyse, inst=inst,
+        kolommen=regelbouwer.KOLOMMEN, bronnen=regelbouwer.BRONNEN,
+        voorbeelden=regelbouwer.voorbeelden(conn, crypto, analyse),
+        bestaand=conn.execute(
+            "SELECT COUNT(*) n FROM regels WHERE herkomst IN"
+            " ('historiek', 'historiek_onzeker', 'historiek_afgeleid')").fetchone()["n"],
+    )
 
 
 def _verwerk_historiek(taak, crypto, inst: dict) -> dict:
-    """Regels afleiden, wegschrijven en desgevraagd meteen herindelen.
+    """Regels maken, wegschrijven en desgevraagd meteen toepassen.
 
     Draait in een aparte draad, dus met een eigen verbinding naar de databank.
     """
+    from ..regelonderhoud import herbekijk_alles
+
     conn = connect()
     try:
         taak.fase = "Kopie van de databank leggen"
         backup.maak("regels_uit_historiek")
 
         taak.fase = "Historiek doorlopen"
-        analyse = regelbouwer.analyseer(conn, crypto, inst["alleen_bevestigd"])
+        analyse = regelbouwer.analyseer(
+            conn, crypto, inst["kolommen"], bron=inst["bron"],
+            richting_apart=inst["richting_apart"], afleiden=inst["afleiden"])
 
         taak.totaal = len(analyse.regels)
         taak.vorder(0, "Regels wegschrijven")
         resultaat = regelbouwer.schrijf(
-            conn, crypto, analyse, vervang_geleerd=inst["vervang_geleerd"], taak=taak)
-        log(conn, crypto, inst["gebruiker"], "regels_uit_historiek", str(resultaat))
+            conn, crypto, analyse, vervang_geleerd=inst["vervang_geleerd"],
+            gebruiker=inst["gebruiker"], taak=taak)
+        log(conn, crypto, inst["gebruiker"], "regels_uit_historiek",
+            f"kolommen={','.join(inst['kolommen'])} {resultaat}")
         conn.commit()
 
-        uit = {
-            "regels": resultaat["regels"],
-            "bedragsplitsingen": resultaat["bedragsplitsingen"],
-            "onzeker": resultaat["onzeker"],
-            "heringedeeld": None,
-        }
-
-        if inst["bereik"] is not None:
+        uit = dict(resultaat, nadien=None)
+        if inst["nadien"] == "regels":
+            taak.fase = "Alle regels opnieuw toepassen"
+            uitkomst = herbekijk_alles(conn, crypto)
+            log(conn, crypto, inst["gebruiker"], "regels opnieuw toegepast",
+                f"gewist={uitkomst.gewist} anders={uitkomst.overgenomen}"
+                f" erbij={uitkomst.erbij} vervangen={uitkomst.vervangen}")
+            conn.commit()
+            uit["nadien"] = verslag(uitkomst)
+        elif inst["nadien"] == "onbevestigd":
             taak.fase = "Opnieuw indelen"
             taak.stand = 0
-            uitslag = herindeling.voer_uit(conn, crypto, inst["bereik"], taak=taak)
+            uitslag = herindeling.voer_uit(conn, crypto, "onbevestigd", taak=taak)
             log(conn, crypto, inst["gebruiker"], "herindeling",
                 f"bereik={uitslag.bereik} veranderd={uitslag.totaal}")
             conn.commit()
-            uit["heringedeeld"] = uitslag.totaal
-            uit["ongewijzigd"] = uitslag.ongewijzigd
-            uit["bereik"] = uitslag.omschrijving
-            uit["per_methode"] = dict(uitslag.per_methode)
+            uit["nadien"] = (f"Daarna zijn {uitslag.totaal} transacties opnieuw "
+                             f"ingedeeld ({uitslag.omschrijving}).")
 
         uit["samenvatting"] = _samenvatting(uit)
         return uit
@@ -506,16 +520,10 @@ def _verwerk_historiek(taak, crypto, inst: dict) -> dict:
 
 def _samenvatting(uit: dict) -> str:
     """De zin onder de cijfers, zodat het scherm niet hoeft te rekenen."""
-    zin = (f"{uit['regels']} regels afgeleid uit je historiek, waarvan "
-           f"{uit['bedragsplitsingen']} met een bedragvork en "
-           f"{uit['onzeker']} die om bevestiging blijven vragen.")
-    if uit["heringedeeld"] is None:
-        return zin + " Er is niets heringedeeld."
-    if not uit["heringedeeld"]:
-        return (zin + f" Bij het herindelen ({uit['bereik']}) viel er niets bij te "
-                f"sturen; {uit['ongewijzigd']} transacties stonden al goed.")
-    return (zin + f" Daarna zijn er {uit['heringedeeld']} transacties opnieuw "
-            f"ingedeeld ({uit['bereik']}).")
+    zin = (f"{uit['regels']} regels gemaakt uit je historiek: {uit['bevestigd']} "
+           f"bevestigd, {uit['onbevestigd']} onbevestigd omdat ze naar meer dan één "
+           f"categorie wezen, en {uit['afgeleid']} door de app afgeleid (onbevestigd).")
+    return zin + (" " + uit["nadien"] if uit["nadien"] else " Er is niets toegepast.")
 
 
 @bp.route("/instellingen/regels-uit-historiek/bezig/<token>")

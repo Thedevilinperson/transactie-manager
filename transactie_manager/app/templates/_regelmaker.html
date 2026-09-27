@@ -9,6 +9,11 @@
   <div class="voorwaarderij regelmaker-rij">
     <input type="checkbox" name="rv_gebruik" value="{{ i }}" aria-label="Deze voorwaarde gebruiken"
            {{ 'checked' if aan }}>
+    <select name="rv_koppeling" aria-label="Koppeling met de vorige voorwaarde"
+            class="koppelkeuze">
+      <option value="en">EN</option>
+      <option value="of">OF</option>
+    </select>
     <select name="rv_veld" aria-label="Veld">
       {% for sleutel, label in veldnamen.items() %}
         <option value="{{ sleutel }}" {{ 'selected' if sleutel == veld }}>{{ label }}</option>
@@ -39,10 +44,13 @@
     </div>
 
     <p class="klein-detail" style="margin:10px 0">Vooraf ingevuld met de gegevens van
-      deze transactie. Vink aan wat moet kloppen; alle aangevinkte voorwaarden moeten
-      samen kloppen. Een mededeling maakt de regel heel specifiek: vaak is één
-      trefwoord eruit (<em>drinkgeld</em>, <em>lidgeld</em>) beter dan de hele tekst.
-      Met <em>bevat niet</em> sluit je iets uit.</p>
+      deze transactie. Vink aan wat moet kloppen. Elke aangevinkte rij hangt met
+      <strong>EN</strong> (moet óók kloppen) of <strong>OF</strong> (een
+      alternatief) aan de aangevinkte rij erboven; bij de eerste speelt dat geen
+      rol. EN gaat voor OF. Een mededeling maakt de regel heel specifiek: vaak is
+      één trefwoord eruit (<em>drinkgeld</em>, <em>lidgeld</em>) beter dan de hele
+      tekst. <em>Bevat</em> kijkt per woord, in welke volgorde ook. Met
+      <em>bevat niet</em> sluit je iets uit.</p>
 
     <fieldset class="voorwaarden">
       <legend>Voorwaarden</legend>
@@ -90,16 +98,21 @@
         <label for="rv_prioriteit">Prioriteit (laag gaat voor)</label>
         <input type="number" id="rv_prioriteit" name="rv_prioriteit"
                placeholder="automatisch">
-        <p class="klein-detail">Leeg: 5 bij meer dan één voorwaarde, zodat de regel
-          vóór de algemene regels uit je referentielijst of historiek komt (10 tot
-          90); 50 bij één voorwaarde.</p>
+        <p class="klein-detail">Leeg: 5 bij meer dan één voorwaarde, even hoog als
+          de bevestigde regels uit je historiek; 50 bij één voorwaarde.</p>
       </div>
     </div>
 
     <div class="keuzeregel" style="margin-top:4px">
+      <input type="checkbox" id="rv_bevestigd" name="rv_bevestigd" value="1" checked>
+      <label for="rv_bevestigd"><strong>Regel bevestigd</strong> — wat ze indeelt,
+        staat meteen als bevestigd. Zonder vinkje komt het op nazicht.</label>
+    </div>
+    <div class="keuzeregel" style="margin-top:4px">
       <input type="checkbox" id="rv_toepassen" name="rv_toepassen" value="1" checked>
       <label for="rv_toepassen">Meteen toepassen op andere transacties waarop ze
-        past: zonder categorie, of met een gelijkenis die nog niet bevestigd is</label>
+        past: zonder categorie, of met een gelijkenis of AI-voorstel dat nog niet
+        bevestigd is</label>
     </div>
     <p class="klein-detail" style="margin:2px 0 0 26px">Wat je met de hand of via
       een ingelezen bestand indeelde, en wat al bevestigd is, blijft staan.</p>

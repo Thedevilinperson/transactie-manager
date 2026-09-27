@@ -1,36 +1,42 @@
 {% extends "basis.html" %}
 {% from "_instellingentabs.html" import instellingentabs %}
-{% block titel %}Referentielijst{% endblock %}
+{% block titel %}Categorielijst{% endblock %}
 
 {% block inhoud %}
 {{ instellingentabs(is_beheerder) }}
 <div class="kop">
-  <h1>Referentielijst inlezen</h1>
-  <p>Je bestaande categorieënbestand omzetten naar categorieën en regels.</p>
+  <h1>Categorielijst inlezen</h1>
+  <p>Je categorieën in één keer aanmaken vanuit een Excel-bestand, vóór je je
+    historiek inleest.</p>
 </div>
 
 <div class="vlak">
   <h2>Wat er nu in de databank staat</h2>
   <div class="balans">
     <div class="cijfer"><b>{{ aantal_cats }}</b><span>categorieën</span></div>
-    <div class="cijfer"><b>{{ aantal_regels }}</b><span>regels uit een referentielijst</span></div>
   </div>
 </div>
 
 <form method="post" enctype="multipart/form-data" class="smal">
   <div class="vlak">
     <h2>Bestand kiezen</h2>
-    <p>Het werkblad moet vijf kolommen hebben, in deze volgorde: de
-      referentiesleutel (beschrijving en tegenpartij met een koppelteken ertussen),
-      de hoofdcategorie, de categorie, de subcategorie, en de winkel of het land
-      van bestemming.</p>
+    <p>Het werkblad heeft drie kolommen: <strong>Hoofdcategorie</strong>,
+      <strong>Categorie</strong> en <strong>Subcategorie</strong>. Ze worden op
+      hun kopregel herkend, dus de volgorde doet er niet toe. Alleen de
+      hoofdcategorie is verplicht.</p>
+    <p class="klein-detail" style="margin-top:8px">Hier worden alleen
+      categorieën aangemaakt, geen regels. Regels komen uit je ingelezen
+      historiek, bij <a href="{{ url_for('bijzonder.regels_uit_historiek') }}">Regels
+      uit historiek</a>. Een oudere referentielijst met een kolom
+      “beschrijving-tegenpartij” kan je gewoon aanbieden; die kolom wordt dan
+      genegeerd.</p>
     <div class="veld" style="margin-top:14px">
       <label for="bestand">Excel met categorieën (.xlsx)</label>
       <input type="file" id="bestand" name="bestand" accept=".xlsx,.xlsm" required>
     </div>
     <div class="knoppen" style="margin-top:6px">
       <a class="knop stil"
-         href="{{ url_for('bijzonder.voorbeeldbestand', naam='referentielijst') }}">
+         href="{{ url_for('bijzonder.voorbeeldbestand', naam='categorielijst') }}">
         Voorbeeldbestand downloaden</a>
     </div>
   </div>

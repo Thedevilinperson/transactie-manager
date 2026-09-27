@@ -15,7 +15,7 @@ from ..auth import login_vereist
 from ..categories import boom, keuzelijst, laad_alles, nakomelingen, pad_tekst
 from ..filters import METHODEN, STATUSSEN, Filters, keuzes, rekeningen as alle_rekeningen
 from ..categorizer.ai import maak_regel_van_voorstel, webopzoeking_klaar
-from ..categorizer.engine import (ONZEKERE_HERKOMSTEN, Motor,
+from ..categorizer.engine import (Motor,
                                   TransactieKenmerken, Voorstel, laad_regels,
                                   regel_past)
 from ..database import get_db, instelling, log, now_iso
@@ -24,7 +24,8 @@ from ..regelonderhoud import (WIS_TOELICHTING, hangende_transacties, herbekijk,
                               herstel_bewerkte_onzekere_regels, maak_zeker,
                               pas_alle_regels_opnieuw_toe, pas_toe_geteld,
                               veranderd, verslag)
-from .instellingen import EXTRA_OPERATOREN, HERKOMSTEN, VELDNAMEN, _regelrijen
+from .instellingen import EXTRA_OPERATOREN, VELDNAMEN, _regelrijen
+from ..regelopslag import HERKOMSTEN, zet_bevestiging
 from ..transacties import bewaar, haal, tel, werk_bij, zoek
 
 bp = Blueprint("tx", __name__, url_prefix="/transacties")
@@ -214,19 +215,23 @@ def bewerken(tx_id: int):
                        bijgewerkt.subsub_id)
                 regel_id = regelmaker.bewaar(conn, crypto, samenstelling, ids,
                                              bijgewerkt.handelaar or None,
-                                             bijgewerkt.land or None)
+                                             bijgewerkt.land or None, g.gebruiker)
                 log(conn, crypto, g.gebruiker, "regel toegevoegd",
                     f"regel={regel_id} vanuit tx={tx_id}")
                 n = len(samenstelling.voorwaarden)
                 melding += (f" Vaste regel “{samenstelling.naam}” aangemaakt"
                             f" ({n} {'voorwaarde' if n == 1 else 'voorwaarden'},"
-                            f" prioriteit {samenstelling.prioriteit}).")
+                            f" prioriteit {samenstelling.prioriteit}"
+                            + (", bevestigd" if samenstelling.bevestigd
+                               else ", nog niet bevestigd") + ").")
                 if request.form.get("rv_toepassen") == "1":
                     # Ook de gelijkenissen die nog op nazicht staan: je hebt
                     # net zelf vastgelegd hoe zo'n transactie hoort. Wat met
                     # de hand of uit een bestand kwam, blijft staan.
                     telling = pas_toe_geteld(conn, crypto, regel_id,
-                                             ook_onbevestigde_gelijkenis=True)
+                                             ook_onbevestigde_gelijkenis=True,
+                                             ook_onbevestigd_ai=True)
+                    telling["gelijkenis"] += telling.pop("ai", 0)
                     melding += _toegepast_melding(telling)
                     log(conn, crypto, g.gebruiker, "regel toegepast",
                         f"regel={regel_id} zonder={telling['zonder']}"
@@ -263,10 +268,10 @@ def _toegepast_melding(telling) -> str:
     if telling["gelijkenis"]:
         n = telling["gelijkenis"]
         delen.append(f"{n} {'transactie' if n == 1 else 'transacties'} met een nog niet "
-                     "bevestigde gelijkenis")
+                     "bevestigde gelijkenis of AI-voorstel")
     if not delen:
         return " Er waren geen andere transacties zonder categorie of met een " \
-               "onbevestigde gelijkenis waarop ze past."
+               "onbevestigde gelijkenis of AI-voorstel waarop ze past."
     return " Ook toegepast op " + " en ".join(delen) + "."
 
 
@@ -402,20 +407,38 @@ def bevestigen(tx_id: int):
     # nagekeken=1: jij hebt dit voorstel goedgekeurd. Daardoor blijft het
     # staan bij elke latere herindeling, ook bij het herbekijken van de
     # automatisch bevestigde gelijkenissen.
+    terug = veilig_terug(request.form.get("terug"), url_for("tx.nazicht"))
+    voor = haal(conn, crypto, tx_id)
     werk_bij(conn, crypto, tx_id, status="bevestigd", zekerheid=1.0, nagekeken=1)
-    if instelling(conn, "leer_van_bevestiging", "1") == "1":
-        tx = haal(conn, crypto, tx_id)
-        if tx and tx.categorie_id:
-            maak_regel_van_voorstel(conn, crypto, tx.kenmerken, Voorstel(
-                categorie_id=tx.categorie_id,
-                subcategorie_id=tx.subcategorie_id,
-                subsub_id=tx.subsub_id,
-                handelaar=tx.handelaar or None,
-                land=tx.land or None,
-            ))
+    # Een regel bijleren heeft alleen zin bij een gok van de motor: een
+    # gelijkenis of een AI-voorstel. Kwam de indeling van een regel, dan
+    # bestaat die regel al; die bevestig je bij de regel zelf.
+    if (voor is not None and voor.categorie_id and voor.methode in ("fuzzy", "ai")
+            and instelling(conn, "leer_van_bevestiging", "1") == "1"):
+        platte = laad_alles(conn, crypto)
+        regel_id, nieuw = maak_regel_van_voorstel(
+            conn, crypto, voor.kenmerken, Voorstel(
+                categorie_id=voor.categorie_id,
+                subcategorie_id=voor.subcategorie_id,
+                subsub_id=voor.subsub_id,
+                handelaar=voor.handelaar or None,
+                land=voor.land or None,
+            ),
+            herkomst="ai" if voor.methode == "ai" else "gelijkenis",
+            mededeling=voor.mededeling,
+            pad=pad_tekst(platte, voor.categorie_id, voor.subcategorie_id, voor.subsub_id),
+        )
+        if nieuw:
+            log(conn, crypto, g.gebruiker, "regel toegevoegd",
+                f"regel={regel_id} uit nazicht tx={tx_id}")
+            conn.commit()
+            flash("Bevestigd. Er is een regel voor deze tegenpartij bijgeleerd; kijk "
+                  "ze hieronder na en bevestig ze.", "goed")
+            return redirect(url_for("instellingen.regel_bewerken", regel_id=regel_id,
+                                    nieuw=1, terug=terug))
     conn.commit()
     flash("Bevestigd.", "goed")
-    return redirect(veilig_terug(request.form.get("terug"), url_for("tx.nazicht")))
+    return redirect(terug)
 
 
 @bp.route("/alles-bevestigen", methods=["POST"])
@@ -558,22 +581,21 @@ def regel_oordeel(tx_id: int):
             # goedkeuring. Vroeg ze om nazicht, dan hoeft dat niet meer.
             werk_bij(conn, crypto, tx_id, status="bevestigd", zekerheid=1.0,
                      toelichting="Regel bevestigd.", nagekeken=1)
-            gepromoveerd = regel["herkomst"] in ONZEKERE_HERKOMSTEN
-            conn.execute("UPDATE regels SET bevestigd_op = ?, bevestigd_door = ?"
-                         " WHERE id = ?", (now_iso(), g.gebruiker, regel["id"]))
+            gepromoveerd = regel["bevestigd_op"] is None
             meegenomen = 0
             if gepromoveerd:
-                # De andere transacties van deze regel stonden om dezelfde
-                # reden op nazicht; die gaan nu mee.
+                # De regel was nog niet bevestigd. De andere transacties die ze
+                # indeelde, stonden om dezelfde reden op nazicht; die gaan mee.
                 hingen = hangende_transacties(conn, crypto, regel["id"])
-                maak_zeker(conn, regel["id"])
+                maak_zeker(conn, regel["id"], g.gebruiker)
                 meegenomen = herbekijk(conn, crypto, hingen).bevestigd
             log(conn, crypto, g.gebruiker, "regel_bevestigd",
                 f"tx={tx_id} regel={regel['id']} mee={meegenomen}")
             conn.commit()
             melding = "Bevestigd."
             if gepromoveerd:
-                melding += " Deze regel vraagt voortaan niet meer om nazicht."
+                melding += (" De regel is nu bevestigd: wat ze indeelt, vraagt "
+                            "voortaan niet meer om nazicht.")
             if meegenomen:
                 melding += (f" {meegenomen} andere "
                             f"{'transactie' if meegenomen == 1 else 'transacties'}"
@@ -582,13 +604,17 @@ def regel_oordeel(tx_id: int):
             return redirect(terug)
 
         if actie == "intrekken":
-            conn.execute("UPDATE regels SET bevestigd_op = NULL, bevestigd_door = NULL"
-                         " WHERE id = ?", (regel["id"],))
+            # De regel blijft staan, maar wat ze indeelt, komt op nazicht. De
+            # transactie die je hier bekijkt blijft nagekeken: die heb je al
+            # met Klopt goedgekeurd.
+            hingen = hangende_transacties(conn, crypto, regel["id"])
+            zet_bevestiging(conn, regel["id"], False)
+            uit = herbekijk(conn, crypto, hingen)
             log(conn, crypto, g.gebruiker, "regel_bevestiging_ingetrokken",
-                f"regel={regel['id']}")
+                f"regel={regel['id']} op_nazicht={uit.op_nazicht}")
             conn.commit()
-            flash("De bevestiging is ingetrokken. De regel zelf blijft staan en "
-                  "deelt gewoon verder in.", "goed")
+            flash("De bevestiging is ingetrokken. De regel blijft staan, maar wat ze "
+                  "indeelt, komt voortaan op nazicht. " + verslag(uit), "goed")
             return redirect(url_for("tx.regel_oordeel", tx_id=tx_id, terug=terug))
 
         if actie == "verwijderen":
@@ -612,7 +638,7 @@ def regel_oordeel(tx_id: int):
 
     return render_template(
         "transactie_regel.html", tx=tx, regel=details,
-        onzeker=regel["herkomst"] in ONZEKERE_HERKOMSTEN,
+        onzeker=regel["bevestigd_op"] is None,
         herkomst=HERKOMSTEN.get(regel["herkomst"], regel["herkomst"]),
         veldnamen=VELDNAMEN, operatoren=EXTRA_OPERATOREN,
         past_nog=past_nog, zelfde_categorie=zelfde_categorie,

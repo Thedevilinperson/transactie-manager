@@ -9,7 +9,7 @@ from flask import g
 
 from .config import DB_PATH, DEFAULT_SETTINGS
 
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS app_meta (
@@ -117,7 +117,8 @@ CREATE TABLE IF NOT EXISTS regel_voorwaarden (
     veld       TEXT NOT NULL,
     operator   TEXT NOT NULL,   -- gelijk | bevat | bevat_niet | regex
     waarde_enc TEXT NOT NULL,
-    waarde_idx TEXT
+    waarde_idx TEXT,
+    koppeling  TEXT NOT NULL DEFAULT 'en'  -- en | of, met de voorwaarde ervoor
 );
 CREATE INDEX IF NOT EXISTS ix_voorwaarde_regel
     ON regel_voorwaarden(regel_id, volgorde);
@@ -363,6 +364,29 @@ def _migreer(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS ix_voorwaarde_regel"
                  " ON regel_voorwaarden(regel_id, volgorde)")
 
+    # Schemaversie 12: een bijkomende voorwaarde kan met EN of met OF aan de
+    # vorige hangen. Bestaande voorwaarden hingen er altijd met EN aan.
+    vw_kolommen = {rij["name"] for rij in conn.execute("PRAGMA table_info(regel_voorwaarden)")}
+    if "koppeling" not in vw_kolommen:
+        conn.execute("ALTER TABLE regel_voorwaarden ADD COLUMN koppeling TEXT NOT NULL"
+                     " DEFAULT 'en'")
+
+    # Schemaversie 12: een regel is bevestigd of niet, en dat bepaalt of wat ze
+    # indeelt meteen bevestigd is of op nazicht komt. Tot nu toe hing dat aan
+    # de herkomst (die eindigde dan op `_onzeker`), en was `bevestigd_op` enkel
+    # een merkteken dat je de regel had nagekeken. Nu is `bevestigd_op` de
+    # enige maatstaf, en zegt de herkomst alleen nog waar de regel vandaan
+    # komt. Eenmalig krijgen de regels die tot nu toe zeker indeelden, dus
+    # alles zonder `_onzeker`, een bevestiging op hun aanmaakdatum. Zo deelt
+    # elke bestaande regel na de update precies zo in als ervoor.
+    if not conn.execute("SELECT 1 FROM app_meta WHERE sleutel = 'regels_bevestiging_v12'"
+                        ).fetchone():
+        conn.execute(
+            "UPDATE regels SET bevestigd_op = aangemaakt_op WHERE bevestigd_op IS NULL"
+            " AND herkomst NOT LIKE '%\\_onzeker' ESCAPE '\\'")
+        conn.execute("INSERT INTO app_meta (sleutel, waarde)"
+                     " VALUES ('regels_bevestiging_v12', ?)", (now_iso(),))
+
     conn.execute(
         "INSERT INTO app_meta (sleutel, waarde) VALUES ('schema_versie', ?) "
         "ON CONFLICT(sleutel) DO UPDATE SET waarde = excluded.waarde",
@@ -540,12 +564,13 @@ def seed_voorbeeldregels(conn: sqlite3.Connection, crypto) -> None:
         conn.execute(
             "INSERT INTO regels (naam_enc, prioriteit, veld, operator, waarde_enc, waarde_idx,"
             " bedrag_min, bedrag_max, richting, categorie_id, subcategorie_id, subsub_id,"
-            " handelaar_enc, aangemaakt_op) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            " handelaar_enc, herkomst, bevestigd_op, aangemaakt_op)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 crypto.enc(v["naam"]), v["prioriteit"], v["veld"], v["operator"],
                 crypto.enc(v["waarde"]), crypto.blind(v["waarde"]),
                 v["bedrag_min"], v["bedrag_max"], v["richting"],
                 ids[0], ids[1], ids[2],
-                crypto.enc(v["handelaar"]), now_iso(),
+                crypto.enc(v["handelaar"]), "handmatig", now_iso(), now_iso(),
             ),
         )

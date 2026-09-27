@@ -86,9 +86,10 @@
   </div>
 
   {% if regel.bevestigd_op %}
-    <p class="melding goed" style="margin-top:12px">Je hebt deze regel bevestigd op
+    <p class="melding goed" style="margin-top:12px">Deze regel is bevestigd op
       {{ regel.bevestigd_op[:10]|datum }}{% if regel.bevestigd_door %} door
-      {{ regel.bevestigd_door }}{% endif %}.</p>
+      {{ regel.bevestigd_door }}{% endif %}. Wat ze indeelt, staat meteen als
+      bevestigd.</p>
   {% endif %}
   {% if not past_nog %}
     <p class="melding fout" style="margin-top:12px">Zoals de regel nu staat, past ze
@@ -102,11 +103,11 @@
       <strong>{{ tx_pad or 'geen categorie' }}</strong>.</p>
   {% endif %}
   {% if onzeker %}
-    <p style="margin-top:12px">Deze regel wees in {{ 'je historiek'
-      if regel.herkomst.startswith('historiek') else 'de referentielijst' }} naar
-      meer dan één categorie. Daarom deelt ze wel in, maar vraagt ze telkens om
-      nazicht. Bevestig je ze hier, of bewerk je ze, dan doet ze dat voortaan
-      niet meer.</p>
+    <p style="margin-top:12px">Deze regel is nog niet bevestigd{% if
+      regel.herkomst in ('historiek_onzeker', 'referentie_onzeker') %}: ze wees bij
+      het afleiden naar meer dan één categorie{% endif %}. Daarom deelt ze wel in,
+      maar komt wat ze indeelt op nazicht. Bevestig je ze hier, of vink je bij het
+      bewerken <em>Regel bevestigd</em> aan, dan gebeurt dat voortaan niet meer.</p>
   {% endif %}
 </div>
 
@@ -128,11 +129,10 @@
     {% endif %}
   </div>
   <p class="klein-detail" style="margin:8px 0 18px">De transactie wordt
-    bevestigd{% if onzeker %}, de regel vraagt voortaan niet meer om nazicht, en
-    de andere transacties die om dezelfde reden op nazicht stonden, worden mee
-    bevestigd{% endif %}{% if not regel.bevestigd_op %}. De regel krijgt een vinkje,
-    zodat je later ziet dat je ze hebt nagekeken{% endif %}. Intrekken haalt dat
-    vinkje weg; de regel zelf blijft staan en deelt gewoon verder in.</p>
+    bevestigd{% if onzeker %}, de regel wordt bevestigd, en de andere transacties
+    die ze indeelde en daarom op nazicht stonden, worden mee bevestigd{% endif %}.
+    Intrekken maakt de regel weer onbevestigd: ze blijft staan, maar wat ze
+    indeelt, komt op nazicht.</p>
 
   <div class="knoppen">
     <a class="knop stil"

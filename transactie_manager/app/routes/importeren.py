@@ -71,11 +71,16 @@ def start():
         token = secrets.token_urlsafe(16)
         doel = UPLOAD_DIR / f"{token}{achtervoegsel}"
         bestand.save(doel)
+        profiel = request.form.get("profiel", "automatisch")
+        if profiel not in PROFIELEN:
+            profiel = "automatisch"
         return redirect(url_for("importeren.voorbeeld", token=token,
-                                naam=veilige_naam,
-                                profiel=request.form.get("profiel", "automatisch")))
+                                naam=veilige_naam, profiel=profiel))
 
-    return render_template("importeren.html", rekeningen=rekeningen, profielen=PROFIELEN)
+    # De historiek met indeling is geen bank: die heeft een eigen blok op het
+    # scherm, en staat dus niet in de lijst met banken.
+    banken = {sleutel: p for sleutel, p in PROFIELEN.items() if sleutel != "historiek"}
+    return render_template("importeren.html", rekeningen=rekeningen, profielen=banken)
 
 
 def _bestandspad(token: str) -> Path | None:

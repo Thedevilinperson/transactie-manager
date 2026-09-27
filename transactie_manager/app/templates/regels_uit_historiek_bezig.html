@@ -26,13 +26,13 @@
 <div class="vlak verborgen" data-uitslag>
   <h2>Klaar</h2>
   <div class="balans">
-    <div class="cijfer in"><b data-veld="regels">0</b><span>regels weggeschreven</span></div>
-    <div class="cijfer"><b data-veld="bedragsplitsingen">0</b><span>met een bedragvork</span></div>
-    <div class="cijfer uit"><b data-veld="onzeker">0</b><span>blijven om bevestiging vragen</span></div>
+    <div class="cijfer in"><b data-veld="bevestigd">0</b><span>bevestigde regels</span></div>
+    <div class="cijfer"><b data-veld="onbevestigd">0</b><span>onbevestigd, meerdere categorieën</span></div>
+    <div class="cijfer uit"><b data-veld="afgeleid">0</b><span>door de app afgeleid, onbevestigd</span></div>
   </div>
   <p data-telling style="margin-top:16px"></p>
   <div class="knoppen" style="margin-top:18px">
-    <a class="knop" href="{{ url_for('instellingen.regels') }}">Naar de regels</a>
+    <a class="knop" href="{{ url_for('instellingen.regels', herkomst_f='historiek') }}#regels">Naar de regels</a>
     <a class="knop stil" href="{{ url_for('tx.nazicht') }}">Naar het nazicht</a>
     <a class="knop stil" href="{{ url_for('tx.lijst') }}">Transacties bekijken</a>
   </div>

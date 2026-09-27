@@ -67,6 +67,7 @@ class Uitkomst:
     vervangen: int = 0     # onbevestigde gelijkenis of AI-voorstel, nu door een regel
     bevestigd: int = 0     # zelfde categorie, maar niet langer op nazicht
     velden: int = 0        # zelfde categorie, maar winkel of land rechtgezet
+    op_nazicht: int = 0    # zelfde categorie, maar de regel is niet meer bevestigd
 
 
 def hangende_transacties(conn, crypto, regel_id: int) -> list[int]:
@@ -155,10 +156,9 @@ def herbekijk(conn, crypto, tx_ids: list[int], *,
                     or velden["auto_velden"] != row["auto_velden"]):
                 veldwerk = velden
             if row["status"] == "nazicht" and voorstel.status == "bevestigd":
-                # Zelfde categorie, maar de regel is ondertussen zeker
-                # geworden (bewerkt of bevestigd). Dan hoeft de transactie
-                # niet langer op nazicht te wachten, en moet de oude uitleg
-                # ("wijst naar meer dan één categorie") ook weg.
+                # Zelfde categorie, maar de regel is ondertussen bevestigd.
+                # Dan hoeft de transactie niet langer op nazicht te wachten,
+                # en moet de oude uitleg ("nog niet bevestigd") ook weg.
                 werk_bij(
                     conn, crypto, tx.id,
                     zekerheid=voorstel.zekerheid, status=voorstel.status,
@@ -166,6 +166,17 @@ def herbekijk(conn, crypto, tx_ids: list[int], *,
                     **veldwerk,
                 )
                 uit.bevestigd += 1
+                continue
+            if row["status"] == "bevestigd" and voorstel.status == "nazicht":
+                # Omgekeerd: de bevestiging van de regel is ingetrokken. Wat ze
+                # indeelde, komt dan opnieuw op nazicht.
+                werk_bij(
+                    conn, crypto, tx.id,
+                    zekerheid=voorstel.zekerheid, status=voorstel.status,
+                    toelichting=voorstel.toelichting, regel_id=vervanger.id,
+                    **veldwerk,
+                )
+                uit.op_nazicht += 1
                 continue
             # De indeling klopt al. De band met de regel vastleggen, en winkel
             # en land rechtzetten als die niet bij deze regel horen.
@@ -331,7 +342,8 @@ def pas_alle_regels_opnieuw_toe(conn, crypto, gebruiker: str) -> Uitkomst:
 
 def veranderd(uit: Uitkomst) -> int:
     """Hoeveel transacties er werkelijk iets veranderde."""
-    return uit.gewist + uit.overgenomen + uit.erbij + uit.vervangen + uit.bevestigd + uit.velden
+    return (uit.gewist + uit.overgenomen + uit.erbij + uit.vervangen + uit.bevestigd
+            + uit.velden + uit.op_nazicht)
 
 
 def verslag(uit: Uitkomst) -> str:
@@ -354,6 +366,9 @@ def verslag(uit: Uitkomst) -> str:
     if uit.bevestigd:
         stukken.append(f"{uit.bevestigd} {'staat' if uit.bevestigd == 1 else 'staan'}"
                        " niet langer op nazicht")
+    if uit.op_nazicht:
+        stukken.append(f"{uit.op_nazicht} {'staat' if uit.op_nazicht == 1 else 'staan'}"
+                       " weer op nazicht omdat de regel niet meer bevestigd is")
     if uit.velden:
         stukken.append(f"bij {uit.velden} {'transactie' if uit.velden == 1 else 'transacties'}"
                        " werden winkel of land rechtgezet")
@@ -374,21 +389,17 @@ def verslag(uit: Uitkomst) -> str:
 # Onzekere regels die je al zelf hebt rechtgezet
 # --------------------------------------------------------------------------
 
-def maak_zeker(conn, regel_id: int) -> bool:
-    """Haalt het merkteken "wees naar meer dan één categorie" van een regel.
+def maak_zeker(conn, regel_id: int, gebruiker: str | None = None) -> bool:
+    """Bevestigt een regel, zodat wat ze indeelt niet langer om nazicht vraagt.
 
-    Een regel uit je historiek of uit de referentielijst die naar meer dan één
-    categorie wees, krijgt een herkomst die op `_onzeker` eindigt: ze deelt in,
-    maar vraagt telkens om nazicht. Heb je ze zelf bewerkt of bevestigd, dan
-    heb jij de keuze gemaakt en is die twijfel voorbij.
+    Tot versie 0.33.0 gebeurde dat door `_onzeker` uit de herkomst te halen.
+    Sinds schemaversie 12 blijft de herkomst staan (die zegt waar de regel
+    vandaan komt) en telt alleen `bevestigd_op`.
 
     Geeft terug of er iets veranderde.
     """
-    return conn.execute(
-        "UPDATE regels SET herkomst = REPLACE(herkomst, '_onzeker', '')"
-        " WHERE id = ? AND herkomst LIKE '%\\_onzeker' ESCAPE '\\'",
-        (regel_id,),
-    ).rowcount > 0
+    from .regelopslag import zet_bevestiging
+    return zet_bevestiging(conn, regel_id, True, gebruiker)
 
 
 HERSTEL_SLEUTEL = "herstel_onzeker_na_bewerken"
@@ -434,7 +445,8 @@ def herstel_bewerkte_onzekere_regels(conn, crypto) -> Uitkomst | None:
         hingen = hangende_transacties(conn, crypto, regel_id)
         maak_zeker(conn, regel_id)
         deel = herbekijk(conn, crypto, hingen, toelichting=BEWERKT_TOELICHTING)
-        for veld in ("overgenomen", "gewist", "ongewijzigd", "bevestigd", "velden"):
+        for veld in ("overgenomen", "gewist", "ongewijzigd", "bevestigd", "velden",
+                     "op_nazicht"):
             setattr(uit, veld, getattr(uit, veld) + getattr(deel, veld))
 
     conn.execute("INSERT INTO app_meta (sleutel, waarde) VALUES (?, ?)",

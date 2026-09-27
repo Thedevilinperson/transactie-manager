@@ -1,7 +1,7 @@
 """Kopieën van de databank, om een ingreep ongedaan te kunnen maken.
 
 Een aantal handelingen raakt in één klik je hele boekhouding: een
-referentielijst integraal vervangen, een historiek inlezen, alle regels opnieuw
+categorielijst integraal vervangen, een historiek inlezen, alle regels opnieuw
 toepassen. Gaat daar iets mis, dan is er zonder kopie geen weg terug — de
 gegevens staan versleuteld en zijn niet met de hand te repareren.
 
@@ -35,6 +35,7 @@ REDENEN = {
     "handmatig": "Met de hand gemaakt",
     "voor_herstel": "Vlak voor een terugzetting",
     "referentielijst": "Voor het inlezen van een referentielijst",
+    "categorielijst": "Voor het inlezen van een categorielijst",
     "historiek": "Voor het inlezen van een historiek",
     "bestand": "Voor het inlezen van een bestand",
     "regels_opnieuw": "Voor het opnieuw toepassen van alle regels",

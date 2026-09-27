@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.32.0
+Versie 0.33.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -138,85 +138,61 @@ rekeningen elke rij aan de juiste rekening hangen.
 
 Je kan twee kanten op.
 
-**Je hebt al een categorieënbestand.** Ga naar **Instellingen ›
-Referentielijst**. Er staat een voorbeeldbestand klaar om te downloaden.
+**Je hebt al een lijst met categorieën.** Ga naar **Instellingen ›
+Categorielijst**. Er staat een voorbeeldbestand klaar om te downloaden. Een
+categorielijst maakt **alleen categorieën** aan, geen regels. Regels komen uit
+je ingelezen historiek; zie [Regels afleiden uit je
+historiek](#regels-afleiden-uit-je-historiek).
 
-De kolommen worden herkend aan hun kopregel, dus hun volgorde doet er niet toe
-en je hoeft ze niet allemaal te hebben:
+De kolommen worden herkend aan hun kopregel, dus hun volgorde doet er niet toe:
 
 | Kop                 | Inhoud                                                      |
 |---------------------|-------------------------------------------------------------|
-| Sleutel             | de beschrijving en de tegenpartij, met een koppelteken ertussen |
-| Hoofdcategorie      | verplicht — zonder deze kolom valt er niets af te leiden     |
+| Hoofdcategorie      | verplicht — het bovenste niveau                              |
 | Categorie           | eerste subniveau                                            |
 | Subcategorie        | tweede subniveau                                            |
-| Winkel              | winkel, of bij vakantie het land van bestemming             |
 
-In plaats van *Sleutel* mag er ook Omschrijving, Beschrijving, Referentie,
-Mededeling of Tegenpartij staan; in plaats van *Winkel* ook Handelaar, Zaak of
-Land.
+Een oudere referentielijst, met ook een kolom *Sleutel* (beschrijving en
+tegenpartij met een koppelteken ertussen) en een kolom *Winkel*, kan je gewoon
+aanbieden: die kolommen worden genegeerd. Staat er helemaal geen kopregel in je
+bestand, dan wordt de oude volgorde aangehouden: sleutel, hoofdcategorie,
+categorie, subcategorie, winkel.
 
-**Een bestand met enkel de boomstructuur** — dus alleen Hoofdcategorie,
-Categorie en Subcategorie — werkt ook. Er valt dan geen enkele regel uit af te
-leiden, want er staat nergens welke transactie in welke categorie hoort. Het
-scherm zegt dat en neemt alleen de boom over.
+Je krijgt eerst een analysescherm te zien: hoeveel categorieën eruit volgen en
+hoe de boom eruitziet. Pas als je op **Categorielijst inlezen** klikt, wordt er
+iets weggeschreven. Daar kies je ook wat er met je huidige categorieën gebeurt:
 
-Staat er helemaal geen kopregel in je bestand, dan wordt de oude volgorde
-aangehouden: sleutel, hoofdcategorie, categorie, subcategorie, winkel.
-
-Je krijgt eerst een analysescherm te zien: hoeveel categorieën eruit volgen, hoe
-de boom eruitziet, en welke tegenpartijen in je lijst naar meer dan één
-categorie verwijzen. Pas als je op **Referentielijst inlezen** klikt, wordt er
-iets weggeschreven.
-
-Daar kies je ook wat er met je huidige categorieën gebeurt:
-
-- **Behouden en aanvullen** — wat er al staat blijft; nieuwe categorieën en
-  regels komen erbij. De indeling van je transacties blijft ongemoeid.
-- **Integraal vervangen** — alles wordt gewist en vervangen door deze lijst. Je
-  transacties blijven bestaan maar verliezen hun categorie.
+- **Behouden en aanvullen** — wat er al staat blijft; nieuwe categorieën komen
+  erbij. Je regels en de indeling van je transacties blijven ongemoeid.
+- **Integraal vervangen** — alle categorieën worden gewist en vervangen door
+  deze lijst. Omdat regels naar categorieën wijzen, gaan ook alle regels weg.
+  Je transacties blijven bestaan maar verliezen hun categorie.
 
 > **Integraal vervangen op een databank waar al werk in zit, is ingrijpender dan
 > het lijkt.** Ook wat je met de hand hebt ingedeeld verliest zijn categorie, en
-> dat is naderhand niet te herstellen door de regels opnieuw toe te passen: een
-> handmatige keuze en een gelijkenis met je historiek laten zich niet
-> reconstrueren, en de bron van de toewijzing is hoe dan ook weg. Staat er al
-> iets, dan toont het scherm bovenaan hoeveel transacties, hoeveel ingedeeld en
-> hoeveel met de hand. Er wordt sowieso een kopie van de databank gelegd voor er
-> iets verandert; zie *Kopieën* in hoofdstuk 10.
-
-Daarnaast kies je **wat je uit de lijst overneemt**:
-
-- **De volledige referentielijst** — categorieën én de koppeling met de
-  beschrijvingen, waaruit regels worden afgeleid. Kies dit wanneer de lijst ook
-  je manier van indelen beschrijft.
-- **Alleen de boomstructuur** — enkel de categorieën, hun onderverdelingen en
-  hun volgorde. Er worden geen regels afgeleid, dus je indeling blijft je eigen
-  werk. Kies dit wanneer de lijst je categorieën beschrijft maar niet hoe je
-  transacties erin terechtkomen.
-
-En tot slot **wat er daarna moet gebeuren**: niets, of opnieuw indelen — alleen
-wat geen categorie heeft, of alles wat nog niet bevestigd is. Het eerste is het
-veilige bereik en de standaard.
-
-Uit zo'n bestand komen twee soorten regels. Voor elke rij komt er een regel die
-exact op die sleutel past. Daarnaast komt er een bredere regel op enkel de
-tegenpartij, maar alleen wanneer die tegenpartij in het hele bestand naar
-dezelfde indeling verwijst. Staat een tegenpartij nu eens bij boodschappen en
-dan weer bij vakantie, dan wordt ze gemarkeerd als onzeker: transacties van die
-tegenpartij komen in het nazicht in plaats van blind toegewezen te worden.
+> dat is naderhand niet te herstellen door de regels opnieuw toe te passen.
+> Staat er al iets, dan toont het scherm bovenaan hoeveel transacties, hoeveel
+> ingedeeld en hoeveel met de hand. Er wordt sowieso een kopie van de databank
+> gelegd voor er iets verandert; zie *Kopieën* in hoofdstuk 10.
 
 Verschillen in hoofdlettergebruik worden samengevoegd. Staat er in je bestand
 zowel `Auto` als `auto`, dan wordt dat één categorie, met de schrijfwijze die
 het vaakst voorkomt.
 
+Het oude adres *Instellingen › Referentielijst* stuurt je vanzelf door naar de
+categorielijst.
+
 **Je begint van nul.** Er staat al een bruikbare boom klaar met de gebruikelijke
 posten. Pas die aan bij **Instellingen › Categorieën**.
 
-> Na het inlezen van een referentielijst staat elke hoofdcategorie op soort
+> Na het inlezen van een categorielijst staat elke hoofdcategorie op soort
 > "beide". Uit de lijst valt namelijk niet af te leiden of het om inkomsten of
 > uitgaven gaat. Zet de soort juist bij Instellingen › Categorieën als je wil
 > dat de keuzelijsten korter worden.
+
+**De volgorde die het best werkt** bij een nieuwe start: eerst eventueel een
+categorielijst, dan je historiek met de indeling erin (zie 4.2), en daarna
+*Regels uit historiek*.
 
 **Omschrijving voor het AI-model.** Onderaan het scherm *Categorieën* kan je bij
 elke categorie een omschrijving in trefwoorden zetten: wat jij eronder
@@ -231,9 +207,11 @@ AI-model; zie [Stap 3](#stap-3-het-lokale-ai-model).
 
 ### 4.1 Een bestand inlezen
 
-Ga naar **Bestand inlezen** en kies je afschrift. Excel (`.xlsx`, `.xlsm`) en
-CSV worden ondersteund. Kies je bank in de lijst, of laat het op *Automatisch
-herkennen* staan.
+Ga naar **Bestand inlezen**. Daar staan twee blokken naast elkaar:
+**Bankafschrift** voor een gewoon uittreksel, en **Historiek met indeling** voor
+transacties die je elders al hebt ingedeeld (zie 4.2). Kies bij een
+bankafschrift je bestand en je bank, of laat het op *Automatisch herkennen*
+staan. Excel (`.xlsx`, `.xlsm`) en CSV worden ondersteund.
 
 Je komt op het scherm **Kolommen nakijken**. Daar zie je per veld welke kolom
 gekozen is, en daaronder de eerste rijen zoals ze ingelezen zouden worden. Staat
@@ -249,7 +227,8 @@ Munt · Verrichtingsdatum · Rekening tegenpartij · Naam tegenpartij · Mededel
 ```
 
 De kolom **Beschrijving** is belangrijker dan ze lijkt: samen met de naam van de
-tegenpartij vormt ze de sleutel waarop de referentielijst werkt.
+tegenpartij onderscheidt ze een kaartbetaling van een overschrijving aan
+dezelfde naam, en ze is een van de kolommen waaruit je regels kan maken.
 
 Klik daarna op de knop met het aantal rijen. Je krijgt te zien hoeveel
 transacties nieuw zijn, hoeveel er al stonden en hoeveel er onleesbaar waren.
@@ -291,10 +270,11 @@ dan verwijderd.
 
 Heb je je transacties elders al ingedeeld, dan kan je die indeling mee inlezen.
 Voeg vijf kolommen toe aan je bestand: **Hoofdcategorie**, **Subcategorie**,
-**Sub-subcategorie**, **Winkel** en **Land**.
+**Sub-subcategorie**, **Winkel** en **Land**, en kies het bestand in het blok
+**Historiek met indeling** op het scherm *Bestand inlezen*. Het staat niet meer
+in de lijst met banken: het is een apart soort bestand.
 
-Op het scherm *Bestand inlezen* staat een knop om een voorbeeldbestand te
-downloaden. Daarin zit een tweede werkblad dat per kolom uitlegt waarvoor ze
+In dat blok staat een knop om een voorbeeldbestand te downloaden. Daarin zit een tweede werkblad dat per kolom uitlegt waarvoor ze
 dient en of ze verplicht is. Alleen **Boekdatum** en **Bedrag** zijn echt
 verplicht; de volgorde van de kolommen doet er niet toe.
 
@@ -303,13 +283,15 @@ controlescherm de keuze **Indeling uit het bestand overnemen**. Die gaat voor op
 het automatisch indelen. Categorieën die nog niet bestaan worden aangemaakt, en
 die transacties komen meteen bevestigd binnen.
 
-> **Hiermee bouwt dit bestand je categorieën op.** Elke hoofd-, sub- en
-> subsubcategorie die erin voorkomt en nog niet bestaat, wordt aangemaakt — je
-> categorieënlijst komt dus uit deze historiek en niet uit een referentielijst.
-> Lees je nadien alsnog een referentielijst in met *integraal vervangen*, dan
-> gaat dit werk weer weg. Doe het dus in de volgorde waarin je wil eindigen:
-> eerst de referentielijst, dan de historiek. Er wordt vooraf een kopie van de
-> databank gelegd; zie *Kopieën* in hoofdstuk 10.
+> **Hiermee bouwt dit bestand ook categorieën op.** Elke hoofd-, sub- en
+> subsubcategorie die erin voorkomt en nog niet bestaat, wordt aangemaakt. Lees
+> je nadien alsnog een categorielijst in met *integraal vervangen*, dan gaat dit
+> werk weer weg. Doe het dus in de volgorde waarin je wil eindigen: eerst de
+> categorielijst, dan de historiek. Er wordt vooraf een kopie van de databank
+> gelegd; zie *Kopieën* in hoofdstuk 10.
+
+Na het inlezen staat op het eindscherm een knop **Regels uit historiek maken**.
+Daar maak je van deze historiek vaste regels.
 
 ### 4.3 Een transactie openen
 
@@ -458,7 +440,7 @@ De toepassing probeert vier dingen, in deze volgorde. Zodra er één lukt, stopt
 > verwijderen van een regel, en niet bij *Alle regels opnieuw toepassen*. Dat
 > geldt ongeacht de status van die transactie. Alleen jij kan ze nog wijzigen,
 > door de transactie zelf te openen. De enige uitzonderingen zijn de handelingen
-> die bewust alles wissen: *Opnieuw beginnen* en een referentielijst *integraal
+> die bewust alles wissen: *Opnieuw beginnen* en een categorielijst *integraal
 > vervangen*.
 
 ### Stap 1: vaste regels
@@ -469,6 +451,42 @@ die categorie. Regels worden afgehandeld van lage naar hoge prioriteit.
 Je kan kijken naar de gecombineerde sleutel, de beschrijving, de naam van de
 tegenpartij, het rekeningnummer van de tegenpartij of de mededeling. De
 vergelijking is *bevat*, *is precies gelijk aan* of een reguliere expressie.
+
+**Bevat kijkt per woord.** Alle woorden van de waarde moeten in het veld staan,
+maar de volgorde en wat ertussen staat doen er niet toe, en een woord mag ook
+midden in een ander woord zitten. Hoofdletters, accenten, leestekens en extra
+spaties tellen niet. *Bevat* `ober     Merelbeke` past dus op:
+
+- `ober 78 merelbeker` — beide woorden staan erin, "merelbeke" zit in
+  "merelbeker";
+- `ober merelbeke` en `Merelbeke Ober`;
+- `obermerelbeke` — ook aan elkaar geschreven.
+
+Een rekeningnummer wordt als één geheel vergeleken. *Bevat niet* is precies het
+omgekeerde: de regel past alleen als niet álle woorden erin staan.
+
+**Bevestigd of niet.** Elke regel is bevestigd of onbevestigd. Wat een
+**bevestigde** regel indeelt, staat meteen als bevestigd. Wat een
+**onbevestigde** regel indeelt, krijgt wel haar categorie maar komt op
+*nazicht*, met de uitleg dat de regel nog niet bevestigd is. Je kiest dat met
+het vinkje **Regel bevestigd** bij het toevoegen en bij het bewerken. Een regel
+die je met de hand toevoegt, staat standaard op bevestigd.
+
+**Herkomst.** Elke regel onthoudt waar ze vandaan komt. In de regeltabel staat
+dat in de kolom *Herkomst*, en er is een filter op:
+
+| Herkomst                              | Hoe de regel ontstond                                         | Bij het ontstaan |
+|---------------------------------------|---------------------------------------------------------------|------------------|
+| historiek                             | uit je ingelezen historiek, combinatie wees naar één categorie | bevestigd, prioriteit 5 |
+| historiek, meerdere categorieën       | uit je ingelezen historiek, combinatie wees naar meer dan één | onbevestigd, prioriteit 90 |
+| afgeleid uit historiek                | door de app zelf afgeleid, minstens twee velden               | onbevestigd, prioriteit 40 of 50 |
+| met de hand                           | bij *Instellingen › Regels* toegevoegd                        | naar keuze |
+| gelijkenis (Klopt) / AI-voorstel (Klopt) | bijgeleerd toen je in het nazicht *Klopt* klikte           | onbevestigd, prioriteit 5 |
+| vanuit transactie                     | gemaakt bij het aanpassen van een transactie                  | naar keuze |
+| referentielijst                       | uit een referentielijst van vóór versie 0.33.0               | zoals ze was |
+
+De herkomst verandert niet meer, ook niet als je de regel bewerkt of bevestigt.
+Of een regel bevestigd is, zie je in de kolom *Bevestigd*.
 
 Een regel mag ook een bedragvork hebben. Daarmee los je het geval op waarbij
 dezelfde tegenpartij verschillende dingen betekent:
@@ -489,9 +507,19 @@ spaarrekening waar je op stort en van afhaalt. De keuzelijst met
 hoofdcategorieën toont dan alle categorieën, ongeacht hun soort. Dezelfde keuze
 vind je terug bij het bewerken van een regel.
 
-**Velden combineren.** Onder *En ook* zet je bijkomende voorwaarden. Ze moeten
-dan allemaal kloppen. Daarmee deel je één tegenpartij op naar wat er in de
-mededeling staat:
+**Velden combineren met EN en OF.** Onder *Bijkomende voorwaarden* zet je extra
+rijen. Elke rij hangt met **EN** of met **OF** aan de rij erboven:
+
+- **EN** — deze voorwaarde moet óók kloppen;
+- **OF** — een alternatief: de regel past ook als deze voorwaarde (met wat er
+  met EN aan hangt) klopt.
+
+EN gaat voor OF, zoals in een zoekmachine: *A EN B OF C* betekent *(A en B) of
+C*. Een voorbeeld: naam bevat `ober` **EN** mededeling bevat `lidgeld` **OF**
+naam bevat `sportclub` past op elke lidgeldbetaling aan Ober, en op alles van de
+sportclub.
+
+Met EN deel je één tegenpartij op naar wat er in de mededeling staat:
 
 | Regel         | Voorwaarden                                                      | Indeling             |
 |---------------|------------------------------------------------------------------|----------------------|
@@ -500,25 +528,32 @@ mededeling staat:
 
 *Bevat niet* is er speciaal voor dat tweede geval: alles van die tegenpartij,
 behalve wat je er net uit wil houden. Het kan alleen als bijkomende voorwaarde,
-niet als de enige — een regel die enkel zegt wat er níet in staat, zou op zowat
-elke transactie passen.
+en elke groep (wat met OF gescheiden is) heeft minstens één voorwaarde nodig die
+iets insluit. Een groep die enkel zegt wat er níet in staat, zou op zowat elke
+transactie passen; het scherm weigert dat met een melding.
 
 Er staan altijd drie lege rijen klaar; een lege rij wordt overgeslagen. Een
 bestaande voorwaarde wis je door haar waarde leeg te maken en te bewaren. Wil je
 er meer dan drie bij, bewaar dan tussendoor: bij het heropenen staan er weer
 drie klaar.
 
-Combineren en een bedragvork kan samen, en de prioriteit beslist nog altijd
-welke regel voorgaat als er meer dan één past. Zet de nauwkeurigste regel dus
-op een lager getal.
+Combineren en een bedragvork kan samen; de vork en de soort gelden voor de hele
+regel, over alle OF-groepen heen. De prioriteit beslist nog altijd welke regel
+voorgaat als er meer dan één past. Zet de nauwkeurigste regel dus op een lager
+getal.
 
-Een treffer via een regel is zeker en wordt meteen bevestigd. Behalve wanneer de
-regel als onzeker gemarkeerd staat: dat gebeurt bij tegenpartijen die in je
-referentielijst of je historiek onder meer dan één categorie voorkomen. Zo'n
-onzekere regel blijft dat tot jij er een keuze over maakt: **bevestigen** met
-*Ze klopt*, of **bewerken**. Beide halen het merkteken weg, en de transacties
-die om die reden op nazicht stonden, gaan mee naar *bevestigd* — tenzij de
-bewerkte regel er niet meer op past; dan zoekt de motor een andere regel, of
+**Een nieuwe regel werkt meteen.** Na het toevoegen wordt ze losgelaten op
+transacties zonder categorie en op gelijkenissen of AI-voorstellen die nog niet
+bevestigd zijn. De melding zegt hoeveel transacties zo hun indeling kregen.
+Voor versie 0.33.0 gebeurde er bij het toevoegen niets, en moest je daarna nog
+zelf de regels toepassen.
+
+Een treffer via een bevestigde regel is zeker en wordt meteen bevestigd. Een
+treffer via een onbevestigde regel komt op nazicht. Zo'n regel blijft
+onbevestigd tot jij er een keuze over maakt: **bevestigen** met *Ze klopt*, of
+**bewerken** met het vinkje *Regel bevestigd* aan. In beide gevallen gaan de
+transacties die om die reden op nazicht stonden, mee naar *bevestigd* — tenzij
+de bewerkte regel er niet meer op past; dan zoekt de motor een andere regel, of
 komen ze bij *Zonder categorie* terecht.
 
 **Welke regel heeft dit gedaan?** Het merkje *regel* in de transactielijst, en de
@@ -526,23 +561,23 @@ knop **Naar de regel** in het nazicht, brengen je naar een scherm met de
 transactie zelf (tegenpartij, rekening, begunstigde, mededeling, huidige
 indeling) en de volledige regel erachter:
 
-- alle **voorwaarden** — de eerste en elke bijkomende met *en*, telkens met het
-  veld, de vergelijking en de waarde;
+- alle **voorwaarden** — de eerste en elke bijkomende met *en* of *of*, telkens
+  met het veld, de vergelijking en de waarde;
 - de **bedragvork** en of de regel voor inkomsten, uitgaven of beide geldt;
 - de **categorie** waarin ze indeelt, met winkel en land als die ingevuld zijn;
-- de **prioriteit**, de **herkomst** (zelf aangemaakt, uit de historiek, uit de
-  referentielijst) en het aantal transacties dat er nu aan hangt.
+- de **prioriteit**, de **herkomst** (zie de tabel hierboven) en het aantal
+  transacties dat er nu aan hangt.
 
 Past de regel zoals ze nu staat niet meer op deze transactie, of wijst ze naar
 een andere categorie dan waar de transactie in staat, dan zegt het scherm dat
 er ook bij. Daaronder drie keuzes:
 
-- **Ze klopt** — de transactie wordt bevestigd en de regel krijgt jouw vinkje.
-  Vroeg ze telkens om nazicht, dan doet ze dat voortaan niet meer, en de andere
-  transacties die om dezelfde reden op nazicht stonden, worden mee bevestigd.
+- **Ze klopt** — de transactie wordt bevestigd. Was de regel nog onbevestigd,
+  dan wordt ze nu bevestigd, en de andere transacties die ze indeelde en daarom
+  op nazicht stonden, worden mee bevestigd.
 - **Ze klopt niet, regel bewerken** — je komt op het bewerkscherm. Bewaren
-  beoordeelt meteen de transacties die eraan hingen opnieuw, en een onzekere
-  regel vraagt daarna niet langer om nazicht.
+  beoordeelt meteen de transacties die eraan hingen opnieuw, met de status die
+  hoort bij het vinkje *Regel bevestigd*.
 - **Ze klopt niet, regel verwijderen** — wat eraan hing komt op nazicht te staan
   zonder categorie, tenzij een andere regel het overneemt.
 
@@ -550,8 +585,8 @@ Daarnaast kan je altijd nog *alleen deze transactie aanpassen* en de regel laten
 staan.
 
 Zie je een transactie met bron *Vaste regel* die tóch op nazicht staat, met
-*vraagt bevestiging* eronder, dan is dat geen tegenspraak: dat is zo'n onzekere
-regel. Ze deelt in, maar vraagt om bevestiging. Het is géén gelijkenis — dat
+*vraagt bevestiging* eronder, dan is dat geen tegenspraak: dat is een
+onbevestigde regel. Ze deelt in, maar vraagt om bevestiging. Het is géén gelijkenis — dat
 merkje heet *Gelijkenis* en staat in een andere kleur, met een percentage.
 
 Had je een onzekere regel al bewerkt vóór versie 0.21.0, dan bleef ze
@@ -559,20 +594,26 @@ verkeerdelijk om nazicht vragen. Bij het eerste bezoek aan het nazicht na de
 update wordt dat eenmalig rechtgezet: de toepassing zoekt in het logboek welke
 regels je bewerkt hebt, en meldt bovenaan wat er veranderde.
 
+> **Bij de update naar versie 0.33.0** krijgt elke bestaande regel die tot dan
+> zeker indeelde, een bevestiging op haar aanmaakdatum. Regels die om nazicht
+> vroegen (herkomst met *meerdere categorieën*), blijven onbevestigd. Zo deelt
+> elke regel na de update precies in zoals ervoor.
+
 In de regeltabel staat bij elke regel hoeveel transacties er nu aan hangen. Dat
 getal is doorklikbaar, zodat je ziet wat een regel in de praktijk doet.
 
-**Het vinkje.** Een regel die je met *Ze klopt* hebt goedgekeurd, onthoudt dat —
-met de datum en wie het deed. In de transactielijst krijgt elke transactie van
-zo'n regel een ✓ achter het merkje *regel*. Daarmee zie je in één oogopslag wat
-je nog moet nakijken en wat al door je handen is gegaan.
+**Het vinkje.** Een bevestigde regel onthoudt wanneer en door wie ze bevestigd
+werd. In de transactielijst krijgt elke transactie van zo'n regel een ✓ achter
+het merkje *regel*.
 
-In de regeltabel staat er een kolom *Nagekeken* met een filter ernaast: alle
-regels, alleen de bevestigde, of alleen wat nog niet nagekeken is. Zo werk je je
-lijst systematisch af.
+In de regeltabel staan de kolommen *Herkomst* en *Bevestigd*, elk met een filter
+ernaast. Zo werk je bijvoorbeeld alle onbevestigde regels uit je historiek
+systematisch af.
 
 Van gedacht veranderd? Op hetzelfde scherm staat **Bevestiging intrekken**. De
-regel blijft staan en deelt gewoon verder in; alleen het vinkje gaat weg.
+regel blijft staan en deelt verder in, maar wat ze indeelt, komt voortaan op
+nazicht. De transacties die ze al had ingedeeld, gaan ook terug naar het
+nazicht — behalve wat je zelf met *Klopt* goedkeurde.
 
 **Een regel bewerken, uitzetten of verwijderen.** In alle drie de gevallen
 laten de transacties die hij had ingedeeld die categorie los. Past er nog een
@@ -583,15 +624,17 @@ staat er hoeveel het er waren.
 Bewerken volgt dezelfde weg als verwijderen. Eerst wordt opgezocht wat aan de
 oude regel hing, dan wordt de regel aangepast, dan worden net die transacties
 opnieuw beoordeeld. Past de aangepaste regel er nog op, dan blijft alles gewoon
-staan. Daarna wordt de nieuwe regel nog losgelaten op wat geen categorie heeft,
-zodat een regel die breder wordt ook meteen aanslaat.
+staan. Daarna wordt de nieuwe regel nog losgelaten op wat geen categorie heeft en
+op gelijkenissen of AI-voorstellen die nog niet bevestigd zijn, zodat een regel
+die breder wordt ook meteen aanslaat.
 
 Zet je de regel weer aan, dan pakt hij op wat nog geen categorie heeft. Je kan
 een regel dus tijdelijk uitzetten zonder je indeling kwijt te spelen.
 
 **Zoeken en sorteren in de regels.** Boven de tabel staat een filterbalk. Je
 kan zoeken op naam, waarde, categorie of winkel, en filteren op hoofdcategorie,
-op het veld waar de regel naar kijkt, en op actief of uitgezet.
+op het veld waar de regel naar kijkt, op herkomst, op bevestigd of niet, en op
+actief of uitgezet.
 
 *Voorwaarden* houdt alleen de gecombineerde regels over, of net alleen die op
 één veld. Zoeken kijkt ook in de bijkomende waarden, en *Kijkt naar* vindt een
@@ -683,42 +726,78 @@ motor zelf heeft ingevuld.
 ### Stap 2: fuzzy vergelijking
 
 Lukt stap 1 niet, dan vergelijkt de toepassing de naam van de tegenpartij met
-wat ze al kent. Dat vergelijkingsmateriaal is bewust beperkt tot wat jij zelf
-hebt beslist:
+namen die ze al kent. Dat vergelijkingsmateriaal is bewust beperkt tot wat jij
+zelf hebt beslist:
 
 - **transacties die een mens heeft ingedeeld**: met de hand, uit een ingelezen
-  historiek, of een AI-voorstel dat je bevestigd hebt. Wat een regel of de
-  gelijkenisstap zelf indeelde, telt niet mee — anders veralgemeent de motor
+  historiek, of een voorstel dat je met *Klopt* bevestigd hebt. Wat een regel of
+  de gelijkenisstap zelf indeelde, telt niet mee — anders veralgemeent de motor
   zijn eigen werk;
-- **regels die enkel op de naam werken** (of op de gecombineerde sleutel), zoals
-  die uit je referentielijst. Die bron maakt de motor bij een allereerste
-  invoer al bruikbaar. Een regel met bijkomende voorwaarden of een bedragvork
-  doet hier níet mee: de gelijkenisstap vergelijkt alleen namen, en zou zo'n
-  regel ruimer toepassen dan hij bedoeld is. Een regel "Axelle Huyge én
-  *drinkgeld* in de mededeling" geldt dus alleen voor transacties met
-  *drinkgeld* in de mededeling, en niet voor alles van Axelle.
+- **regels die enkel op de naam werken** (of op de gecombineerde sleutel). Een
+  regel met bijkomende voorwaarden of een bedragvork doet hier níet mee: de
+  gelijkenisstap vergelijkt alleen namen, en zou zo'n regel ruimer toepassen dan
+  hij bedoeld is. Een regel "Axelle Huyge én *drinkgeld* in de mededeling" geldt
+  dus alleen voor transacties met *drinkgeld* in de mededeling, en niet voor
+  alles van Axelle. Een naam uit een onbevestigde regel mag wel voorstellen,
+  maar bevestigt nooit zelf.
 
-Verder:
+**Hoe er vergeleken wordt.** Sinds versie 0.33.0:
 
-- er wordt alleen vergeleken **binnen dezelfde richting**: een uitgave aan een
-  tegenpartij lijkt niet op een inkomst van diezelfde tegenpartij;
-- komt een tegenpartij in die richting onder **meer dan één categorie** voor,
-  dan stelt de gelijkenisstap wel iets voor, maar bevestigt ze niet zelf. De
-  uitleg zegt dan dat je zelf moet kiezen;
-- **een naam die in een andere past** telt alleen als het eerste woord gelijk
-  is. *Delhaize* past op *Delhaize Gent 1234* — zelfde zaak. *Huyge* past niet
-  op *Daniel Huyge* — alleen dezelfde familienaam. Zo'n gedeeltelijke treffer
-  wordt bovendien nooit automatisch bevestigd.
+- **naam met naam.** Een nieuwe transactie wordt vergeleken op haar tegenpartij
+  (of, als die ontbreekt, de begunstigde), en de geschiedenis ook. Vroeger werd
+  de geschiedenis op de *winkel* bewaard: een betaling aan *ELAINE HUYGE* met
+  winkel *Flying tiger* stond dan onder "flying tiger", en een volgende betaling
+  aan dezelfde persoon vond ze niet terug. Zonder naam vergelijkt de stap niet
+  meer blind de hele tekst;
+- **zonder ruis.** Woorden die vooral uit cijfers bestaan (filiaalnummers,
+  kaartnummers, datums), losse letters en rechtsvormen (*nv*, *bv*, *vzw*, …)
+  tellen niet mee. *DELHAIZE 1234 GENT 12/03* en *Delhaize Gent* zijn dus
+  dezelfde naam. Een naam als *2dehands* blijft staan: daar zijn de cijfers niet
+  de meerderheid;
+- **het eerste woord moet overeenkomen.** *Colruyt Gent* en *Colruyt Laagste
+  Prijzen* mogen op elkaar lijken, *Axelle Huyge* en *Elaine Huyge* niet: dat is
+  alleen dezelfde familienaam. Een kleine tikfout in het eerste woord
+  (*Colruijt*) mag wel;
+- **alleen binnen dezelfde richting**: een uitgave aan een tegenpartij lijkt niet
+  op een inkomst van diezelfde tegenpartij;
+- **het rekeningnummer weegt mee.** Heb je dat rekeningnummer van de tegenpartij
+  altijd onder dezelfde categorie ingedeeld, dan telt dat als extra bewijs. Is er
+  geen gelijkende naam maar wel zo'n rekeningnummer, dan komt er een voorstel
+  op nazicht. Een rekeningnummer dat onder meer categorieën voorkomt (een
+  betaalverwerker), telt niet.
+
+**Wanneer de gelijkenisstap zelf bevestigt.** Alleen als alles klopt:
+
+- de gelijkenis haalt de drempel *Automatisch vanaf*;
+- de naam wijst in je geschiedenis naar **één categorie**;
+- er is **geen andere naam die bijna even goed lijkt** (minder dan 5 punten
+  verschil) en bij een andere categorie hoort — *MAES OLSENE* en *MAES
+  EERNEGEM* bijvoorbeeld;
+- het **rekeningnummer** spreekt het niet tegen;
+- er is **meer dan één eerdere transactie** om op te steunen, of de naam is
+  precies gelijk, of het rekeningnummer bevestigt het;
+- het **bedrag ligt in de lijn**: niet meer dan drie keer hoger of lager dan wat
+  je bij die naam al zag;
+- de ene naam past niet gewoon in de andere (*Delhaize* in *Delhaize Gent Zuid*
+  wordt voorgesteld, niet bevestigd).
+
+Anders komt het voorstel op nazicht, en de uitleg zegt waarom: meer dan één
+categorie, een even goede andere naam, een afwijkend bedrag, of maar één
+eerdere transactie.
 
 Twee drempels bepalen wat er gebeurt, in te stellen bij **Instellingen ›
 Automatisch indelen**:
 
 - **Automatisch vanaf** (standaard 92%) — de indeling gaat door en wordt als
-  zeker gemarkeerd.
+  zeker gemarkeerd, als ook aan de voorwaarden hierboven voldaan is.
 - **Voorstellen vanaf** (standaard 72%) — de indeling wordt voorgesteld, maar de
   transactie komt in het nazicht.
 
 Daaronder gebeurt er niets.
+
+**Winkel en land** neemt de gelijkenisstap alleen over als ze bij die naam altijd
+dezelfde waren. Zie ook [Winkel en land volgen de
+indeling](#winkel-en-land-volgen-de-indeling).
 
 De vergelijking gebruikt bewust niet de gulste methode. Anders zou "Brico"
 evengoed op "Brico Plan-It 4214 Gent" passen als op om het even welke andere
@@ -927,15 +1006,18 @@ de transactie:
 | twee lege rijen           | bevat / bevat niet       | nee                  |
 
 Daaronder: **inkomst, uitgave of beide** (vooraf gezet op de soort van deze
-transactie), een **bedragvork**, de **naam** van de regel en de
-**prioriteit**. De categorie, de winkel en het land van de regel zijn die van
-het formulier erboven.
+transactie), een **bedragvork**, de **naam** van de regel, de **prioriteit** en
+het vinkje **Regel bevestigd** (standaard aan). De categorie, de winkel en het
+land van de regel zijn die van het formulier erboven. Zo'n regel krijgt als
+herkomst *vanuit transactie*.
 
 Zo werk je ermee:
 
-- **Vink aan wat moet kloppen.** Alle aangevinkte voorwaarden moeten samen
-  kloppen. Een vinkje uit = die voorwaarde telt niet. Typ je een waarde in een
-  lege rij, dan gaat haar vinkje vanzelf aan.
+- **Vink aan wat moet kloppen.** Elke aangevinkte rij hangt met **EN** of
+  **OF** aan de aangevinkte rij erboven; bij de eerste speelt dat geen rol. EN
+  gaat voor OF, net als bij *Instellingen › Regels*. Een vinkje uit = die
+  voorwaarde telt niet. Typ je een waarde in een lege rij, dan gaat haar vinkje
+  vanzelf aan.
 - **Kort de mededeling in tot het trefwoord.** De volledige mededeling
   ("Drinkgeld week 18") past bijna nooit nog een tweede keer; één woord eruit
   (*drinkgeld*) wel. Zo maak je van "alles van Axelle" een regel "Axelle én
@@ -944,8 +1026,8 @@ Zo werk je ermee:
 - **Beschrijving.** De soort verrichting ("Uitgaande instantoverschrijving")
   maakt de regel nauwkeuriger, maar een gewone overschrijving aan dezelfde
   persoon heeft een andere beschrijving. Vink ze uit als dat niet uitmaakt.
-- **Met *bevat niet* sluit je iets uit.** Een regel moet wel minstens één
-  voorwaarde hebben die iets insluit.
+- **Met *bevat niet* sluit je iets uit.** Elke groep (wat met OF gescheiden is)
+  moet wel minstens één voorwaarde hebben die iets insluit.
 - **Probeer ze uit.** De knop **Op welke transacties past deze regel?** telt
   over je hele boekhouding hoeveel transacties erop passen: hoeveel al in de
   gekozen categorie staan, hoeveel in een andere, hoeveel zonder categorie en
@@ -962,25 +1044,26 @@ Zo werk je ermee:
 - **Meteen toepassen** (standaard aan) geeft bij het opslaan ook de andere
   transacties waarop de regel past de indeling van de regel:
   - transacties **zonder categorie**;
-  - transacties met een **gelijkenis die nog niet bevestigd is** — de
-    voorstellen met bron *Gelijkenis* in het nazicht. Dat is precies het geval
+  - transacties met een **gelijkenis of AI-voorstel dat nog niet bevestigd
+    is** — de voorstellen met bron *Gelijkenis* of *AI-model* in het nazicht. Dat is precies het geval
     waarvoor je meestal een regel maakt: de gelijkenisstap deelde een
     tegenpartij verkeerd in, je zet één transactie recht en legt vast hoe het
     hoort. De andere foute gelijkenissen van die tegenpartij gaan dan mee, en
-    staan daarna als *vaste regel*, bevestigd. Zegt de regel iets over winkel of
-    land, dan vervangt dat ook wat de gelijkenis had meegebracht.
+    staan daarna als *vaste regel* — bevestigd, of op nazicht als je de regel
+    niet bevestigde. Winkel en land worden die van de regel.
 - **Wat Meteen toepassen niet aanraakt:** wat je met de hand of via een
-  ingelezen bestand indeelde, gelijkenissen die al bevestigd zijn, voorstellen
-  van het AI-model en wat een andere regel indeelde. De melding na het opslaan
+  ingelezen bestand indeelde, gelijkenissen die al bevestigd zijn, wat je met
+  *Klopt* goedkeurde en wat een andere regel indeelde. De melding na het opslaan
   zegt hoeveel transacties er per soort meegingen. Wil je ook bevestigde
   gelijkenissen laten herzien, gebruik dan *Opnieuw indelen › Automatisch
   bevestigde gelijkenissen opnieuw bekijken*.
 
 **De prioriteit.** Leeg laten is meestal het beste. Een regel met meer dan één
-voorwaarde krijgt dan prioriteit 5, zodat ze vóór de algemene regels uit je
-referentielijst of historiek komt (die krijgen 10 tot 90): anders zou een regel
+voorwaarde krijgt dan prioriteit 5, even hoog als de bevestigde regels uit je
+historiek en vóór wat de app zelf afleidt (40 tot 90): anders zou een regel
 "alles van Axelle" altijd winnen van "Axelle én drinkgeld". Met één voorwaarde
-wordt het 50. Een lage prioriteit gaat voor.
+wordt het 50. Een lage prioriteit gaat voor; bij gelijke prioriteit de oudste
+regel.
 
 De naam van de regel wordt voorgesteld uit de tegenpartij en de aangevinkte
 mededelingen, en volgt je aanpassingen tot je hem zelf wijzigt. De regel
@@ -989,52 +1072,101 @@ bewerken.
 
 ### Regels afleiden uit je historiek
 
-Staat je historiek eenmaal ingedeeld in de databank, dan kan je daar in één keer
-een referentielijst uit laten opbouwen: **Regels uit historiek** in het menu.
+Staat je historiek eenmaal in de databank (zie 4.2), dan maak je daar in één keer
+vaste regels van: **Instellingen › Regels uit historiek**, of de knop op het
+eindscherm van de invoer.
 
-Er wordt gekeken naar elke transactie die al een categorie heeft, en per veld
-nagegaan of dat veld steeds naar dezelfde indeling verwijst. Vier soorten
-aanwijzingen doen mee, in volgorde van hoe hard ze zijn:
+**Jij kiest naar welke kolommen er gekeken wordt.** Vink een of meer kolommen
+aan: *Beschrijving*, *Naam tegenpartij*, *Rekening tegenpartij*, *Mededeling*.
+Elke combinatie van waarden in die kolommen die in je historiek voorkomt, wordt
+één regel, met *is precies gelijk aan* op elke gekozen kolom. Kies je
+*Beschrijving* en *Naam tegenpartij*, dan wordt "Betaling Bancontact" +
+"COLRUYT GENT" één regel, en "Overschrijving" + "COLRUYT GENT" een andere. Kies
+je alleen *Naam tegenpartij*, dan krijg je één regel per tegenpartij.
 
-| Aanwijzing                        | Waarom ze werkt |
-|-----------------------------------|-----------------|
-| Rekeningnummer én beschrijving    | Het IBAN alleen volstaat niet; samen met de beschrijving wel |
-| Gestructureerde mededeling        | Het `+++...+++`-nummer hoort bij één schuldeiser |
-| Beschrijving plus tegenpartij     | Onderscheidt een aankoop van een overschrijving aan dezelfde naam |
-| Tegenpartij alleen                | Breed inzetbaar, maar botst het vaakst |
+- Wijst een combinatie in je hele historiek naar **één categorie**, dan wordt het
+  een **bevestigde** regel met **prioriteit 5** (herkomst *historiek*).
+- Wijst ze naar **meer dan één categorie**, dan wordt het een **onbevestigde**
+  regel naar de categorie die het vaakst voorkwam, met prioriteit 90 (herkomst
+  *historiek, meerdere categorieën*). Wat ze indeelt, komt op nazicht.
+- Een transactie waarbij een van de gekozen kolommen **leeg** is, wordt
+  overgeslagen; het overzicht zegt hoeveel.
+
+Verder kies je:
+
+- **Waarop baseren** — alleen de ingelezen historiek (uit een bestand), of alles
+  wat een mens indeelde: ook wat je met de hand indeelde of met *Klopt*
+  goedkeurde. Wat een regel of de gelijkenisstap zelf indeelde, telt nooit mee.
+- **Inkomsten en uitgaven apart houden** (standaard aan) — dan wordt een
+  combinatie per soort beoordeeld, en geldt de regel alleen voor die soort.
+- **De app mag zelf bijkomende regels afleiden** (standaard aan) — zie hieronder.
+
+**Wat de app zelf afleidt.** Alleen voor de transacties die je keuze niet
+eenduidig dekt: omdat hun combinatie naar meer dan één categorie wees, of omdat
+een gekozen kolom leeg was. En alleen onder deze voorwaarden:
+
+- de regel **combineert minstens twee velden**. De datum en of het om een inkomst
+  of een uitgave gaat, tellen daarbij niet mee. Het bedrag, als bedragvork, telt
+  wel;
+- de combinatie wijst in je **hele** historiek naar één categorie, en steunt op
+  **minstens twee transacties**;
+- de regel is **altijd onbevestigd** (herkomst *afgeleid uit historiek*); wat ze
+  indeelt, komt dus op nazicht tot je haar bevestigt.
+
+De combinaties die de app probeert, sterkste eerst:
+
+| Combinatie                                   | Prioriteit |
+|----------------------------------------------|------------|
+| rekening tegenpartij én beschrijving         | 50         |
+| beschrijving én tegenpartij                  | 50         |
+| tegenpartij én gestructureerde mededeling (`+++…+++`) | 50 |
+| tegenpartij én volledige mededeling          | 50         |
+| tegenpartij én bedragvork                    | 40         |
+
+Een combinatie die gelijk is aan je eigen keuze, wordt overgeslagen. Een
+bedragvork komt er alleen als een tegenpartij naar precies twee categorieën
+wijst en het bedrag die netjes scheidt: alle broodjes bij het tankstation onder
+de tien euro, alle tankbeurten erboven. Dan legt de app een grens en maakt ze er
+twee onbevestigde regels van.
 
 > **Een rekeningnummer alleen deelt niets in.** Betaalverwerkers innen voor
-> tientallen handelaars vanaf één IBAN. Dat nummer wijst dan naar evenveel
-> categorieën en levert enkel een regel op die om nazicht blijft vragen. Het
-> telt daarom alleen mee samen met de beschrijving, als gecombineerde regel.
+> tientallen handelaars vanaf één IBAN. Daarom leidt de app het alleen af samen
+> met de beschrijving. Kies je zelf enkel *Rekening tegenpartij*, dan mag dat
+> natuurlijk wel; zo'n combinatie wordt onbevestigd zodra ze naar meer dan één
+> categorie wijst.
 
-Verwijst een aanwijzing naar meerdere categorieën, dan wordt eerst geprobeerd of
-het **bedrag** de gevallen scheidt. Zijn alle broodjes bij het tankstation onder
-de tien euro en alle tankbeurten erboven, dan legt de toepassing daar zelf een
-grens en maakt ze er twee regels van. Overlappen de bedragen wel, dan komt er
-een regel die om bevestiging blijft vragen.
+**De naam van een regel** is de categorie, gevolgd door de mededeling als die
+korter is dan 30 tekens, en anders door de tegenpartij. Bijvoorbeeld *Sparen ›
+Zicht E — Aanvul zicht E* of *Boodschappen › Supermarkt — COLRUYT GENT*.
 
-Je krijgt eerst een overzicht van wat eruit zou komen. Pas als je bevestigt,
-wordt er weggeschreven. Regels die je zelf hebt ingevoerd en regels uit een
-categorieënbestand blijven daarbij staan.
+Je krijgt eerst een overzicht: hoeveel bevestigde en onbevestigde regels eruit
+komen, hoeveel de app zelf afleidt en op welke combinaties, en een greep uit de
+regels met hun naam en voorwaarden. Pas je de keuzes aan, klik dan **Opnieuw
+berekenen**. Pas als je op **… regels wegschrijven** klikt, wordt er iets
+weggeschreven.
 
-Bij het wegschrijven kies je of er daarna meteen opnieuw ingedeeld wordt, en
-hoever dat gaat: alleen wat nog geen categorie heeft, of alles wat nog niet
-bevestigd is. Het eerste is het veilige bereik.
+Bij het wegschrijven:
 
-Het wegschrijven loopt in de achtergrond, met een voortgangsmeter. Bij duizenden
-regels duurt dat even, en de balk loopt door twee fasen: eerst de regels, dan de
-herindeling. Je mag het venster gerust open laten staan; sluit je het toch, dan
-loopt het werk gewoon door. Vooraf wordt er een kopie van de databank gelegd.
+- **De regels die eerder uit de historiek zijn gemaakt, eerst wissen** (standaard
+  aan). Vink het uit om een tweede reeks toe te voegen, op andere kolommen.
+  Regels die je zelf maakte, die uit een transactie of uit het nazicht komen,
+  blijven hoe dan ook staan.
+- **Daarna** — *alle regels opnieuw toepassen* (standaard), *opnieuw indelen met
+  de hele motor* voor alles wat nog niet bevestigd is, of niets.
+
+Het wegschrijven loopt in de achtergrond, met een voortgangsmeter. Je mag het
+venster gerust open laten staan; sluit je het toch, dan loopt het werk gewoon
+door. Vooraf wordt er een kopie van de databank gelegd. De historiek zelf blijft
+altijd staan zoals ze is ingelezen.
 
 ### Alles opnieuw laten indelen
 
-Heb je regels toegevoegd of je referentielijst vernieuwd? Klik dan op **Opnieuw
+Heb je regels toegevoegd of je historiek opnieuw ingelezen? Klik dan op **Opnieuw
 indelen** bij het nazicht. Daar kies je eerst hoever het gaat:
 
 **Alleen wat nog geen categorie heeft** — de standaard, en het veilige bereik.
 Alles wat al ergens in zit blijft staan zoals het staat, met de bron erbij. Dit
-is wat je wil na het inlezen van een referentielijst of een historiek waarin al
+is wat je wil na het inlezen van een historiek waarin al
 werk zit.
 
 **Alles wat nog niet bevestigd is** — ook transacties die al een categorie
@@ -1123,16 +1255,39 @@ die ingedeeld werden door een regel die om bevestiging vraagt. Per rij zie je:
   bevestiging vraagt staat *vraagt bevestiging*.
 
 Klopt het, klik dan **Klopt**. De transactie staat dan als *nagekeken*: geen
-herindeling en geen regel komt er nog aan. Staat *Bij elke bevestiging een vaste
-regel bijleren* aan (*Instellingen › Automatisch indelen*), dan komt er meteen
-een regel bij op de naam van de tegenpartij van déze transactie — niet op de
+herindeling en geen regel komt er nog aan.
+
+**Klopt bij een gelijkenis of AI-voorstel: een regel bijleren.** Staat *Bij elke
+bevestiging een vaste regel bijleren* aan (*Instellingen › Automatisch
+indelen*), dan maakt *Klopt* bij een gelijkenis of een AI-voorstel meteen een
+regel: *naam tegenpartij bevat …*, op de naam van déze transactie — niet op de
 winkel die de gelijkenis voorstelde, want die kwam van een andere transactie.
+Die regel:
+
+- krijgt **prioriteit 5** en als herkomst *gelijkenis (Klopt)* of *AI-voorstel
+  (Klopt)*;
+- is **nog niet bevestigd**;
+- wordt je **meteen getoond**: je komt op het scherm *Nieuwe regel nakijken*,
+  waar je haar kan bijsturen — een trefwoord uit de mededeling erbij, een
+  bedragvork, een andere naam.
+
+Vink daar **Regel bevestigd** aan en bewaar: dan geldt de regel als bevestigd en
+staat wat ze indeelt meteen als bevestigd. Bewaar je zonder vinkje, of klik je
+op **Later nakijken** (of ga je gewoon weg), dan blijft de regel bestaan maar
+onbevestigd: wat ze indeelt, komt op nazicht. Na het bewaren kom je terug op
+het nazicht. Bestond er al een regel op die naam naar dezelfde categorie, dan
+komt er geen tweede bij en blijf je op het nazicht.
+
+Bij een transactie die door een regel werd ingedeeld, maakt *Klopt* geen nieuwe
+regel: die regel bestaat al. Bevestig ze dan via **Naar de regel**. Ook
+**Alle voorstellen bevestigen** leert geen regels bij.
+
 Klopt het niet, klik **Aanpassen**. Deelde de
 gelijkenisstap een tegenpartij verkeerd in, maak dan in dat scherm meteen een
 vaste regel (zie [Een vaste regel maken vanuit een
 transactie](#een-vaste-regel-maken-vanuit-een-transactie)): met **Meteen
-toepassen** worden de andere onbevestigde gelijkenissen waarop de regel past bij
-het opslaan mee rechtgezet. In dat
+toepassen** worden de andere onbevestigde gelijkenissen en AI-voorstellen waarop
+de regel past bij het opslaan mee rechtgezet. In dat
 scherm kan je met **Zoek de tegenpartij op het internet** bekijken wat Brave
 over de tegenpartij vindt, dezelfde informatie die het AI-model krijgt (zie
 [Stap 3](#stap-3-het-lokale-ai-model)). Bij een
@@ -1221,7 +1376,8 @@ bibliotheken. Ze werken dus ook zonder internet.
 | Rekeningen            | Rekeningen toevoegen en aanpassen                           |
 | Categorieën           | De boom van drie niveaus beheren                            |
 | Regels                | Vaste regels toevoegen, bewerken, uitzetten en verwijderen  |
-| Referentielijst       | Een categorieënbestand inlezen                              |
+| Categorielijst        | Categorieën inlezen uit een Excel-bestand                   |
+| Regels uit historiek  | Vaste regels maken uit je ingelezen historiek               |
 | Automatisch indelen   | Drempels en het AI-model                                    |
 | Gebruikers            | Extra gebruikers, alleen voor beheerders                    |
 | Kopieën               | Kopieën van de databank terugzetten, alleen voor beheerders |
@@ -1344,7 +1500,7 @@ gedaan.
 Er komt automatisch een kopie vóór elke ingreep die je indeling in één keer kan
 herschrijven:
 
-- een referentielijst inlezen;
+- een categorielijst inlezen;
 - een historiek of een ander bestand inlezen;
 - regels afleiden uit je historiek;
 - een herindeling;

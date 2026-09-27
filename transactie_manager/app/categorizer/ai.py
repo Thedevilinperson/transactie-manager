@@ -653,9 +653,22 @@ def stel_voor(conn, crypto, k: TransactieKenmerken, gebruiker: str | None = None
     return voorstel
 
 
-def maak_regel_van_voorstel(conn, crypto, k: TransactieKenmerken, voorstel: Voorstel) -> None:
-    """Legt een bevestigd AI- of fuzzy-voorstel vast als vaste regel."""
-    from ..database import now_iso
+def maak_regel_van_voorstel(conn, crypto, k: TransactieKenmerken, voorstel: Voorstel,
+                            herkomst: str = "gelijkenis", mededeling: str = "",
+                            pad: str = "") -> tuple[int | None, bool]:
+    """Legt een voorstel dat je met *Klopt* bevestigde vast als vaste regel.
+
+    De regel komt er **onbevestigd** en met prioriteit 5: het nazicht stuurt je
+    er meteen naartoe om ze na te kijken en te bevestigen (zie
+    routes/transacties.bevestigen). Doe je dat niet, dan blijft ze staan maar
+    komt wat ze indeelt op nazicht.
+
+    Geeft (regel_id, nieuw) terug. Bestaat er al een regel op deze naam naar
+    dezelfde categorie, dan komt er geen tweede en is `nieuw` False. Zonder
+    naam valt er niets vast te leggen: (None, False).
+    """
+    from ..regelopslag import PRIORITEIT_BEVESTIGD, regelnaam, schrijf_regel
+    from .engine import Voorwaarde
 
     # De naam van déze transactie, niet de winkel uit het voorstel. Die winkel
     # komt bij een gelijkenis van de transactie waarop ze leek ("MAES OLSENE"
@@ -664,24 +677,23 @@ def maak_regel_van_voorstel(conn, crypto, k: TransactieKenmerken, voorstel: Voor
     # de winkel.
     waarde = " ".join((k.tegenpartij_naam or voorstel.handelaar or "").split())
     if not waarde:
-        return
+        return None, False
     bestaand = conn.execute(
         "SELECT id FROM regels WHERE waarde_idx = ? AND veld='tegenpartij_naam'"
-        " AND IFNULL(categorie_id,0)=IFNULL(?,0) AND IFNULL(subcategorie_id,0)=IFNULL(?,0)",
-        (crypto.blind(normalize(waarde)), voorstel.categorie_id, voorstel.subcategorie_id),
+        " AND IFNULL(categorie_id,0)=IFNULL(?,0) AND IFNULL(subcategorie_id,0)=IFNULL(?,0)"
+        " AND IFNULL(subsub_id,0)=IFNULL(?,0)",
+        (crypto.blind(normalize(waarde)), voorstel.categorie_id, voorstel.subcategorie_id,
+         voorstel.subsub_id),
     ).fetchone()
     if bestaand:
-        return
-    conn.execute(
-        "INSERT INTO regels (naam_enc, prioriteit, veld, operator, waarde_enc, waarde_idx,"
-        " richting, categorie_id, subcategorie_id, subsub_id, handelaar_enc, land_enc,"
-        " aangemaakt_op) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-        (
-            crypto.enc(f"Geleerd van {waarde}"), 50, "tegenpartij_naam", "bevat",
-            crypto.enc(normalize(waarde)), crypto.blind(normalize(waarde)),
-            k.richting, voorstel.categorie_id, voorstel.subcategorie_id, voorstel.subsub_id,
-            crypto.enc(voorstel.handelaar) if voorstel.handelaar else None,
-            crypto.enc(voorstel.land) if voorstel.land else None,
-            now_iso(),
-        ),
+        return bestaand["id"], False
+    regel_id = schrijf_regel(
+        conn, crypto,
+        naam=regelnaam(pad, mededeling, waarde, reserve=waarde),
+        prioriteit=PRIORITEIT_BEVESTIGD,
+        voorwaarden=[Voorwaarde("tegenpartij_naam", "bevat", normalize(waarde))],
+        ids=(voorstel.categorie_id, voorstel.subcategorie_id, voorstel.subsub_id),
+        richting=k.richting, handelaar=voorstel.handelaar, land=voorstel.land,
+        herkomst=herkomst, bevestigd=False,
     )
+    return regel_id, True

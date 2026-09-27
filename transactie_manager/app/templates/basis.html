@@ -41,7 +41,7 @@
       <a href="{{ url_for('instellingen.rekeningen') }}"
          class="{{ 'actief' if (request.blueprint == 'instellingen'
                    and request.endpoint != 'instellingen.handleiding')
-                   or 'referentielijst' in (request.endpoint or '')
+                   or 'categorielijst' in (request.endpoint or '')
                    or 'historiek' in (request.endpoint or '') }}">Instellingen</a>
       <a href="{{ url_for('instellingen.handleiding') }}"
          class="{{ 'actief' if request.endpoint == 'instellingen.handleiding' }}">Handleiding</a>

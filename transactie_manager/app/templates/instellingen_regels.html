@@ -1,7 +1,7 @@
 {% extends "basis.html" %}
 {% from "_instellingentabs.html" import instellingentabs %}
 {% from "_kiezer.html" import categoriekiezer %}
-{% from "_regelvoorwaarden.html" import extra_voorwaarden, toon_voorwaarden %}
+{% from "_regelvoorwaarden.html" import extra_voorwaarden, toon_voorwaarden, regelstatus %}
 {% block titel %}Regels{% endblock %}
 
 {% macro kop(sleutel, label, klasse='') %}
@@ -31,8 +31,11 @@
   <h2>Regel toevoegen</h2>
   <p>Een bedragvork laat toe dezelfde tegenpartij anders in te delen: onder
     10 euro bij Total is een winkelaankoop, vanaf 10 euro is het tanken. Wil je
-    velden combineren, vul dan onder <em>En ook</em> bijkomende voorwaarden in;
-    ze moeten dan allemaal kloppen.</p>
+    velden combineren, vul dan onder <em>Bijkomende voorwaarden</em> meer rijen
+    in, elk met <strong>EN</strong> (moet óók kloppen) of <strong>OF</strong>
+    (een alternatief). Een nieuwe regel wordt meteen losgelaten op transacties
+    zonder categorie en op gelijkenissen of AI-voorstellen die nog niet
+    bevestigd zijn.</p>
 
   <form method="post" data-categoriekiezer style="margin-top:14px">
     <input type="hidden" name="actie" value="toevoegen">
@@ -45,10 +48,9 @@
       <div class="veld">
         <label for="veld">Kijk naar</label>
         <select id="veld" name="veld">
-          <option value="tegenpartij_naam">Naam tegenpartij</option>
-          <option value="tegenpartij_rekening">Rekening tegenpartij</option>
-          <option value="mededeling">Mededeling</option>
-          <option value="alles">Alle tekstvelden samen</option>
+          {% for sleutel, label in veldnamen.items() %}
+            <option value="{{ sleutel }}">{{ label }}</option>
+          {% endfor %}
         </select>
       </div>
       <div class="veld">
@@ -105,6 +107,12 @@
     {{ extra_voorwaarden(veldnamen, extra_operatoren) }}
 
     {{ categoriekiezer(keuzes) }}
+
+    <div class="keuzeregel" style="margin:4px 0 12px">
+      <input type="checkbox" id="nieuw_bevestigd" name="bevestigd" value="1" checked>
+      <label for="nieuw_bevestigd"><strong>Regel bevestigd</strong> — wat ze
+        indeelt, staat meteen als bevestigd. Zonder vinkje komt het op nazicht.</label>
+    </div>
 
     <button type="submit">Regel toevoegen</button>
   </form>
@@ -166,13 +174,23 @@
         </select>
       </div>
       <div class="fveld">
-        <label for="bevestigd_f">Nagekeken</label>
+        <label for="bevestigd_f">Bevestigd</label>
         <select id="bevestigd_f" name="bevestigd_f">
           <option value="">Alle regels</option>
           <option value="ja" {{ 'selected' if filters.bevestigd == 'ja' }}>
             Alleen bevestigde</option>
           <option value="nee" {{ 'selected' if filters.bevestigd == 'nee' }}>
-            Alleen nog niet nagekeken</option>
+            Alleen onbevestigde</option>
+        </select>
+      </div>
+      <div class="fveld">
+        <label for="herkomst_f">Herkomst</label>
+        <select id="herkomst_f" name="herkomst_f">
+          <option value="">Alle</option>
+          {% for sleutel, label in herkomsten.items() %}
+            <option value="{{ sleutel }}" {{ 'selected' if filters.herkomst == sleutel }}>
+              {{ label }}</option>
+          {% endfor %}
         </select>
       </div>
       <div class="fveld">
@@ -236,7 +254,8 @@
             {{ kop('bedrag', 'Bedrag') }}
             {{ kop('indeling', 'Indeling') }}
             {{ kop('treffers', 'Treffers', 'getal') }}
-            {{ kop('bevestigd', 'Nagekeken') }}
+            {{ kop('herkomst', 'Herkomst') }}
+            {{ kop('bevestigd', 'Bevestigd') }}
             {{ kop('actief', 'Actief') }}
             <th></th>
           </tr>
@@ -269,9 +288,8 @@
                   <a href="{{ url_for('tx.lijst', regel=r.id) }}">{{ r.treffers }}</a>
                 {% else %}0{% endif %}
               </td>
-              <td>{% if r.bevestigd_op %}
-                  <span class="merkje zeker" title="Bevestigd op {{ r.bevestigd_op[:10] }}{% if r.bevestigd_door %} door {{ r.bevestigd_door }}{% endif %}">✓ ja</span>
-                {% else %}<span class="klein-detail">nog niet</span>{% endif %}</td>
+              <td><span class="merkje herkomst" title="{{ r.herkomst_tekst }}">{{ r.herkomst_kort }}</span></td>
+              <td>{{ regelstatus(r) }}</td>
               <td>{% if r.actief %}ja
                 {% else %}<span class="merkje geen">uitgezet</span>{% endif %}</td>
               <td>
