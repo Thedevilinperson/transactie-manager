@@ -9,7 +9,7 @@ from flask import g
 
 from .config import DB_PATH, DEFAULT_SETTINGS
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS app_meta (
@@ -184,6 +184,7 @@ CREATE TABLE IF NOT EXISTS transacties (
     tegenboeking_tx_id       INTEGER REFERENCES transacties(id) ON DELETE SET NULL,
     kaartafrekening          INTEGER,
     nagekeken                INTEGER NOT NULL DEFAULT 0,
+    auto_velden              TEXT,  -- bv. 'handelaar,land': door de motor ingevuld
     aangemaakt_op            TEXT NOT NULL,
     gewijzigd_op             TEXT NOT NULL
 );
@@ -317,6 +318,28 @@ def _migreer(conn: sqlite3.Connection) -> None:
     # herindeling.markeer_eerder_nagekeken), want die staat versleuteld.
     if "nagekeken" not in tx_kolommen:
         conn.execute("ALTER TABLE transacties ADD COLUMN nagekeken INTEGER NOT NULL DEFAULT 0")
+
+    # Schemaversie 11: een transactie onthoudt welke van winkel en land de motor
+    # zelf heeft ingevuld (een regel, een gelijkenis of het AI-model). Die horen
+    # bij de automatische indeling en gaan mee weg wanneer die indeling
+    # verandert; anders bleef bij een herbeoordeling de winkel of het land van
+    # een oude gelijkenis staan naast een nieuwe categorie.
+    #
+    # Bestaande rijen: bij wat niet beschermd is, kwamen winkel en land tot nu
+    # toe enkel uit de motor — de enige andere weg, het aanvullen vanuit een
+    # opnieuw ingelezen bestand, vulde alleen lege velden en is zeldzaam. Die
+    # rijen krijgen dus het merkteken voor wat er ingevuld staat. Wat beschermd
+    # is (met de hand, uit een bestand, nagekeken), blijft zonder: daar raakt de
+    # motor toch nooit aan.
+    if "auto_velden" not in tx_kolommen:
+        conn.execute("ALTER TABLE transacties ADD COLUMN auto_velden TEXT")
+        conn.execute("""
+            UPDATE transacties SET auto_velden = NULLIF(
+                CASE WHEN handelaar_enc IS NOT NULL THEN 'handelaar' ELSE '' END
+                || CASE WHEN handelaar_enc IS NOT NULL AND land_enc IS NOT NULL
+                        THEN ',' ELSE '' END
+                || CASE WHEN land_enc IS NOT NULL THEN 'land' ELSE '' END, '')
+            WHERE methode NOT IN ('manueel', 'bestand') AND nagekeken = 0""")
 
     # Schemaversie 9: een categorie kan een omschrijving hebben — wat jij
     # eronder verstaat, in trefwoorden. Die gaat mee naar het AI-model, dat

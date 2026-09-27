@@ -14,7 +14,7 @@ from ..categories import laad_alles
 from ..categorizer import ai
 from .. import regelmaker, taken
 from ..database import connect, get_db, log
-from ..transacties import haal, werk_bij
+from ..transacties import automatische_velden, haal, werk_bij
 
 bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -159,8 +159,9 @@ def _bevraag(taak, tx_id: int, crypto, gebruiker: str) -> dict:
             categorie_id=voorstel.categorie_id,
             subcategorie_id=voorstel.subcategorie_id,
             subsub_id=voorstel.subsub_id,
-            handelaar=voorstel.handelaar or tx.handelaar,
-            land=voorstel.land or tx.land,
+            **automatische_velden(
+                conn.execute("SELECT * FROM transacties WHERE id = ?",
+                             (tx_id,)).fetchone(), crypto, voorstel),
             zekerheid=voorstel.zekerheid,
             methode="ai",
             status="nazicht",

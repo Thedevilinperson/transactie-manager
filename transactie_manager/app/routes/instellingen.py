@@ -15,8 +15,8 @@ from ..config import VERSION
 from .. import handleiding as hl
 from ..database import connect, get_db, instelling, log, now_iso, zet_instelling
 from ..regelonderhoud import (BEWERKT_TOELICHTING, UIT_TOELICHTING, WIS_TOELICHTING,
-                              Uitkomst, hangende_transacties, herbekijk, herbekijk_alles,
-                              maak_zeker, pas_toe, verslag)
+                              Uitkomst, hangende_transacties, herbekijk,
+                              maak_zeker, pas_alle_regels_opnieuw_toe, pas_toe, verslag)
 
 bp = Blueprint("instellingen", __name__, url_prefix="/instellingen")
 
@@ -448,12 +448,8 @@ def regels():
                 flash("Regel weer aangezet. " + verslag(uit), "goed")
 
         elif actie == "alles":
-            backup.maak("regels_opnieuw")
-            uit = herbekijk_alles(conn, crypto)
+            uit = pas_alle_regels_opnieuw_toe(conn, crypto, g.gebruiker)
             conn.commit()
-            log(conn, crypto, g.gebruiker, "regels opnieuw toegepast",
-                f"gewist={uit.gewist} anders={uit.overgenomen} erbij={uit.erbij}"
-                f" vervangen={uit.vervangen}")
             flash("Alle regels opnieuw toegepast. " + verslag(uit), "goed")
 
         return redirect(bestemming)

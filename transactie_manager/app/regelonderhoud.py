@@ -19,7 +19,7 @@ stappen, in deze volgorde:
 Die volgorde is wezenlijk: na stap 2 valt niet meer te achterhalen wat er aan de
 oude regel hing.
 
-Twee dingen blijven bewust ongemoeid:
+Eén ding blijft bewust ongemoeid:
 
 * wat je zelf hebt ingedeeld (`methode='manueel'`), wat uit een ingelezen
   bestand kwam (`methode='bestand'`) en wat je met *Klopt* bevestigde
@@ -28,9 +28,14 @@ Twee dingen blijven bewust ongemoeid:
   uitzondering is een voorstel dat nog niet bevestigd is: een regel die je
   vanuit een transactie maakt, mag een onbevestigde gelijkenis overnemen (zie
   `pas_toe`), en *Alle regels opnieuw toepassen* ook een onbevestigd
-  AI-voorstel (zie `herbekijk_alles`);
-* handelaar en land. Die staan los van de indeling, en een regel is meestal niet
-  de enige plek waar ze vandaan komen.
+  AI-voorstel (zie `herbekijk_alles`).
+
+Winkel en land volgen de indeling. Heeft de motor ze ingevuld — een regel, een
+gelijkenis of het AI-model — dan gaan ze mee weg wanneer die indeling
+verandert, en krijgt de transactie wat de nieuwe regel zegt, of niets. Tot
+versie 0.31.0 bleven ze staan, wat rare combinaties gaf: de winkel van een
+oude gelijkenis naast de categorie van een regel. Wat een mens of een bestand
+invulde, blijft wel staan (zie `automatische_velden`).
 """
 
 from __future__ import annotations
@@ -40,9 +45,10 @@ from collections import Counter
 from dataclasses import dataclass
 
 from .categorizer.engine import Regelboek, laad_regels, naar_voorstel
-from .database import now_iso
-from .transacties import (NIET_BESCHERMD_SQL, is_beschermd, rij_naar_object,
-                          werk_bij)
+from . import backup
+from .database import log, now_iso
+from .transacties import (NIET_BESCHERMD_SQL, automatische_velden, is_beschermd,
+                          rij_naar_object, werk_bij)
 
 WIS_TOELICHTING = "De regel die deze transactie indeelde, bestaat niet meer."
 UIT_TOELICHTING = "De regel die deze transactie indeelde, staat uit."
@@ -60,6 +66,7 @@ class Uitkomst:
     erbij: int = 0         # had geen categorie en kreeg er alsnog een
     vervangen: int = 0     # onbevestigde gelijkenis of AI-voorstel, nu door een regel
     bevestigd: int = 0     # zelfde categorie, maar niet langer op nazicht
+    velden: int = 0        # zelfde categorie, maar winkel of land rechtgezet
 
 
 def hangende_transacties(conn, crypto, regel_id: int) -> list[int]:
@@ -107,7 +114,8 @@ def herbekijk(conn, crypto, tx_ids: list[int], *,
 
     Wijst de passende regel nog naar dezelfde categorie, dan wordt er niets
     aangepast aan de indeling. Wel wordt dan alsnog vastgelegd wélke regel het
-    is, voor rijen van vóór schemaversie 4 waar dat nog nergens stond.
+    is, voor rijen van vóór schemaversie 4 waar dat nog nergens stond, en
+    krijgen winkel en land wat die regel zegt als de motor ze invulde.
     """
     uit = Uitkomst()
     if not tx_ids:
@@ -127,6 +135,7 @@ def herbekijk(conn, crypto, tx_ids: list[int], *,
             werk_bij(
                 conn, crypto, tx.id,
                 categorie_id=None, subcategorie_id=None, subsub_id=None,
+                **automatische_velden(row, crypto),
                 zekerheid=0.0, methode="geen", status="nazicht",
                 toelichting=toelichting, regel_id=None,
             )
@@ -138,6 +147,13 @@ def herbekijk(conn, crypto, tx_ids: list[int], *,
                   and vervanger.subsub_id == row["subsub_id"])
         if zelfde:
             voorstel = naar_voorstel(vervanger)
+            # Winkel en land zoals deze regel ze wil. Stond er nog iets van een
+            # gelijkenis of van een vorige regel, dan gaat dat nu weg.
+            velden = automatische_velden(row, crypto, voorstel)
+            veldwerk = {}
+            if (velden["handelaar"] != tx.handelaar or velden["land"] != tx.land
+                    or velden["auto_velden"] != row["auto_velden"]):
+                veldwerk = velden
             if row["status"] == "nazicht" and voorstel.status == "bevestigd":
                 # Zelfde categorie, maar de regel is ondertussen zeker
                 # geworden (bewerkt of bevestigd). Dan hoeft de transactie
@@ -147,13 +163,18 @@ def herbekijk(conn, crypto, tx_ids: list[int], *,
                     conn, crypto, tx.id,
                     zekerheid=voorstel.zekerheid, status=voorstel.status,
                     toelichting=voorstel.toelichting, regel_id=vervanger.id,
+                    **veldwerk,
                 )
                 uit.bevestigd += 1
                 continue
-            # Alleen de band met de regel vastleggen; de indeling klopt al.
-            if row["regel_id"] != vervanger.id:
-                werk_bij(conn, crypto, tx.id, regel_id=vervanger.id)
-            uit.ongewijzigd += 1
+            # De indeling klopt al. De band met de regel vastleggen, en winkel
+            # en land rechtzetten als die niet bij deze regel horen.
+            if row["regel_id"] != vervanger.id or veldwerk:
+                werk_bij(conn, crypto, tx.id, regel_id=vervanger.id, **veldwerk)
+            if veldwerk:
+                uit.velden += 1
+            else:
+                uit.ongewijzigd += 1
             continue
 
         voorstel = naar_voorstel(vervanger)
@@ -162,6 +183,7 @@ def herbekijk(conn, crypto, tx_ids: list[int], *,
             categorie_id=voorstel.categorie_id,
             subcategorie_id=voorstel.subcategorie_id,
             subsub_id=voorstel.subsub_id,
+            **automatische_velden(row, crypto, voorstel),
             zekerheid=voorstel.zekerheid,
             methode=voorstel.methode,
             status=voorstel.status,
@@ -182,11 +204,6 @@ ONBEVESTIGDE_GELIJKENIS_SQL = "(methode = 'fuzzy' AND status <> 'bevestigd')"
 # dan is het nagekeken en dus beschermd. De statusvoorwaarde staat er toch, voor
 # het geval dat ooit verandert.
 ONBEVESTIGD_AI_SQL = "(methode = 'ai' AND status <> 'bevestigd')"
-
-# Deze methoden brengen een winkel en een land mee van hun eigen gok. Neemt een
-# regel het over, dan gelden de winkel en het land van de regel, als ze er een
-# heeft.
-GOKMETHODEN = ("fuzzy", "ai")
 
 
 def pas_toe_geteld(conn, crypto, regel_id: int | None = None, *,
@@ -225,16 +242,6 @@ def pas_toe_geteld(conn, crypto, regel_id: int | None = None, *,
         if regel is None:
             continue
         voorstel = naar_voorstel(regel)
-        extra = {}
-        if row["methode"] in GOKMETHODEN:
-            # De gelijkenis bracht ook een winkel en een land mee, van de
-            # transactie waarop ze leek; het AI-model deed hetzelfde. Zegt de
-            # regel er iets over, dan geldt de regel; anders blijft staan wat
-            # er stond.
-            if voorstel.handelaar:
-                extra["handelaar"] = voorstel.handelaar
-            if voorstel.land:
-                extra["land"] = voorstel.land
         werk_bij(
             conn, crypto, tx.id,
             categorie_id=voorstel.categorie_id,
@@ -245,7 +252,11 @@ def pas_toe_geteld(conn, crypto, regel_id: int | None = None, *,
             status=voorstel.status,
             toelichting=voorstel.toelichting,
             regel_id=regel.id,
-            **extra,
+            # De gelijkenis bracht een winkel en een land mee van de transactie
+            # waarop ze leek, het AI-model deed hetzelfde. Die horen bij die
+            # gok en gaan mee weg; de transactie krijgt wat de regel zegt, of
+            # niets als de regel er niets over zegt.
+            **automatische_velden(row, crypto, voorstel),
         )
         telling[{"fuzzy": "gelijkenis", "ai": "ai"}.get(row["methode"], "zonder")] += 1
     return telling
@@ -303,6 +314,26 @@ def herbekijk_alles(conn, crypto) -> Uitkomst:
     return uit
 
 
+def pas_alle_regels_opnieuw_toe(conn, crypto, gebruiker: str) -> Uitkomst:
+    """De knop *Alle regels opnieuw toepassen*, bij de regels en in het nazicht.
+
+    Legt eerst een kopie van de databank, voert `herbekijk_alles` uit en
+    schrijft het resultaat in het logboek. Vastleggen (commit) doet de
+    aanroeper.
+    """
+    backup.maak("regels_opnieuw")
+    uit = herbekijk_alles(conn, crypto)
+    log(conn, crypto, gebruiker, "regels opnieuw toegepast",
+        f"gewist={uit.gewist} anders={uit.overgenomen} erbij={uit.erbij}"
+        f" vervangen={uit.vervangen} velden={uit.velden}")
+    return uit
+
+
+def veranderd(uit: Uitkomst) -> int:
+    """Hoeveel transacties er werkelijk iets veranderde."""
+    return uit.gewist + uit.overgenomen + uit.erbij + uit.vervangen + uit.bevestigd + uit.velden
+
+
 def verslag(uit: Uitkomst) -> str:
     """Eén zin over wat er met de transacties gebeurd is."""
     stukken = []
@@ -323,6 +354,9 @@ def verslag(uit: Uitkomst) -> str:
     if uit.bevestigd:
         stukken.append(f"{uit.bevestigd} {'staat' if uit.bevestigd == 1 else 'staan'}"
                        " niet langer op nazicht")
+    if uit.velden:
+        stukken.append(f"bij {uit.velden} {'transactie' if uit.velden == 1 else 'transacties'}"
+                       " werden winkel of land rechtgezet")
     if not stukken:
         if uit.ongewijzigd:
             return (f"{uit.ongewijzigd} "
@@ -330,6 +364,7 @@ def verslag(uit: Uitkomst) -> str:
                     " aan een regel en die wijst nog altijd naar dezelfde categorie.")
         return "Er veranderde niets aan je transacties."
     zin = " en ".join(stukken) + "."
+    zin = zin[0].upper() + zin[1:]
     if uit.ongewijzigd:
         zin += f" {uit.ongewijzigd} bleven staan zoals ze stonden."
     return zin
@@ -399,7 +434,7 @@ def herstel_bewerkte_onzekere_regels(conn, crypto) -> Uitkomst | None:
         hingen = hangende_transacties(conn, crypto, regel_id)
         maak_zeker(conn, regel_id)
         deel = herbekijk(conn, crypto, hingen, toelichting=BEWERKT_TOELICHTING)
-        for veld in ("overgenomen", "gewist", "ongewijzigd", "bevestigd"):
+        for veld in ("overgenomen", "gewist", "ongewijzigd", "bevestigd", "velden"):
             setattr(uit, veld, getattr(uit, veld) + getattr(deel, veld))
 
     conn.execute("INSERT INTO app_meta (sleutel, waarde) VALUES (?, ?)",

@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.31.0
+Versie 0.32.0
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -639,17 +639,46 @@ Wat blijft staan:
 - een onbevestigde gelijkenis of een AI-voorstel waar geen enkele regel op
   past. Dat blijft gewoon op nazicht staan.
 
-Neemt een regel een gelijkenis of AI-voorstel over, dan krijgt de transactie ook
-de winkel en het land van de regel, als de regel er een heeft. Heeft ze er geen,
-dan blijven winkel en land staan zoals de gelijkenis ze had ingevuld.
+Neemt een regel een gelijkenis of AI-voorstel over, dan krijgt de transactie de
+winkel en het land van de regel. Zegt de regel daar niets over, dan worden ze
+leeggemaakt: wat de gelijkenis had ingevuld, kwam van de transactie waarop ze
+leek en hoort niet bij de nieuwe indeling. Zie [Winkel en land volgen de
+indeling](#winkel-en-land-volgen-de-indeling).
 
-Drie dingen blijven ongemoeid. Wat je zelf hebt ingedeeld of wat uit een
+Dezelfde knop staat ook in het **Nazicht**, zie [hoofdstuk 7](#7-nazicht).
+
+Twee dingen blijven ongemoeid. Wat je zelf hebt ingedeeld of wat uit een
 ingelezen bestand kwam, blijft altijd staan: zodra jij een categorie kiest, is
 de band met de regel verbroken en overschrijft een latere wijziging aan die
 regel jouw keuze niet meer. Wat de fuzzy stap of het
 AI-model heeft toegewezen, blijft eveneens staan — alleen een toewijzing die van
-déze regel kwam, gaat weg. En handelaar en land blijven zoals ze waren; die staan
-los van de indeling.
+déze regel kwam, gaat weg. Winkel en land gaan mee met de indeling: zie
+hieronder.
+
+#### Winkel en land volgen de indeling
+
+Een regel, een gelijkenis en het AI-model vullen soms ook de winkel en het land
+in. Bij een gelijkenis komen die van de transactie waarop ze leek. Zulke velden
+horen bij die automatische indeling. Verandert de indeling — bij *Alle regels
+opnieuw toepassen*, bij *Opnieuw indelen*, bij het bewerken, uitzetten of
+verwijderen van een regel, of bij een nieuw AI-voorstel — dan gaan ze mee weg.
+De transactie krijgt dan de winkel en het land van het nieuwe voorstel, of een
+leeg veld als dat voorstel er niets over zegt. Zo blijft er geen *Flying tiger*
+van een oude gelijkenis staan naast de categorie van je regel voor *aanvul
+zicht E*.
+
+Wat een mens of een bestand invulde, blijft wel staan: een winkel die je zelf
+typte, of die bij het opnieuw inlezen van een bestand in een leeg veld werd
+aangevuld. De toepassing onthoudt per transactie welke van de twee velden de
+motor zelf heeft ingevuld.
+
+> Transacties van vóór versie 0.32.0: daar was dat nog niet bijgehouden. Bij de
+> update krijgt elke transactie die niet met de hand, niet uit een bestand en
+> niet nagekeken is, het merkteken voor de winkel en het land die er op dat
+> moment staan. Tot nu toe kwamen die daar vrijwel altijd van de motor. Een
+> winkel die bij het opnieuw inlezen van een bestand werd aangevuld, geldt
+> daardoor ook als automatisch; wil je die zeker houden, pas de transactie dan
+> met de hand aan.
 
 ### Stap 2: fuzzy vergelijking
 
@@ -1035,7 +1064,9 @@ Een regel uitzetten of verwijderen regelt zichzelf: zie *Een regel bewerken,
 uitzetten of verwijderen* hierboven.
 
 **De bron verandert mee.** Bij een herindeling herschrijft de motor niet alleen
-de categorie maar ook de methode. Een voorstel dat nu *gelijkenis* zegt, kan
+de categorie maar ook de methode, en de winkel en het land die hij zelf had
+ingevuld (zie [Winkel en land volgen de
+indeling](#winkel-en-land-volgen-de-indeling)). Een voorstel dat nu *gelijkenis* zegt, kan
 daarna *vaste regel* zeggen. De categorie kan dezelfde blijven, maar waar ze
 vandaan kwam niet. Transacties *met de hand* of *uit het bestand* vallen daar
 buiten: die houden hun indeling en hun bron. Er wordt vooraf een kopie van de
@@ -1126,6 +1157,30 @@ bruikbaar antwoord, dan blijft de transactie hier staan.
 
 Elke tabel toont de eerste 300 rijen; hoeveel het er in totaal zijn, staat
 naast de titel. Met de filters maak je de lijst kleiner.
+
+**Opnieuw indelen en alle regels opnieuw toepassen.** Bovenaan het nazicht
+staan twee knoppen. **Opnieuw indelen** laat de hele motor opnieuw los —
+regels, gelijkenissen en eventueel het AI-model — binnen het bereik dat je kiest
+(zie [Alles opnieuw laten indelen](#alles-opnieuw-laten-indelen)). **Alle regels
+opnieuw toepassen** gebruikt alleen de vaste regels. Het is dezelfde knop als
+bij *Instellingen › Regels* (zie [Stap 1: vaste regels](#stap-1-vaste-regels)):
+
+- wat door een regel is ingedeeld, wordt opnieuw beoordeeld met de regels zoals
+  ze nu staan;
+- transacties zonder categorie en onbevestigde gelijkenissen of AI-voorstellen
+  krijgen de indeling van een regel die erop past;
+- winkel en land die de motor had ingevuld, gaan mee weg en worden die van de
+  regel;
+- wat je met de hand indeelde, wat uit een bestand kwam, wat je met **Klopt**
+  bevestigde en een gelijkenis die de motor zelf bevestigde, blijven staan.
+
+Er wordt eerst een kopie van de databank gelegd. Veranderde er iets, dan kom je
+op de transactielijst uit met net die transacties; anders blijf je op het
+nazicht, met een melding.
+
+Gebruik deze knop na het toevoegen of aanpassen van een paar regels. Hij is
+sneller dan *Opnieuw indelen* en laat de gelijkenissen die geen regel raken
+ongemoeid.
 
 ---
 

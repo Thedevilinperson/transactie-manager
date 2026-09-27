@@ -120,7 +120,7 @@
     staan.</p>
 
   <div class="knoppen" style="margin-bottom:14px">
-    <form method="post" data-bevestig="Alle regels opnieuw toepassen op je hele boekhouding? Elke transactie die door een regel is ingedeeld, wordt opnieuw beoordeeld. Transacties waar geen enkele regel meer op past, komen op nazicht te staan zonder categorie. Transacties zonder categorie en onbevestigde gelijkenissen of AI-voorstellen krijgen de indeling van een regel die erop past.">
+    <form method="post" data-bevestig="Alle regels opnieuw toepassen op je hele boekhouding? Elke transactie die door een regel is ingedeeld, wordt opnieuw beoordeeld. Transacties waar geen enkele regel meer op past, komen op nazicht te staan zonder categorie. Transacties zonder categorie en onbevestigde gelijkenissen of AI-voorstellen krijgen de indeling van een regel die erop past, met de winkel en het land van die regel. Er wordt eerst een kopie van de databank gelegd.">
       <input type="hidden" name="actie" value="alles">
       <input type="hidden" name="terug" value="{{ url_for('instellingen.regels', **request.args) }}">
       <button type="submit" class="stil">Alle regels opnieuw toepassen</button>
@@ -133,7 +133,8 @@
     knop loopt over je hele boekhouding en zet dat in één keer recht. Daarna
     krijgt alles wat nog op je oordeel wacht — geen categorie, of een
     gelijkenis of AI-voorstel dat nog niet bevestigd is — de indeling van een
-    regel die erop past. Wat je zelf hebt ingedeeld, wat uit een bestand kwam,
+    regel die erop past. Winkel en land die de motor had ingevuld, gaan daarbij
+    mee weg en worden die van de regel. Wat je zelf hebt ingedeeld, wat uit een bestand kwam,
     wat je met <em>Klopt</em> bevestigde en een automatisch bevestigde
     gelijkenis blijven staan.</p>
 

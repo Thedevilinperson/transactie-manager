@@ -17,6 +17,49 @@ from .database import now_iso
 BESCHERMDE_METHODEN = ("manueel", "bestand")
 NIET_BESCHERMD_SQL = "(methode NOT IN ('manueel', 'bestand') AND nagekeken = 0)"
 
+# Winkel en land kunnen van de motor komen (een regel, een gelijkenis of het
+# AI-model) of van een mens of een bestand. De kolom `auto_velden` onthoudt
+# welke van de twee de motor zelf heeft ingevuld. Zie `automatische_velden`.
+AUTO_VELDEN = ("handelaar", "land")
+
+
+def _auto_set(row) -> set[str]:
+    """Welke velden van deze rij door de motor zijn ingevuld."""
+    waarde = row["auto_velden"] if "auto_velden" in row.keys() else None
+    return {v for v in (waarde or "").split(",") if v in AUTO_VELDEN}
+
+
+def _auto_tekst(velden) -> str | None:
+    return ",".join(v for v in AUTO_VELDEN if v in velden) or None
+
+
+def automatische_velden(row, crypto, voorstel: Voorstel | None = None) -> dict:
+    """Winkel en land voor een nieuwe automatische indeling van deze rij.
+
+    Geef het resultaat mee aan `werk_bij`, samen met de nieuwe categorie. Wat de
+    motor vroeger invulde, hoort bij die vroegere indeling: het maakt plaats
+    voor wat het nieuwe voorstel zegt, of verdwijnt als dat voorstel er niets
+    over zegt. Zonder `voorstel` (de categorie gaat weg) verdwijnt het gewoon.
+
+    Wat een mens of een ingelezen bestand invulde, blijft staan; dat weegt
+    zwaarder dan een voorstel van de motor.
+    """
+    auto = _auto_set(row)
+    huidig = {"handelaar": crypto.dec(row["handelaar_enc"]) or "",
+              "land": crypto.dec(row["land_enc"]) or ""}
+    uit: dict = {}
+    nieuw_auto = set()
+    for veld in AUTO_VELDEN:
+        if huidig[veld] and veld not in auto:
+            uit[veld] = huidig[veld]
+            continue
+        voorgesteld = (getattr(voorstel, veld, None) or "") if voorstel else ""
+        uit[veld] = voorgesteld
+        if voorgesteld:
+            nieuw_auto.add(veld)
+    uit["auto_velden"] = _auto_tekst(nieuw_auto)
+    return uit
+
 
 def is_beschermd(row) -> bool:
     """Dezelfde vraag als NIET_BESCHERMD_SQL, voor een rij die al opgehaald is."""
@@ -237,6 +280,14 @@ def bewaar(conn, crypto, *, rekening_id: int, boekdatum: date | str, bedrag: Dec
             return None
 
     voorstel = voorstel or Voorstel()
+    # Wat uit het voorstel komt en niet van een mens of een bestand, merken we
+    # als automatisch: het gaat weg wanneer de indeling later verandert.
+    van_motor = voorstel.methode not in BESCHERMDE_METHODEN
+    auto = set()
+    if not handelaar and voorstel.handelaar and van_motor:
+        auto.add("handelaar")
+    if not land and voorstel.land and van_motor:
+        auto.add("land")
     handelaar = handelaar or (voorstel.handelaar or "")
     land = land or (voorstel.land or "")
     tijdstip = now_iso()
@@ -248,8 +299,8 @@ def bewaar(conn, crypto, *, rekening_id: int, boekdatum: date | str, bedrag: Dec
         " tegenpartij_rek_idx, begunstigde_enc, mededeling_enc, handelaar_enc, handelaar_idx,"
         " land_enc, categorie_id, subcategorie_id, subsub_id, zekerheid, methode, status,"
         " toelichting_enc, vingerafdruk, batch_id, ruwe_data_enc, is_afrekening, ouder_tx_id,"
-        " bron, regel_id, aangemaakt_op, gewijzigd_op)"
-        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        " bron, regel_id, auto_velden, aangemaakt_op, gewijzigd_op)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (
             rekening_id, datum, vd, vrd,
             crypto.enc(referentie) if referentie else None,
@@ -274,6 +325,7 @@ def bewaar(conn, crypto, *, rekening_id: int, boekdatum: date | str, bedrag: Dec
             crypto.enc(ruwe_data) if ruwe_data else None,
             1 if is_afrekening else 0, ouder_tx_id, bron,
             voorstel.regel_id if voorstel.methode == "regel" else None,
+            _auto_tekst(auto),
             tijdstip, tijdstip,
         ),
     )
@@ -384,7 +436,13 @@ def vul_aan(conn, crypto, tx_id: int, velden: dict) -> list[str]:
 
 
 def werk_bij(conn, crypto, tx_id: int, **velden) -> None:
-    """Past velden aan. Onbekende sleutels worden genegeerd."""
+    """Past velden aan. Onbekende sleutels worden genegeerd.
+
+    Winkel of land meegeven zonder `auto_velden` betekent: dit komt van een
+    mens of een bestand. Dan vervalt voor dat veld het merkteken dat de motor
+    het invulde. De motor zelf geeft `auto_velden` altijd mee, via
+    `automatische_velden`.
+    """
     kolommen = {
         "categorie_id": ("categorie_id", None),
         "subcategorie_id": ("subcategorie_id", None),
@@ -407,7 +465,15 @@ def werk_bij(conn, crypto, tx_id: int, **velden) -> None:
         "toelichting": ("toelichting_enc", "enc"),
         "boekdatum": ("boekdatum", None),
         "rekening_id": ("rekening_id", None),
+        "auto_velden": ("auto_velden", None),
     }
+    aangeraakt = [v for v in AUTO_VELDEN if v in velden]
+    if aangeraakt and "auto_velden" not in velden:
+        rij = conn.execute("SELECT auto_velden FROM transacties WHERE id = ?",
+                           (tx_id,)).fetchone()
+        if rij is not None:
+            velden = {**velden,
+                      "auto_velden": _auto_tekst(_auto_set(rij) - set(aangeraakt))}
     # Schrijft de motor een nieuwe indeling weg (hij zet altijd een methode),
     # dan heeft niemand die nog nagekeken. Wie een mens laat bevestigen of
     # zelf indelen, geeft `nagekeken` uitdrukkelijk mee.

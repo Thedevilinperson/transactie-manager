@@ -22,8 +22,8 @@ from dataclasses import dataclass, field
 
 from .categorizer.engine import Motor
 from .database import now_iso
-from .transacties import (NIET_BESCHERMD_SQL, is_beschermd, rij_naar_object,
-                          werk_bij)
+from .transacties import (NIET_BESCHERMD_SQL, automatische_velden, is_beschermd,
+                          rij_naar_object, werk_bij)
 
 # Hoever een herindeling gaat. De eerste is de standaard en het veilige bereik:
 # een transactie die al ergens in zit, is daar meestal met opzet beland.
@@ -113,8 +113,9 @@ def voer_uit(conn, crypto, bereik: str = "zonder_categorie", taak=None) -> Uitsl
                 categorie_id=voorstel.categorie_id,
                 subcategorie_id=voorstel.subcategorie_id,
                 subsub_id=voorstel.subsub_id,
-                handelaar=voorstel.handelaar or tx.handelaar,
-                land=voorstel.land or tx.land,
+                # Winkel en land van een vorige gelijkenis of regel gaan mee
+                # weg; alleen wat een mens of een bestand invulde, blijft.
+                **automatische_velden(row, crypto, voorstel),
                 zekerheid=voorstel.zekerheid,
                 status=voorstel.status,
                 methode=voorstel.methode,
@@ -128,6 +129,7 @@ def voer_uit(conn, crypto, bereik: str = "zonder_categorie", taak=None) -> Uitsl
             werk_bij(
                 conn, crypto, tx.id,
                 categorie_id=None, subcategorie_id=None, subsub_id=None,
+                **automatische_velden(row, crypto),
                 zekerheid=0.0, status="niet_toegewezen", methode="geen",
                 toelichting=INGETROKKEN_TOELICHTING, regel_id=None,
             )

@@ -4,6 +4,47 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.32.0] — 2026-09-27
+
+### Toegevoegd
+- **Knop *Alle regels opnieuw toepassen* in het nazicht.** Dezelfde handeling
+  als bij *Instellingen › Regels*, in een eigen blok onder *Opnieuw indelen*:
+  wat door een regel is ingedeeld wordt opnieuw beoordeeld, en transacties
+  zonder categorie en onbevestigde gelijkenissen of AI-voorstellen krijgen de
+  indeling van een regel die erop past. Wat met de hand of uit een bestand
+  kwam en wat je met *Klopt* bevestigde, blijft staan. Er wordt eerst een
+  kopie van de databank gelegd; veranderde er iets, dan toont de
+  transactielijst net die transacties.
+- **Een transactie onthoudt welke van winkel en land de motor zelf invulde**
+  (nieuwe kolom `auto_velden`, schemaversie 11). Wat je zelf typt of wat een
+  ingelezen bestand aanvult, krijgt dat merkteken niet.
+
+### Opgelost
+- **Winkel en land van een gelijkenis bleven staan bij een herbeoordeling.**
+  Een gelijkenis neemt de winkel en het land over van de transactie waarop ze
+  lijkt. Nam een regel die transactie later over, dan bleven die staan zodra
+  de regel zelf geen winkel of land had: een regel voor *aanvul zicht E*
+  leverde zo een transactie op met winkel *Flying tiger*. Nu volgen winkel en
+  land de indeling. Verandert die — bij *Alle regels opnieuw toepassen*,
+  *Opnieuw indelen*, het bewerken, uitzetten of verwijderen van een regel, of
+  een nieuw AI-voorstel — dan gaat wat de motor had ingevuld mee weg, en komt
+  in de plaats wat het nieuwe voorstel zegt, of niets.
+- Transacties die al door een regel in de juiste categorie stonden maar nog
+  een winkel of land van een vroegere gelijkenis droegen, worden bij *Alle
+  regels opnieuw toepassen* rechtgezet. De melding zegt bij hoeveel
+  transacties dat gebeurde.
+- Een regel die een transactie zonder categorie indeelde, gaf haar winkel en
+  land niet mee. Nu wel.
+
+### Gewijzigd
+- Bij de update krijgen bestaande transacties die niet met de hand, niet uit
+  een bestand en niet nagekeken zijn, het merkteken voor de winkel en het land
+  die er nu staan: tot nu toe kwamen die daar vrijwel altijd van de motor.
+- De logica achter *Alle regels opnieuw toepassen* staat nu op één plek
+  (`regelonderhoud.pas_alle_regels_opnieuw_toe`) en wordt door beide knoppen
+  gebruikt. Het logboek houdt ook het aantal rechtgezette winkels en landen
+  bij.
+
 ## [0.31.0] — 2026-09-27
 
 ### Gewijzigd

@@ -82,11 +82,29 @@
       <strong>Klopt</strong> bevestigde, blijft in elk bereik staan, met die bron
       erbij. Voor de rest herschrijft de motor de indeling én de
       bron: een voorstel dat nu <em>gelijkenis</em> zegt, kan daarna <em>vaste
-      regel</em> zeggen. Daarom wordt er vooraf een kopie van de databank
+      regel</em> zeggen. Winkel en land die de motor zelf had ingevuld, gaan
+      mee met de oude indeling. Daarom wordt er vooraf een kopie van de databank
       gelegd; via <a href="{{ url_for('instellingen.backups') }}">Kopieën</a>
       zet je die terug.</p>
 
     <button type="submit" class="stil">Opnieuw indelen</button>
+  </form>
+</div>
+
+<div class="vlak">
+  <h2>Alle regels opnieuw toepassen</h2>
+  <p>Alleen de vaste regels, zonder gelijkenissen of het
+    AI-model. Wat door een regel is ingedeeld, wordt opnieuw beoordeeld met de
+    regels zoals ze nu staan. Wat nog op je oordeel wacht — geen categorie, of
+    een gelijkenis of AI-voorstel dat nog niet bevestigd is — krijgt de
+    indeling van een regel die erop past. Winkel en land die de motor had
+    ingevuld, gaan daarbij mee weg en worden die van de regel. Wat je met de
+    hand indeelde, wat uit een bestand kwam en wat je met
+    <strong>Klopt</strong> bevestigde, blijft staan. Dezelfde knop staat bij
+    <a href="{{ url_for('instellingen.regels') }}">Instellingen › Regels</a>.</p>
+  <form method="post" action="{{ url_for('tx.regels_toepassen') }}" style="margin-top:10px"
+        data-bevestig="Alle regels opnieuw toepassen? Wat door een regel is ingedeeld wordt opnieuw beoordeeld; transacties zonder categorie en onbevestigde gelijkenissen of AI-voorstellen krijgen de indeling van een regel die erop past. Wat je met de hand of via een bestand indeelde, en wat je met Klopt bevestigde, blijft staan. Er wordt eerst een kopie van de databank gelegd. Doorgaan?">
+    <button type="submit" class="stil">Alle regels opnieuw toepassen</button>
   </form>
 </div>
 

@@ -22,7 +22,8 @@ from ..database import get_db, instelling, log, now_iso
 from .. import regelmaker
 from ..regelonderhoud import (WIS_TOELICHTING, hangende_transacties, herbekijk,
                               herstel_bewerkte_onzekere_regels, maak_zeker,
-                              pas_toe_geteld, verslag)
+                              pas_alle_regels_opnieuw_toe, pas_toe_geteld,
+                              veranderd, verslag)
 from .instellingen import EXTRA_OPERATOREN, HERKOMSTEN, VELDNAMEN, _regelrijen
 from ..transacties import bewaar, haal, tel, werk_bij, zoek
 
@@ -483,6 +484,28 @@ def herindelen():
 
     flash(herindeling_melding(uitslag), "goed")
     return redirect(url_for("tx.lijst", gewijzigd_na=vanaf))
+
+
+@bp.route("/regels-toepassen", methods=["POST"])
+@login_vereist
+def regels_toepassen():
+    """*Alle regels opnieuw toepassen*, vanuit het nazicht.
+
+    Dezelfde handeling als de knop bij de regels (zie
+    `regelonderhoud.herbekijk_alles`): wat door een regel is ingedeeld wordt
+    opnieuw beoordeeld, en wat nog op een oordeel wacht — geen categorie, een
+    onbevestigde gelijkenis of een onbevestigd AI-voorstel — krijgt de
+    indeling van een regel die erop past. Wat met de hand of uit een bestand
+    kwam, en wat je met *Klopt* bevestigde, blijft staan.
+    """
+    conn = get_db()
+    vanaf = now_iso()
+    uit = pas_alle_regels_opnieuw_toe(conn, g.crypto, g.gebruiker)
+    conn.commit()
+    flash("Alle regels opnieuw toegepast. " + verslag(uit), "goed")
+    if veranderd(uit):
+        return redirect(url_for("tx.lijst", gewijzigd_na=vanaf))
+    return redirect(url_for("tx.nazicht"))
 
 
 def herindeling_melding(uitslag) -> str:
