@@ -1,6 +1,9 @@
+# Bovengrenzen op de hoofdversie, zodat een nieuwe grote versie de bouw niet
+# onverwacht verandert. Van elk pakket bestaat een wheel voor Python 3.13 op
+# Alpine (musllinux), voor amd64 en aarch64; zie de Dockerfile.
 Flask>=3.0,<4.0
-cryptography>=42.0
-openpyxl>=3.1
-rapidfuzz>=3.6
-pdfplumber>=0.11
-waitress>=3.0
+cryptography>=42.0,<51
+openpyxl>=3.1,<4
+rapidfuzz>=3.6,<4
+pdfplumber>=0.11,<0.12
+waitress>=3.0,<4

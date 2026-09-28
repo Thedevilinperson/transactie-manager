@@ -102,7 +102,17 @@ de add-on een poort bij *Netwerk*.
 Het basisimage staat bovenaan de `Dockerfile`, in de `FROM`-regel. Home
 Assistant publiceert die images als multi-platform manifest, dus één regel geldt
 voor alle architecturen. De oude `build.yaml` met een image per architectuur is
-door Home Assistant afgevoerd en zit hier niet meer in.
+door Home Assistant afgevoerd. Staat ze nog in je repository, verwijder ze dan:
+de Supervisor leest ze anders nog in en meldt dat ze verouderd is.
+
+## Bouwen
+
+De `Dockerfile` installeert alleen kant-en-klare pakketten (wheels). Voor
+Python 3.13 op Alpine bestaan die voor elk pakket uit `requirements.txt`, voor
+`amd64` en `aarch64`. Er is bewust geen terugval op compileren: dat duurt langer
+dan de 15 minuten die de Supervisor een bouw gunt, en eindigt dan in *Timeout
+starting app_builder*. Mislukt een download, dan stopt de bouw met de melding
+van pip; opnieuw proberen volstaat meestal.
 
 Home Assistant onderhoudt alleen basisimages die nog ondersteund worden. Loopt
 het bouwen ooit vast omdat het image niet meer bestaat, zet dan in de

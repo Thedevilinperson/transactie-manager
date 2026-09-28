@@ -14,17 +14,24 @@ WORKDIR /opt/transactie-manager
 
 COPY requirements.txt ./
 
-# Eerst kant-en-klare pakketten proberen. Bestaan die voor deze architectuur,
-# dan is bouwgereedschap niet nodig en scheelt dat een flink stuk bouwtijd.
-RUN set -eux; \
-    pip install --no-cache-dir --upgrade pip; \
-    if ! pip install --no-cache-dir --only-binary=:all: -r requirements.txt; then \
-        apk add --no-cache --virtual .bouw \
-            build-base libffi-dev openssl-dev cargo rust python3-dev; \
-        apk add --no-cache libffi openssl libstdc++; \
-        pip install --no-cache-dir -r requirements.txt; \
-        apk del .bouw; \
-    fi
+# Alleen kant-en-klare pakketten (wheels). Voor Python 3.13 op Alpine (musl)
+# bestaan die voor elk pakket, zowel voor amd64 als voor aarch64.
+#
+# Tot versie 0.33.2 viel dit bij de minste fout terug op compileren: Rust,
+# Cargo en een C-compiler installeren en alles uit de broncode bouwen. Een
+# kleine haper in het netwerk tijdens het downloaden volstond om daarin te
+# belanden, en dat compileren duurt langer dan de 15 minuten die de Supervisor
+# een bouw gunt ("Timeout starting app_builder"). Nu mislukt een download snel
+# en met een duidelijke melding, en probeert pip het eerst zelf opnieuw.
+# pip wordt ook niet meer eerst bijgewerkt: dat was een extra download die
+# niets bijbracht.
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DEFAULT_TIMEOUT=30 \
+    PIP_RETRIES=5 \
+    PIP_PROGRESS_BAR=off
+
+RUN pip install --only-binary=:all: -r requirements.txt
 
 COPY app ./app
 # De handleiding wordt in de toepassing zelf getoond, dus ze moet mee.

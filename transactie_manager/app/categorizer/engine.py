@@ -82,6 +82,11 @@ class TransactieKenmerken:
     begunstigde: str = ""
     bedrag: Decimal = Decimal("0")
     richting: str = "uit"
+    # Genormaliseerde veldwaarden, één keer berekend. Een transactie wordt
+    # tegen honderden regels gelegd; telkens opnieuw normaliseren kostte het
+    # grootste deel van de rekentijd.
+    _veldcache: dict = field(default_factory=dict, init=False, repr=False,
+                             compare=False)
 
     def tekst(self) -> str:
         return normalize(" ".join(
@@ -109,6 +114,16 @@ class Voorwaarde:
     operator: str
     waarde: str
     koppeling: str = "en"
+
+    @property
+    def naald(self) -> str:
+        """De waarde zoals ze vergeleken wordt, één keer genormaliseerd."""
+        n = self.__dict__.get("_naald")
+        if n is None:
+            n = (normalize_iban(self.waarde) if self.veld == "tegenpartij_rekening"
+                 else normalize(self.waarde))
+            self.__dict__["_naald"] = n
+        return n
 
 
 # Vergelijkingen die iets insluiten. Een groep voorwaarden die alleen uit
@@ -192,8 +207,18 @@ class Regel:
 
     @property
     def voorwaarden(self) -> list[Voorwaarde]:
-        """Alle voorwaarden samen, de eerste voorop."""
-        return [Voorwaarde(self.veld, self.operator, self.waarde)] + self.extra
+        """Alle voorwaarden samen, de eerste voorop. Eén keer opgebouwd."""
+        vw = self.__dict__.get("_voorwaarden")
+        if vw is None:
+            vw = [Voorwaarde(self.veld, self.operator, self.waarde)] + self.extra
+            self.__dict__["_voorwaarden"] = vw
+            self.__dict__["_groepen"] = groepen(vw)
+        return vw
+
+    @property
+    def groepen(self) -> list[list[Voorwaarde]]:
+        self.voorwaarden
+        return self.__dict__["_groepen"]
 
     @property
     def gecombineerd(self) -> bool:
@@ -242,6 +267,13 @@ def laad_regels(conn, crypto, alleen_actief: bool = True) -> list[Regel]:
 
 
 def _veldwaarde(k: TransactieKenmerken, veld: str) -> str:
+    waarde = k._veldcache.get(veld)
+    if waarde is None:
+        waarde = k._veldcache[veld] = _bereken_veldwaarde(k, veld)
+    return waarde
+
+
+def _bereken_veldwaarde(k: TransactieKenmerken, veld: str) -> str:
     if veld == "sleutel":
         return k.sleutel()
     if veld == "beschrijving":
@@ -280,8 +312,7 @@ def _voorwaarde_past(vw: Voorwaarde, k: TransactieKenmerken) -> bool:
     er inderdaad niet.
     """
     doel = _veldwaarde(k, vw.veld)
-    naald = (normalize_iban(vw.waarde) if vw.veld == "tegenpartij_rekening"
-             else normalize(vw.waarde))
+    naald = vw.naald
 
     if vw.operator == "regex":
         try:
@@ -317,7 +348,7 @@ def regel_past(regel: Regel, k: TransactieKenmerken) -> bool:
         return False
 
     return any(all(_voorwaarde_past(vw, k) for vw in groep)
-               for groep in groepen(regel.voorwaarden))
+               for groep in regel.groepen)
 
 
 def eerste_passende(regels: list[Regel], k: TransactieKenmerken) -> Regel | None:
@@ -694,44 +725,51 @@ class Regelboek:
     elkaar lopen.
     """
 
+    # Velden waarop een regel met "is precies gelijk aan" als eerste
+    # voorwaarde opgezocht kan worden in plaats van doorlopen.
+    OPZOEKBAAR = ("sleutel", "beschrijving", "tegenpartij_naam",
+                  "tegenpartij_rekening", "mededeling")
+
     def __init__(self, regels: list[Regel]):
         self.regels = sorted(regels, key=lambda r: (r.prioriteit, r.id))
-        # Per (veld, waarde) alle exacte regels, op prioriteit. Een lijst en
-        # geen enkele regel: dezelfde waarde kan een regel voor uitgaven en een
-        # voor inkomsten hebben, en die tweede viel vroeger weg.
-        self.exact: dict[tuple[str, str], list[Regel]] = {}
+        # Regels zonder OF worden opgezocht op álle velden waar ze "is precies
+        # gelijk aan" op zeggen: per combinatie van velden (de handtekening,
+        # bijvoorbeeld beschrijving + tegenpartij) een woordenboek van waarden
+        # naar regels. Een transactie zoekt dan per handtekening één keer op,
+        # en alleen die paar regels worden nog volledig nagekeken (bevat,
+        # bedragvork, richting). Tot versie 0.33.1 werden zulke regels voor
+        # elke transactie allemaal doorlopen: met duizenden regels uit je
+        # historiek op twee kolommen liep een invoer daardoor vast.
+        self.opzoek: dict[tuple, dict[tuple, list[Regel]]] = {}
         self.los: list[Regel] = []
         for regel in self.regels:
-            if regel.operator == "gelijk" and not regel.extra \
-                    and regel.bedrag_min is None and regel.bedrag_max is None \
-                    and regel.veld in ("sleutel", "beschrijving", "tegenpartij_naam",
-                                       "tegenpartij_rekening", "mededeling"):
-                sleutel = (regel.veld,
-                           normalize_iban(regel.waarde)
-                           if regel.veld == "tegenpartij_rekening"
-                           else normalize(regel.waarde))
-                self.exact.setdefault(sleutel, []).append(regel)
-            else:
+            if any(vw.koppeling == "of" for vw in regel.extra):
                 self.los.append(regel)
+                continue
+            exact = sorted({(vw.veld, vw.naald) for vw in regel.voorwaarden
+                            if vw.operator == "gelijk" and vw.veld in self.OPZOEKBAAR})
+            if not exact or not all(w for _, w in exact):
+                self.los.append(regel)
+                continue
+            handtekening = tuple(v for v, _ in exact)
+            waarden = tuple(w for _, w in exact)
+            self.opzoek.setdefault(handtekening, {}).setdefault(waarden, []).append(regel)
 
     def beste(self, k: TransactieKenmerken) -> Regel | None:
         """De regel die deze transactie toewijst, of None.
 
-        Exacte treffers en regels met een bedragvork worden samen beoordeeld en
-        niet na elkaar: anders zou een brede regel op de tegenpartij altijd
-        voorgaan op een nauwkeurigere regel die het bedrag meeneemt.
+        Opgezochte regels en doorlopen regels worden samen beoordeeld en niet na
+        elkaar: anders zou een brede regel op de tegenpartij altijd voorgaan op
+        een nauwkeurigere regel die het bedrag meeneemt. Van elke soort telt de
+        eerste die volledig past; daarna wint de laagste prioriteit.
         """
         kandidaten: list[Regel] = []
-        for veld, waarde in (("sleutel", k.sleutel()),
-                             ("beschrijving", normalize(k.beschrijving)),
-                             ("tegenpartij_naam", normalize(k.tegenpartij_naam)),
-                             ("tegenpartij_rekening",
-                              normalize_iban(k.tegenpartij_rekening)),
-                             ("mededeling", normalize(k.mededeling))):
-            if not waarde:
+        for handtekening, per_waarde in self.opzoek.items():
+            waarden = tuple(_veldwaarde(k, v) for v in handtekening)
+            if not all(waarden):
                 continue
-            regel = next((r for r in self.exact.get((veld, waarde), ())
-                          if r.richting is None or r.richting == k.richting), None)
+            regel = next((r for r in per_waarde.get(waarden, ()) if regel_past(r, k)),
+                         None)
             if regel is not None:
                 kandidaten.append(regel)
 

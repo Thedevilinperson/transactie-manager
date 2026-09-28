@@ -193,6 +193,7 @@ CREATE INDEX IF NOT EXISTS ix_tx_datum   ON transacties(boekdatum);
 CREATE INDEX IF NOT EXISTS ix_tx_status  ON transacties(status);
 CREATE INDEX IF NOT EXISTS ix_tx_cat     ON transacties(categorie_id);
 CREATE INDEX IF NOT EXISTS ix_tx_rek     ON transacties(rekening_id);
+CREATE INDEX IF NOT EXISTS ix_tx_rek_datum ON transacties(rekening_id, boekdatum);
 CREATE INDEX IF NOT EXISTS ix_tx_tpnaam  ON transacties(tegenpartij_naam_idx);
 CREATE INDEX IF NOT EXISTS ix_tx_sleutel ON transacties(sleutel_idx);
 CREATE INDEX IF NOT EXISTS ix_tx_ouder   ON transacties(ouder_tx_id);

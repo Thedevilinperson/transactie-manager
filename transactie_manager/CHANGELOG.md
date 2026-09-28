@@ -4,6 +4,54 @@ Alle noemenswaardige wijzigingen aan dit project staan hier. De opmaak volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/) en de versienummers
 volgen [Semantische versionering](https://semver.org/lang/nl/).
 
+## [0.33.2] — 2026-09-28
+
+### Opgelost
+- **De update van de add-on bleef op 0% staan en stopte na 15 minuten** met
+  *Timeout starting app_builder* in het logboek van de Supervisor. De
+  `Dockerfile` probeerde eerst kant-en-klare pakketten en viel bij de minste
+  fout terug op het compileren van alles: Rust, Cargo en een C-compiler
+  installeren en `cryptography`, `rapidfuzz` en `Pillow` uit de broncode
+  bouwen. Dat duurt langer dan de 15 minuten die de Supervisor een bouw gunt.
+  Nu worden alleen kant-en-klare pakketten geïnstalleerd — die bestaan voor
+  Python 3.13 op Alpine voor amd64 en aarch64 — en probeert pip een mislukte
+  download eerst zelf opnieuw. Mislukt het toch, dan stopt de bouw snel met de
+  melding van pip in plaats van een kwartier te hangen. pip wordt ook niet meer
+  eerst bijgewerkt.
+- `requirements.txt` heeft bovengrenzen op de hoofdversie, zodat een nieuwe
+  grote versie van een pakket de bouw niet onverwacht verandert.
+
+### Documentatie
+- *Bij problemen* en `docs/ADDON.md` leggen uit wat *Timeout starting
+  app_builder* betekent, en dat `transactie_manager/build.yaml` uit de
+  repository verwijderd moet worden (de Supervisor meldt ze als verouderd).
+
+## [0.33.1] — 2026-09-28
+
+### Opgelost
+- **Invoer en het toepassen van regels liepen vast bij veel regels.** Regels uit
+  je historiek op twee of meer kolommen hebben bijkomende voorwaarden, en zulke
+  regels werden voor elke transactie allemaal doorlopen. Met een historiek van
+  12.000 transacties en 4.700 regels duurde het inlezen van 600 nieuwe
+  transacties 31 seconden en *Alle regels opnieuw toepassen* 22 seconden, en op
+  een klein toestel een veelvoud daarvan. Nu worden regels opgezocht op elk veld
+  waar ze *is precies gelijk aan* op zeggen, en alleen de paar regels die
+  daaruit komen, worden nog volledig nagekeken: 1,5 seconden en 0,6 seconden.
+  Het resultaat is identiek: op 12.000 transacties en bijna 15.000 regels gaf
+  de nieuwe opzoeking in alle gevallen dezelfde regel als het volledig
+  doorlopen.
+- **Een grote historiek inlezen werd kwadratisch trager.** Bij het ontdubbelen
+  van een nieuwe rij werd elke transactie van de rekening doorlopen, omdat de
+  databank geen index had op rekening en datum samen. Nieuwe index
+  `ix_tx_rek_datum`; die wordt bij de update vanzelf aangemaakt. 12.000 rijen
+  historiek inlezen ging van 32 naar 8 seconden.
+- De genormaliseerde waarden van een transactie en van een voorwaarde worden
+  nog maar één keer berekend in plaats van bij elke vergelijking.
+
+### Documentatie
+- *Bij problemen* legt uit waarom de installatie of update van de add-on op 0%
+  blijft staan terwijl Home Assistant bouwt, en waar je de bouwstappen ziet.
+
 ## [0.33.0] — 2026-09-27
 
 Een herschrijving van hoe regels ontstaan, bevestigd worden en toegepast

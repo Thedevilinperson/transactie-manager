@@ -1,6 +1,6 @@
 # Handleiding Transactie Manager
 
-Versie 0.33.0
+Versie 0.33.2
 
 Deze handleiding beschrijft de toepassing van begin tot eind: installeren,
 eerste inrichting, transacties toevoegen, indelen en rapporteren.
@@ -1576,6 +1576,32 @@ mee.
 **De som van de kaartaankopen wijkt af van het totaal.** Er ontbreken regels, of
 er zit een regel bij die geen aankoop is. Kijk de lijst na op het
 controlescherm en vink af wat niet klopt.
+
+**De installatie of update van de add-on blijft op 0% staan.** Home Assistant
+bouwt deze add-on zelf op je toestel. Tijdens dat bouwen is er geen voortgang
+om te tonen, dus de balk blijft op 0% tot het bouwen klaar is; normaal duurt
+dat enkele minuten. Wat er gebeurt, zie je bij *Instellingen › Systeem ›
+Logboeken*, met bovenaan *Supervisor* gekozen.
+
+- Staat er na een kwartier *Timeout starting app_builder*, dan heeft de
+  Supervisor het bouwen afgebroken: hij gunt een bouw hoogstens 15 minuten. Tot
+  versie 0.33.2 kon de bouw bij een haper in het netwerk overschakelen op het
+  compileren van alle pakketten, en dat duurt langer dan die 15 minuten. Sinds
+  0.33.2 gebeurt dat niet meer: er worden alleen kant-en-klare pakketten
+  geïnstalleerd, en een mislukte download stopt de bouw snel met een
+  duidelijke melding. Probeer dan gewoon opnieuw; blijft het mislukken, kijk
+  dan of je Home Assistant-toestel het internet bereikt.
+- Staat er een waarschuwing dat *build.yaml* verouderd is, verwijder dan het
+  bestand `transactie_manager/build.yaml` uit je repository. Het basisimage
+  staat sinds een tijd in de `Dockerfile`.
+
+**Een invoer of het opnieuw toepassen van regels blijft lang hangen.** Tot
+versie 0.33.1 werd elke transactie tegen alle regels uit je historiek gelegd
+die op meer dan één kolom werkten, en werd bij het ontdubbelen van een nieuwe
+rij elke transactie van de rekening doorlopen. Met duizenden regels en
+transacties kon dat minuten duren, vooral op een klein toestel. Sinds 0.33.1
+worden zulke regels opgezocht in plaats van doorlopen, en loopt het ontdubbelen
+via een index.
 
 **De add-on start niet.** Kijk in het logboek van de add-on in Home Assistant.
 Duurt het bouwen erg lang op een Raspberry Pi, dan is dat normaal:
